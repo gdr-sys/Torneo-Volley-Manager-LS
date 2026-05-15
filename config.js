@@ -1,0 +1,10 @@
+/* Nomi squadre, riserve e costanti */
+'use strict';
+
+// ============================================================
+// NOMI E RISERVE
+// ============================================================
+const RAW={white:["BIANCHI","GIALLI","ROSSI","BLU","VERDI","ARANCIONI","VIOLA","TURCHESI","LILLA","ROSA","CELESTE","BORDEAUX","SMERALDO","MAGENTA","BEIGE","CIANO","MAGENTA","INDACO","LILLA","LIME","CORALLO","AMBRA","ACQUA","SABBIA","GRIGI","CELESTE","BORDEAUX","OLIVA","ZAFFIRO"],green:["LEONI","TIGRI","PANTERE","LINCI","LUPI","ORSI","FALCHI","AQUILE","CERVI","VOLPI","GUFI","GHEPARDI","SCORPIONI","PUMA","FENICI","RONDINI","COBRA","RICCI","STAMBECCHI","SCOIATTOLI","CANGURI","GIRAFFE","CAMMELLI","CANARINI","CONIGLI","LINCE","GALLI","CAVALLO","ELEFANTI","SERPENTI"],red:["ONDE","MAREE","CORALLI","CONCHIGLIE","SCOGLI","PORTO","COSTA","ESTATE","MARE","RIVA","OMBRELLONE","PALMA","SPIAGGIA","FARO","BAIA","PALMA","CORALLINA","TAVOLE","SPONDE","PORTO","BANCHINA","BATTIGIA","SALSINE","FARO","BUSSOLA","LIDO","LAGUNA","SCOGLIERA"]};
+const RISERVE={white:["OCRA","CREMISI","PERVINCA","AVORIO","VERMIGLIO","CARMINIO","EBANO","PLATINO","RUBINO","ACQUAMARINA","AMETISTA","TOPAZIO","MALACHITE","OSSIDIANA","COBALTO","TURCHESE","PESCA","CIPRIA","MUSCHIO","CAMMELLO"],green:["BUFALI","DELFINI","CIGNI","PELLICANI","IENE","BRADIPI","PINGUINI","FENICOTTERI","PAVONI","TUCANI","JAGUARI","CASTORI","PROCIONI","CAPIBARA","LEMURI","ALLIGATORI","STRUZZI","IPPOPOTAMI","RINOCERONTI","ZEBRE"],red:["ANCONA","PONENTE","RISACCA","DARSENA","INSENATURA","PROMONTORIO","APPRODO","BREZZA","GOLFO","CALETTA","DERIVA","NAVIGLIO","VELA","SCALO","ATTRACCO","MOLO","RADA","ESTUARIO","CANALE","BARCA"]};
+function buildNames(raw,riserve){const used=new Set();const r=[];let ri=0;for(const n of raw){if(!used.has(n)){used.add(n);r.push(n);}else{while(ri<riserve.length&&used.has(riserve[ri]))ri++;const s=ri<riserve.length?riserve[ri++]:n+'*';used.add(s);r.push(s);}}return r;}
+const NAMES={white:buildNames(RAW.white,RISERVE.white),green:buildNames(RAW.green,RISERVE.green),red:buildNames(RAW.red,RISERVE.red)};

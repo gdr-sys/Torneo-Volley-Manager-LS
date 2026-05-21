@@ -19,7 +19,10 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:v
 .sync-dot{width:8px;height:8px;border-radius:50%;background:#4ade80;animation:pulse 2s infinite;flex-shrink:0}
 .sync-txt{font-size:11px;color:#4ade80;font-weight:500}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
-select.live-sel{padding:5px 8px;border-radius:8px;background:#1a1d27;color:#fff;border:1px solid var(--border);font-size:12px}
+.live-torneo-name{font-size:13px;font-weight:600;color:#4ade80;
+  background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.3);
+  padding:4px 12px;border-radius:20px;white-space:nowrap;max-width:200px;
+  overflow:hidden;text-overflow:ellipsis;display:inline-block}
 
 /* Categoria tabs */
 .cat-tabs{display:flex;background:#1a1d27;border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch}
@@ -119,7 +122,7 @@ tr:last-child td{border-bottom:none}
       <span class="sync-dot" id="syncDot"></span>
       <span class="sync-txt" id="syncTxt">Live</span>
     </div>
-    <select class="live-sel" id="torneoSelect" onchange="setActiveTorneo(this.value)"></select>
+    <span class="live-torneo-name" id="torneoSelect"></span>
   </div>
 </div>
 
@@ -173,7 +176,7 @@ function setSyncStatus(){
   if(t)t.textContent='Live · '+new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
 }
 
-function setActiveTorneo(id){activeTorneoId=id;renderLive();}
+
 function setCatLive(cat){activeCat=cat;renderContent();}
 function setSubLive(sub){activeSub=sub;renderContent();}
 
@@ -203,18 +206,25 @@ function renderLive(){
   DB=window._liveDB;
   setSyncStatus();
   const tornei=DB.tornei||{};
-  const ids=Object.keys(tornei).sort((a,b)=>(tornei[b].createdAt||0)-(tornei[a].createdAt||0));
 
-  // Select tornei
-  const sel=document.getElementById('torneoSelect');
-  if(sel){
-    const curr=activeTorneoId||ids[0]||'';
-    sel.innerHTML=ids.map(id=>`<option value="${id}"${id===curr?' selected':''}>${tornei[id].nome}</option>`).join('');
-    if(!activeTorneoId&&ids.length)activeTorneoId=ids[0];
+  // Legge il torneo impostato come "live" dall'app di gestione
+  const liveId=localStorage.getItem('torneo_live_id');
+  if(liveId&&tornei[liveId]){
+    activeTorneoId=liveId;
+  } else {
+    // Fallback: primo torneo disponibile
+    const ids=Object.keys(tornei).sort((a,b)=>(tornei[b].createdAt||0)-(tornei[a].createdAt||0));
+    activeTorneoId=ids[0]||null;
+  }
+
+  // Mostra solo il nome del torneo (non il selettore)
+  const nameEl=document.getElementById('torneoSelect');
+  if(nameEl&&activeTorneoId&&tornei[activeTorneoId]){
+    nameEl.textContent=tornei[activeTorneoId].nome;
   }
 
   if(!activeTorneoId||!tornei[activeTorneoId]){
-    document.getElementById('liveRoot').innerHTML='<div class="no-data"><p>Nessun torneo disponibile</p></div>';
+    document.getElementById('liveRoot').innerHTML='<div class="no-data"><p>Nessun torneo in corso.<br>Impostalo dall\'app di gestione.</p></div>';
     return;
   }
 

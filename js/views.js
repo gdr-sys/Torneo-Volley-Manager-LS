@@ -16,9 +16,17 @@ function renderHome(){
       <button style="padding:12px 18px;font-size:13px" class="bd" onclick="azzeraDB()">🗑 Azzera tutto</button>
     </div>
     ${ids.length?`<div class="sec">Tornei salvati</div>`:''} 
-    ${ids.map(id=>{const t=DB.tornei[id];const nSoc=t.societa?.length||0;const date=t.createdAt?new Date(t.createdAt).toLocaleDateString('it-IT'):'';return`<div class="torneo-item" onclick="openTorneo('${id}')">
-      <div><div class="torneo-nome">${t.nome}</div><div class="torneo-meta">${nSoc} società · ${date}</div></div>
-      <div style="display:flex;gap:6px">
+    ${ids.map(id=>{const t=DB.tornei[id];const nSoc=t.societa?.length||0;const date=t.createdAt?new Date(t.createdAt).toLocaleDateString('it-IT'):'';const isLive=getLiveId()===id;
+    return`<div class="torneo-item${isLive?' active-t':''}" onclick="openTorneo('${id}')">
+      <div>
+        <div class="torneo-nome">${t.nome} ${isLive?'<span style=\'font-size:11px;background:#dcfce7;color:#166534;padding:1px 8px;border-radius:10px;font-weight:600\'>🔴 LIVE</span>':''}</div>
+        <div class="torneo-meta">${nSoc} società · ${date}</div>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center">
+        ${isLive
+          ?'<span style=\'font-size:11px;color:#166534;font-weight:500\'>In corso</span>'
+          :`<button class="bsm" style="background:#dcfce7;color:#166534;border-color:#86efac;font-size:11px" onclick="event.stopPropagation();setTorneoLive('${id}')">▶ Live</button>`
+        }
         <button class="bsm" onclick="event.stopPropagation();duplicaTorneo('${id}')">📋</button>
         <button class="bsm bd" onclick="event.stopPropagation();eliminaTorneo('${id}')">✕</button>
       </div>
@@ -43,6 +51,13 @@ function openTorneo(id){
   render();
 }
 function eliminaTorneo(id){if(!confirm('Eliminare questo torneo?'))return;delete DB.tornei[id];sv();render();}
+function setTorneoLive(id){
+  localStorage.setItem('torneo_live_id',id);
+  render();
+}
+function getLiveId(){
+  return localStorage.getItem('torneo_live_id');
+}
 function duplicaTorneo(id){const t=DB.tornei[id];const newId=uid();DB.tornei[newId]=JSON.parse(JSON.stringify(t));DB.tornei[newId].nome=t.nome+' (copia)';DB.tornei[newId].createdAt=Date.now();sv();render();}
 
 // ============================================================

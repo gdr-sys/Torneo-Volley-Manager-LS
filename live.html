@@ -1,165 +1,211 @@
 <!DOCTYPE html>
-<html lang="it" data-theme="light">
+<html lang="it">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="refresh" content="60">
-<title>Torneo Pallavolo — Classifiche Live</title>
-<script>
-// Legge i dati dal localStorage ogni 3 secondi
-function loadFromStorage(){
-  try{
-    const raw=localStorage.getItem('torneo_local');
-    if(raw){
-      const data=JSON.parse(raw);
-      if(data&&data.tornei){window._liveDB=data;renderLive();}
-    }
-  }catch(e){console.error(e);}
-}
-// Aggiornamento ogni 3 secondi
-setInterval(loadFromStorage,3000);
-// BroadcastChannel: aggiornamento istantaneo quando index.html salva
-try{
-  const bc=new BroadcastChannel('torneo_update');
-  bc.onmessage=()=>loadFromStorage();
-}catch(e){}
-// Caricamento iniziale
-window.addEventListener('DOMContentLoaded',()=>{
-  loadFromStorage();
-  setSyncStatus('ok');
-});
-</script>
+<title>Torneo Pallavolo — Live</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
-:root{--footer-text:rgba(255,255,255,0.5);--bg:#0f1117;--card:#1a1d27;--border:rgba(255,255,255,0.10);--txt:#f0f0f0;--txt2:#888;--accent-w:#4a9eff;--accent-g:#4ade80;--accent-r:#f87171;}
+:root{--bg:#0f1117;--card:#1a1d27;--border:rgba(255,255,255,0.10);--txt:#f0f0f0;--txt2:#888;--accent-w:#4a9eff;--accent-g:#4ade80;--accent-r:#f87171;--footer-text:rgba(255,255,255,0.5);}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--txt);min-height:100vh}
-.live-header{background:linear-gradient(135deg,#1a1d27,#0f1117);border-bottom:1px solid var(--border);padding:16px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;position:sticky;top:0;z-index:100}
-.live-title{font-size:22px;font-weight:700;color:#fff}
-.live-subtitle{font-size:13px;color:var(--txt2);margin-top:2px}
-.header-right{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-.sync-dot{width:10px;height:10px;border-radius:50%;background:#4ade80;animation:pulse 2s infinite}
-.sync-txt{font-size:12px;color:#4ade80;font-weight:500}
-@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.6;transform:scale(.9)}}
-.torneo-tabs{display:flex;gap:6px;padding:16px 24px 0;flex-wrap:wrap;border-bottom:1px solid var(--border)}
-.torneo-tab{padding:8px 18px;border-radius:8px 8px 0 0;font-size:13px;font-weight:600;cursor:pointer;color:var(--txt2);border:1px solid transparent;border-bottom:none;transition:all .15s}
-.torneo-tab.active{background:var(--card);color:#fff;border-color:var(--border)}
-.live-body{padding:20px 16px;max-width:1600px;margin:0 auto}
-.cat-section{margin-bottom:32px}
-.cat-header{display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:10px;border-bottom:2px solid}
-.cat-header.white{border-color:var(--accent-w)}
-.cat-header.green{border-color:var(--accent-g)}
-.cat-header.red{border-color:var(--accent-r)}
-.cat-title{font-size:20px;font-weight:700}
-.cat-title.white{color:var(--accent-w)}
-.cat-title.green{color:var(--accent-g)}
-.cat-title.red{color:var(--accent-r)}
-.cat-count{font-size:12px;color:var(--txt2);background:rgba(255,255,255,0.08);padding:3px 10px;border-radius:20px}
-.gironi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
-@media(max-width:500px){.gironi-grid{grid-template-columns:1fr}}
-.girone-card{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden}
-.girone-card-header{padding:10px 14px;display:flex;justify-content:space-between;align-items:center}
-.girone-card-header.white{background:rgba(74,158,255,0.12);border-bottom:1px solid rgba(74,158,255,0.2)}
-.girone-card-header.green{background:rgba(74,222,128,0.12);border-bottom:1px solid rgba(74,222,128,0.2)}
-.girone-card-header.red{background:rgba(248,113,113,0.12);border-bottom:1px solid rgba(248,113,113,0.2)}
+
+/* Header */
+.live-header{background:#1a1d27;border-bottom:1px solid var(--border);padding:12px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;position:sticky;top:0;z-index:100}
+.live-title{font-size:18px;font-weight:700;color:#fff}
+.live-subtitle{font-size:11px;color:var(--txt2);margin-top:1px}
+.header-right{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:#4ade80;animation:pulse 2s infinite;flex-shrink:0}
+.sync-txt{font-size:11px;color:#4ade80;font-weight:500}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+select.live-sel{padding:5px 8px;border-radius:8px;background:#1a1d27;color:#fff;border:1px solid var(--border);font-size:12px}
+
+/* Categoria tabs */
+.cat-tabs{display:flex;background:#1a1d27;border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch}
+.cat-tab{flex:1;min-width:80px;padding:10px 8px;text-align:center;font-size:13px;font-weight:600;cursor:pointer;color:var(--txt2);border-bottom:2px solid transparent;white-space:nowrap;transition:all .15s}
+.cat-tab.active-w{color:var(--accent-w);border-bottom-color:var(--accent-w)}
+.cat-tab.active-g{color:var(--accent-g);border-bottom-color:var(--accent-g)}
+.cat-tab.active-r{color:var(--accent-r);border-bottom-color:var(--accent-r)}
+
+/* Sub tabs (Classifiche / Partite) */
+.sub-tabs{display:flex;gap:4px;padding:10px 12px 0;background:#1a1d27}
+.sub-tab{padding:6px 14px;border-radius:8px 8px 0 0;font-size:12px;font-weight:600;cursor:pointer;color:var(--txt2);border:1px solid transparent;border-bottom:none;background:rgba(255,255,255,0.04)}
+.sub-tab.active{background:var(--bg);color:#fff;border-color:var(--border)}
+
+/* Content */
+.live-body{padding:14px 12px;max-width:900px;margin:0 auto}
+
+/* Girone card */
+.girone-card{background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:14px;overflow:hidden}
+.girone-card-hdr{padding:10px 14px;display:flex;justify-content:space-between;align-items:center}
+.girone-card-hdr.w{background:rgba(74,158,255,0.12);border-bottom:1px solid rgba(74,158,255,0.2)}
+.girone-card-hdr.g{background:rgba(74,222,128,0.12);border-bottom:1px solid rgba(74,222,128,0.2)}
+.girone-card-hdr.r{background:rgba(248,113,113,0.12);border-bottom:1px solid rgba(248,113,113,0.2)}
 .girone-label{font-size:13px;font-weight:700}
-.girone-label.white{color:var(--accent-w)}
-.girone-label.green{color:var(--accent-g)}
-.girone-label.red{color:var(--accent-r)}
-.girone-progress{font-size:11px;color:var(--txt2)}
+.girone-label.w{color:var(--accent-w)}.girone-label.g{color:var(--accent-g)}.girone-label.r{color:var(--accent-r)}
+.girone-prog{font-size:11px;color:var(--txt2)}
+
+/* Tables */
 table{width:100%;border-collapse:collapse}
 th{font-size:10px;font-weight:600;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;padding:6px 10px;text-align:left;border-bottom:1px solid var(--border)}
 th.r{text-align:right}
 td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.05);font-size:13px}
 td.r{text-align:right}
 tr:last-child td{border-bottom:none}
-.rank{font-weight:700;width:24px}
+.rank{font-weight:700;width:28px}
 .r1{color:#fbbf24}.r2{color:#94a3b8}.r3{color:#cd7c3a}
-.team-name{font-weight:600;color:var(--txt)}
+.team-name{font-weight:600}
 .team-soc{font-size:10px;color:var(--txt2);margin-top:1px}
 .pts{font-size:16px;font-weight:800}
-.pts.white{color:var(--accent-w)}.pts.green{color:var(--accent-g)}.pts.red{color:var(--accent-r)}
+.pts.w{color:var(--accent-w)}.pts.g{color:var(--accent-g)}.pts.r{color:var(--accent-r)}
 .ds-pos{color:#4ade80;font-weight:600}.ds-neg{color:#f87171;font-weight:600}
-.fase-badge{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:600}
-.fb-w{background:rgba(74,158,255,0.2);color:var(--accent-w)}
-.fb-g{background:rgba(74,222,128,0.2);color:var(--accent-g)}
-.fb-r{background:rgba(248,113,113,0.2);color:var(--accent-r)}
+
+/* Partite */
+.match-item{display:flex;align-items:center;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.05);gap:8px}
+.match-item:last-child{border-bottom:none}
+.match-item.played{background:rgba(74,222,128,0.04)}
+.match-teams{flex:1;font-size:13px;font-weight:600;color:var(--txt)}
+.match-soc{font-size:10px;color:var(--txt2);font-weight:400}
+.match-score{font-size:16px;font-weight:800;color:#fff;min-width:60px;text-align:right}
+.match-score.w{color:var(--accent-w)}.match-score.g{color:var(--accent-g)}.match-score.r{color:var(--accent-r)}
+.match-pending{font-size:11px;color:var(--txt2);min-width:60px;text-align:right}
+.leg-badge{font-size:9px;background:rgba(254,249,195,0.15);color:#fde047;padding:1px 5px;border-radius:4px;font-weight:600;white-space:nowrap}
+
 /* Eliminazione */
-.elim-section{margin-top:14px;padding:14px;background:rgba(255,255,255,0.03);border-radius:8px}
-.elim-section-title{font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
-.elim-match-live{background:rgba(255,255,255,0.05);border-radius:8px;padding:10px;margin-bottom:8px;border:1px solid var(--border)}
-.elim-match-title-live{font-size:10px;color:var(--txt2);font-weight:600;text-transform:uppercase;margin-bottom:6px}
+.elim-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;padding:12px}
+.elim-match{background:rgba(255,255,255,0.05);border-radius:8px;padding:10px;border:1px solid var(--border)}
+.elim-match-title{font-size:10px;color:var(--txt2);font-weight:600;text-transform:uppercase;margin-bottom:6px}
 .elim-team-live{display:flex;justify-content:space-between;padding:4px 0;font-size:13px;font-weight:600}
 .elim-team-live.win{color:#4ade80}
 .elim-team-live.lose{opacity:.4}
-.score-live{font-size:14px;font-weight:800;color:#fff}
-/* Podium live */
-.podium-live{display:flex;gap:10px;justify-content:center;margin-bottom:14px;flex-wrap:wrap}
-.podium-item{text-align:center;padding:10px 16px;border-radius:10px;min-width:100px}
+.elim-score{font-size:14px;font-weight:800;color:#fff}
+
+/* Podio */
+.podium-live{display:flex;gap:8px;justify-content:center;padding:12px;flex-wrap:wrap}
+.podium-item{text-align:center;padding:10px 14px;border-radius:10px;min-width:90px}
 .p1-live{background:linear-gradient(135deg,rgba(251,191,36,.3),rgba(253,224,71,.15));border:1px solid #fbbf24}
 .p2-live{background:rgba(148,163,184,.15);border:1px solid #94a3b8}
 .p3-live{background:rgba(205,124,58,.15);border:1px solid #cd7c3a}
 .podium-trophy{font-size:20px}
-.podium-nome-live{font-size:13px;font-weight:700;color:#fff;margin-top:4px}
-.podium-rank-live{font-size:10px;color:var(--txt2);margin-top:2px}
-/* No data */
-.no-torneo{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:16px}
-.no-torneo h2{font-size:24px;color:var(--txt)}
-.no-torneo p{font-size:14px;color:var(--txt2);text-align:center}
-/* Aggiornamento */
-.last-update{font-size:11px;color:var(--txt2)}
-/* Scorrevole in cima */
-.ticker{background:rgba(74,222,128,0.1);border-bottom:1px solid rgba(74,222,128,0.2);padding:6px 16px;font-size:12px;color:#4ade80;white-space:nowrap;overflow:hidden}
+.podium-nome-live{font-size:12px;font-weight:700;color:#fff;margin-top:4px}
 
-.footer-noemi{text-align:center;padding:40px 10px;font-family:sans-serif;font-size:.85em;color:var(--footer-text);animation:apparizione 1.5s ease-out;transition:color .3s}
+/* QR panel */
+.qr-panel{position:fixed;bottom:20px;right:16px;z-index:500;display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+.qr-toggle{padding:9px 16px;border:none;border-radius:20px;background:#4ade80;color:#0f1117;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(74,222,128,0.4)}
+.qr-box-panel{background:#fff;border-radius:14px;padding:18px;text-align:center;width:240px;box-shadow:0 8px 32px rgba(0,0,0,.5);animation:slideUp .2s ease-out}
+@keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.qr-box-panel h3{font-size:14px;font-weight:700;color:#1a1a1a;margin-bottom:4px}
+.qr-box-panel p{font-size:11px;color:#555;margin-bottom:10px}
+.qr-url-panel{font-size:9px;color:#888;word-break:break-all;background:#f5f5f5;padding:5px 7px;border-radius:5px}
+
+/* Footer */
+.footer-noemi{text-align:center;padding:40px 10px 80px;font-size:.85em;color:var(--footer-text);animation:apparizione 1.5s ease-out}
 .link-noemi{color:inherit;text-decoration:none;font-weight:600;border-bottom:1px solid currentColor}
 @keyframes apparizione{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+.no-data{text-align:center;padding:3rem 1rem;color:var(--txt2)}
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
+
 <div class="live-header">
   <div>
-    <div class="live-title">🏐 Classifiche Live</div>
-    <div class="live-subtitle" id="liveSubtitle">Torneo Pallavolo — aggiornamento ogni 3s</div>
+    <div class="live-title">🏐 Torneo Live</div>
+    <div class="live-subtitle" id="liveSubtitle">Caricamento...</div>
   </div>
   <div class="header-right">
-    <div style="display:flex;align-items:center;gap:6px"><span class="sync-dot" id="syncDot"></span><span class="sync-txt" id="syncTxt">Live</span></div>
-    <span class="last-update" id="lastUpdate"></span>
-    <select id="torneoSelect" style="padding:6px 10px;border-radius:8px;background:#1a1d27;color:#fff;border:1px solid var(--border);font-size:13px" onchange="setActiveTorneo(this.value)"></select>
+    <div style="display:flex;align-items:center;gap:5px">
+      <span class="sync-dot" id="syncDot"></span>
+      <span class="sync-txt" id="syncTxt">Live</span>
+    </div>
+    <select class="live-sel" id="torneoSelect" onchange="setActiveTorneo(this.value)"></select>
   </div>
 </div>
-<div id="liveRoot"><div class="no-torneo"><h2>⏳</h2><p>Connessione in corso...</p></div></div>
+
+<!-- Tab categorie -->
+<div class="cat-tabs" id="catTabs"></div>
+
+<!-- Sub tab classifiche/partite -->
+<div class="sub-tabs" id="subTabs"></div>
+
+<!-- Contenuto -->
+<div id="liveRoot"><div class="no-data"><p>Connessione...</p></div></div>
+
+<!-- QR Panel -->
+<div class="qr-panel">
+  <div class="qr-box-panel" id="qrBox" style="display:none">
+    <h3>📱 Classifiche Live</h3>
+    <p>Scansiona per seguire il torneo</p>
+    <div style="display:flex;justify-content:center;margin-bottom:10px"><div id="qrCode"></div></div>
+    <div class="qr-url-panel" id="qrUrl"></div>
+  </div>
+  <button class="qr-toggle" id="qrToggleBtn" onclick="toggleQR()">📱 QR Code</button>
+</div>
+
+<!-- Footer -->
+<footer class="footer-noemi">
+  <p>Progetto e idea di <a href="mailto:tnoemi.marcolini@gmail.com" class="link-noemi">Noemi Marcolini</a></p>
+</footer>
 
 <script>
+// ── Caricamento dati ──────────────────────────────────────
+function loadFromStorage(){
+  try{
+    const raw=localStorage.getItem('torneo_local');
+    if(raw){const data=JSON.parse(raw);if(data&&data.tornei){window._liveDB=data;renderLive();}}
+  }catch(e){console.error(e);}
+}
+setInterval(loadFromStorage,3000);
+try{const bc=new BroadcastChannel('torneo_update');bc.onmessage=()=>loadFromStorage();}catch(e){}
+window.addEventListener('DOMContentLoaded',()=>{loadFromStorage();});
+
+// ── Stato ─────────────────────────────────────────────────
 let activeTorneoId=null;
+let activeCat='white';
+let activeSub='classifiche'; // 'classifiche' | 'partite'
 let DB={tornei:{}};
 
-function setSyncStatus(s){
-  const d=document.getElementById('syncDot'),t=document.getElementById('syncTxt');
-  if(s==='ok'){if(d){d.style.background='#4ade80';d.style.animation='pulse 2s infinite';}if(t)t.textContent='Live';}
-  else{if(d){d.style.background='#f87171';d.style.animation='none';}if(t)t.textContent='Disconnesso';}
-  const u=document.getElementById('lastUpdate');if(u)u.textContent='Aggiornato: '+new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+function setSyncStatus(){
+  const d=document.getElementById('syncDot');
+  const t=document.getElementById('syncTxt');
+  if(d)d.style.background='#4ade80';
+  if(t)t.textContent='Live · '+new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
 }
 
+function setActiveTorneo(id){activeTorneoId=id;renderLive();}
+function setCatLive(cat){activeCat=cat;renderContent();}
+function setSubLive(sub){activeSub=sub;renderContent();}
+
+// ── Calcoli ───────────────────────────────────────────────
 function calcCl(g){
   const t=g.squadre.map((s,i)=>({i,nome:s.nome,soc:s.soc||'',pt:0,sv:0,sp:0,pv:0,pp:0}));
-  for(const p of g.partite){if(p.s1h===''||p.s1a==='')continue;const s1h=parseInt(p.s1h)||0,s1a=parseInt(p.s1a)||0;const sets=p.sets||g.sets||2;const has2=sets===2&&p.s2h!=='';const s2h=has2?parseInt(p.s2h)||0:0,s2a=has2?parseInt(p.s2a)||0:0;const sh=(s1h>s1a?1:0)+(has2&&s2h>s2a?1:0);const sa=(s1a>s1h?1:0)+(has2&&s2a>s2h?1:0);t[p.h].pt+=sh;t[p.a].pt+=sa;t[p.h].sv+=sh;t[p.a].sv+=sa;t[p.h].sp+=sa;t[p.a].sp+=sh;t[p.h].pv+=s1h+(has2?s2h:0);t[p.a].pv+=s1a+(has2?s2a:0);t[p.h].pp+=s1a+(has2?s2a:0);t[p.a].pp+=s1h+(has2?s2h:0);}
-  t.forEach(x=>{x.ds=x.sv-x.sp;x.dp=x.pv-x.pp});t.sort((a,b)=>b.pt-a.pt||b.ds-a.ds||b.dp-a.dp);return t;
+  for(const p of g.partite){
+    if(p.s1h===''||p.s1a==='')continue;
+    const s1h=parseInt(p.s1h)||0,s1a=parseInt(p.s1a)||0;
+    const sets=p.sets||g.sets||2;const has2=sets===2&&p.s2h!=='';
+    const s2h=has2?parseInt(p.s2h)||0:0,s2a=has2?parseInt(p.s2a)||0:0;
+    const sh=(s1h>s1a?1:0)+(has2&&s2h>s2a?1:0);const sa=(s1a>s1h?1:0)+(has2&&s2a>s2h?1:0);
+    t[p.h].pt+=sh;t[p.a].pt+=sa;t[p.h].sv+=sh;t[p.a].sv+=sa;t[p.h].sp+=sa;t[p.a].sp+=sh;
+    t[p.h].pv+=s1h+(has2?s2h:0);t[p.a].pv+=s1a+(has2?s2a:0);
+    t[p.h].pp+=s1a+(has2?s2a:0);t[p.a].pp+=s1h+(has2?s2h:0);
+  }
+  t.forEach(x=>{x.ds=x.sv-x.sp;x.dp=x.pv-x.pp});
+  t.sort((a,b)=>b.pt-a.pt||b.ds-a.ds||b.dp-a.dp);
+  return t;
 }
 function getWinner(m){if(!m||m.s1h===''||m.s1a==='')return null;return(parseInt(m.s1h)||0)>(parseInt(m.s1a)||0)?m.t1:m.t2;}
 function getLoser(m){if(!m||m.s1h===''||m.s1a==='')return null;return(parseInt(m.s1h)||0)<=(parseInt(m.s1a)||0)?m.t1:m.t2;}
 
-function setActiveTorneo(id){
-  activeTorneoId=id;renderLive();
-}
-
+// ── Render principale ─────────────────────────────────────
 function renderLive(){
   if(!window._liveDB)return;
   DB=window._liveDB;
+  setSyncStatus();
   const tornei=DB.tornei||{};
   const ids=Object.keys(tornei).sort((a,b)=>(tornei[b].createdAt||0)-(tornei[a].createdAt||0));
 
-  // Popola select tornei
+  // Select tornei
   const sel=document.getElementById('torneoSelect');
   if(sel){
     const curr=activeTorneoId||ids[0]||'';
@@ -168,114 +214,177 @@ function renderLive(){
   }
 
   if(!activeTorneoId||!tornei[activeTorneoId]){
-    document.getElementById('liveRoot').innerHTML=`<div class="no-torneo"><h2>📋</h2><p>Nessun torneo disponibile.<br>Crea un torneo dalla pagina principale.</p></div>`;
+    document.getElementById('liveRoot').innerHTML='<div class="no-data"><p>Nessun torneo disponibile</p></div>';
     return;
   }
 
   const torneo=tornei[activeTorneoId];
   document.getElementById('liveSubtitle').textContent=torneo.nome;
-  document.title=`${torneo.nome} — Classifiche Live`;
+  document.title=torneo.nome+' — Live';
 
-  const cats=['white','green','red'];
-  const catNames={white:'⬜ White',green:'🟩 Green',red:'🟥 Red'};
-  const catAccents={white:'white',green:'green',red:'red'};
-  const fbClass={white:'fb-w',green:'fb-g',red:'fb-r'};
+  // Tab categorie
+  const cats=[
+    {k:'white',label:'⬜ White',ac:'active-w'},
+    {k:'green', label:'🟩 Green', ac:'active-g'},
+    {k:'red',   label:'🟥 Red',   ac:'active-r'},
+  ].filter(c=>(torneo.cats?.[c.k]?.fasi||[]).some(f=>f.gironi?.length||f.tipo==='elim'));
+
+  if(!cats.length){
+    document.getElementById('liveRoot').innerHTML='<div class="no-data"><p>Nessun girone ancora</p></div>';
+    return;
+  }
+
+  if(!cats.find(c=>c.k===activeCat)) activeCat=cats[0].k;
+
+  document.getElementById('catTabs').innerHTML=cats.map(c=>`
+    <div class="cat-tab${activeCat===c.k?' '+c.ac:''}" onclick="setCatLive('${c.k}')">${c.label}</div>
+  `).join('');
+
+  // Sub tabs
+  document.getElementById('subTabs').innerHTML=`
+    <div class="sub-tab${activeSub==='classifiche'?' active':''}" onclick="setSubLive('classifiche')">📊 Classifiche</div>
+    <div class="sub-tab${activeSub==='partite'?' active':''}" onclick="setSubLive('partite')">📋 Partite</div>
+  `;
+
+  renderContent();
+}
+
+function renderContent(){
+  const torneo=DB.tornei[activeTorneoId];
+  if(!torneo)return;
+  const fasi=(torneo.cats?.[activeCat]?.fasi)||[];
+  const cat=activeCat;
+  const cc=cat==='white'?'w':cat==='green'?'g':'r';
 
   let html='<div class="live-body">';
 
-  for(const cat of cats){
-    const fasi=(torneo.cats?.[cat]?.fasi)||[];
-    const gironiFase1=fasi[0]?.gironi||[];
-    if(!gironiFase1.length&&fasi.length===0) continue;
-
-    html+=`<div class="cat-section"><div class="cat-header ${catAccents[cat]}"><div class="cat-title ${catAccents[cat]}">${catNames[cat]}</div>`;
-
-    // Conta gironi totali attivi
-    const totGironi=fasi.reduce((s,f)=>s+(f.gironi?.length||0)+(f.tipo==='elim'?1:0),0);
-    html+=`<span class="cat-count">${totGironi} gironi/fasi</span></div>`;
-
-    html+=`<div class="gironi-grid">`;
-
-    for(const fase of fasi){
-      if(fase.tipo==='elim'){
-        // Render eliminazione live
-        const e=fase.elim||{};
-        const hasQ=e.q1||e.q2||e.q3||e.q4;
-        const wFin=getWinner(e.fin12),lFin=getLoser(e.fin12),wFin34=getWinner(e.fin34);
-
-        html+=`<div class="girone-card" style="grid-column:1/-1"><div class="girone-card-header ${catAccents[cat]}"><span class="girone-label ${catAccents[cat]}">⚡ ${fase.label}</span></div>`;
-
-        if(wFin){
-          html+=`<div class="podium-live" style="padding:14px">
-            <div class="podium-item p2-live"><div class="podium-trophy">🥈</div><div class="podium-nome-live">${lFin||'—'}</div><div class="podium-rank-live">2° posto</div></div>
-            <div class="podium-item p1-live"><div class="podium-trophy">🥇</div><div class="podium-nome-live">${wFin}</div><div class="podium-rank-live">1° posto</div></div>
-            <div class="podium-item p3-live"><div class="podium-trophy">🥉</div><div class="podium-nome-live">${wFin34||'—'}</div><div class="podium-rank-live">3° posto</div></div>
+  for(const fase of fasi){
+    if(fase.tipo==='elim'){
+      html+=renderElimLive(fase,cc);
+    } else {
+      for(const g of(fase.gironi||[])){
+        html+=`<div class="girone-card">
+          <div class="girone-card-hdr ${cc}">
+            <span class="girone-label ${cc}">${fase.label} — Girone ${g.label}</span>
+            <span class="girone-prog">${g.partite.filter(p=>p.s1h!=='').length}/${g.partite.length} partite</span>
           </div>`;
+        if(activeSub==='classifiche'){
+          html+=renderClassificaLive(g,cc);
+        } else {
+          html+=renderPartiteLive(g,cc);
         }
-
-        html+=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;padding:14px">`;
-
-        function elimMatchHtml(m,title){
-          if(!m)return'';const w=getWinner(m);const played=m.s1h!==''&&m.s1a!=='';
-          return`<div class="elim-match-live"><div class="elim-match-title-live">${title}</div>
-            <div class="elim-team-live${w===m.t1?' win':played?' lose':''}"><span>${m.t1||'—'}</span>${played?`<span class="score-live">${m.s1h}</span>`:''}</div>
-            <div class="elim-team-live${w===m.t2?' win':played?' lose':''}"><span>${m.t2||'—'}</span>${played?`<span class="score-live">${m.s1a}</span>`:''}</div>
-          </div>`;
-        }
-
-        if(hasQ){
-          html+=`<div><div style="font-size:11px;font-weight:600;color:var(--txt2);text-transform:uppercase;margin-bottom:8px">Quarti</div>`;
-          ['q1','q2','q3','q4'].filter(k=>e[k]).forEach((k,i)=>{html+=elimMatchHtml(e[k],`Q${i+1}: ${['1°vs8°','2°vs7°','3°vs6°','4°vs5°'][i]}`);});
-          html+=`</div>`;
-        }
-        html+=`<div><div style="font-size:11px;font-weight:600;color:var(--txt2);text-transform:uppercase;margin-bottom:8px">Semifinali</div>${elimMatchHtml(e.sf1,'Semifinale 1')}${elimMatchHtml(e.sf2,'Semifinale 2')}</div>`;
-        html+=`<div><div style="font-size:11px;font-weight:600;color:var(--txt2);text-transform:uppercase;margin-bottom:8px">Finali</div>${elimMatchHtml(e.fin12,'Finale 1° - 2°')}${elimMatchHtml(e.fin34,'Finale 3° - 4°')}</div>`;
-        html+=`</div></div>`;
-      } else {
-        // Render gironi normali
-        for(const g of(fase.gironi||[])){
-          const cl=calcCl(g);const sets=g.sets||2;
-          const giocate=g.partite.filter(p=>p.s1h!==''&&p.s1a!=='').length;
-          const tot=g.partite.length;
-          html+=`<div class="girone-card"><div class="girone-card-header ${catAccents[cat]}">
-            <span class="girone-label ${catAccents[cat]}">${fase.label} — Girone ${g.label}</span>
-            <div style="display:flex;align-items:center;gap:6px">
-              <span class="fase-badge ${fbClass[cat]}">${sets} set</span>
-              <span class="girone-progress">${giocate}/${tot}</span>
-            </div>
-          </div>
-          <table><thead><tr>
-            <th style="width:24px">#</th>
-            <th>Squadra</th>
-            <th class="r">Pt</th>
-            ${sets===2?'<th class="r">DS</th>':''}
-            <th class="r">DP</th>
-          </tr></thead><tbody>`;
-          cl.forEach((t,i)=>{
-            const rankC=i===0?'r1':i===1?'r2':i===2?'r3':'';
-            html+=`<tr>
-              <td class="rank ${rankC}">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</td>
-              <td><div class="team-name">${t.nome}</div>${t.soc?`<div class="team-soc">${t.soc}</div>`:''}</td>
-              <td class="r"><span class="pts ${catAccents[cat]}">${t.pt}</span></td>
-              ${sets===2?`<td class="r"><span class="${t.ds>0?'ds-pos':t.ds<0?'ds-neg':''}">${t.ds>0?'+':''}${t.ds}</span></td>`:''}
-              <td class="r" style="color:var(--txt2);font-size:12px">${t.dp>0?'+':''}${t.dp}</td>
-            </tr>`;
-          });
-          html+=`</tbody></table></div>`;
-        }
+        html+=`</div>`;
       }
     }
-    html+=`</div></div>`;
   }
 
-  html+=`</div>`;
+  html+='</div>';
   document.getElementById('liveRoot').innerHTML=html;
 }
 
+function renderClassificaLive(g,cc){
+  const cl=calcCl(g);const sets=g.sets||2;
+  let h=`<table><thead><tr>
+    <th>#</th><th>Squadra</th><th class="r">Pt</th>
+    ${sets===2?'<th class="r">DS</th>':''}
+    <th class="r">DP</th>
+  </tr></thead><tbody>`;
+  cl.forEach((t,i)=>{
+    const ri=i===0?'r1':i===1?'r2':i===2?'r3':'';
+    h+=`<tr>
+      <td class="rank ${ri}">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</td>
+      <td><div class="team-name">${t.nome}</div>${t.soc?`<div class="team-soc">${t.soc}</div>`:''}</td>
+      <td class="r"><span class="pts ${cc}">${t.pt}</span></td>
+      ${sets===2?`<td class="r"><span class="${t.ds>0?'ds-pos':t.ds<0?'ds-neg':''}">${t.ds>0?'+':''}${t.ds}</span></td>`:''}
+      <td class="r" style="color:var(--txt2);font-size:12px">${t.dp>0?'+':''}${t.dp}</td>
+    </tr>`;
+  });
+  return h+`</tbody></table>`;
+}
 
-// QR Code side panel
-let qrGenerated=false;
-let qrOpen=false;
+function renderPartiteLive(g,cc){
+  const sets=g.sets||2;
+  const andata=g.partite.filter(p=>!p.leg||p.leg===1);
+  const ritorno=g.partite.filter(p=>p.leg===2);
+
+  function partiteHtml(pList){
+    return pList.map(p=>{
+      const hn=g.squadre[p.h].nome,an=g.squadre[p.a].nome;
+      const hs=g.squadre[p.h].soc||'',as=g.squadre[p.a].soc||'';
+      const played=p.s1h!==''&&p.s1a!=='';
+      let score='';
+      if(played){
+        score=`${p.s1h}–${p.s1a}`;
+        if(sets===2&&p.s2h!=='')score+=` / ${p.s2h}–${p.s2a}`;
+      }
+      return`<div class="match-item${played?' played':''}">
+        <div class="match-teams">
+          <div>${hn}${hs?` <span class="match-soc">(${hs})</span>`:''}</div>
+          <div style="color:var(--txt2);font-size:11px;margin:2px 0">vs</div>
+          <div>${an}${as?` <span class="match-soc">(${as})</span>`:''}</div>
+        </div>
+        ${p.leg===2?`<span class="leg-badge">RIT</span>`:''}
+        ${played
+          ?`<div class="match-score ${cc}">${score}</div>`
+          :`<div class="match-pending">da giocare</div>`
+        }
+      </div>`;
+    }).join('');
+  }
+
+  let h=partiteHtml(andata);
+  if(ritorno.length) h+=`<div style="font-size:10px;font-weight:600;color:var(--txt2);text-transform:uppercase;padding:8px 14px 4px;border-top:1px solid var(--border)">Ritorno</div>`+partiteHtml(ritorno);
+  return h;
+}
+
+function renderElimLive(fase,cc){
+  const e=fase.elim||{};
+  const hasQ=e.q1||e.q2||e.q3||e.q4;
+  const wFin=getWinner(e.fin12),lFin=getLoser(e.fin12),wFin34=getWinner(e.fin34);
+
+  let html=`<div class="girone-card">
+    <div class="girone-card-hdr ${cc}">
+      <span class="girone-label ${cc}">⚡ ${fase.label}</span>
+    </div>`;
+
+  if(wFin){
+    html+=`<div class="podium-live">
+      <div class="podium-item p2-live"><div class="podium-trophy">🥈</div><div class="podium-nome-live">${lFin||'—'}</div></div>
+      <div class="podium-item p1-live"><div class="podium-trophy">🥇</div><div class="podium-nome-live">${wFin}</div></div>
+      <div class="podium-item p3-live"><div class="podium-trophy">🥉</div><div class="podium-nome-live">${wFin34||'—'}</div></div>
+    </div>`;
+  }
+
+  function elimMatch(m,title){
+    if(!m)return'';
+    const w=getWinner(m);const played=m.s1h!==''&&m.s1a!=='';
+    return`<div class="elim-match">
+      <div class="elim-match-title">${title}</div>
+      <div class="elim-team-live${w===m.t1?' win':played?' lose':''}">
+        <span>${m.t1||'—'}</span>${played?`<span class="elim-score">${m.s1h}</span>`:''}
+      </div>
+      <div class="elim-team-live${w===m.t2?' win':played?' lose':''}">
+        <span>${m.t2||'—'}</span>${played?`<span class="elim-score">${m.s1a}</span>`:''}
+      </div>
+    </div>`;
+  }
+
+  html+=`<div class="elim-grid">`;
+  if(hasQ){
+    ['q1','q2','q3','q4'].filter(k=>e[k]).forEach((k,i)=>{
+      html+=elimMatch(e[k],`Quarto ${i+1}: ${['1°vs8°','2°vs7°','3°vs6°','4°vs5°'][i]}`);
+    });
+  }
+  if(e.sf1)html+=elimMatch(e.sf1,'Semifinale 1');
+  if(e.sf2)html+=elimMatch(e.sf2,'Semifinale 2');
+  if(e.fin12)html+=elimMatch(e.fin12,'🏆 Finale 1°-2°');
+  if(e.fin34&&e.fin34.t1&&e.fin34.t2)html+=elimMatch(e.fin34,'Finale 3°-4°');
+  html+=`</div></div>`;
+  return html;
+}
+
+// ── QR Code ───────────────────────────────────────────────
+let qrOpen=false,qrGenerated=false;
 function toggleQR(){
   qrOpen=!qrOpen;
   const box=document.getElementById('qrBox');
@@ -287,7 +396,7 @@ function toggleQR(){
     if(!qrGenerated){
       const wrap=document.getElementById('qrCode');
       wrap.innerHTML='';
-      new QRCode(wrap,{text:url,width:180,height:180,colorDark:'#1a1a1a',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.H});
+      new QRCode(wrap,{text:url,width:160,height:160,colorDark:'#1a1a1a',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.H});
       qrGenerated=true;
     }
     box.style.display='block';
@@ -298,23 +407,7 @@ function toggleQR(){
   }
 }
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&qrOpen)toggleQR();});
-
-// Aggiornamento ogni 30 secondi per sicurezza
-setInterval(()=>{if(window._liveDB)renderLive();},30000);
 </script>
 
-<!-- QR SIDE PANEL -->
-<div class="qr-panel">
-  <div class="qr-box" id="qrBox" style="display:none">
-    <h3>📱 Classifica Live</h3>
-    <p>Scansiona per vedere le classifiche</p>
-    <div class="qr-code-wrap"><div id="qrCode"></div></div>
-    <div class="qr-url" id="qrUrl"></div>
-  </div>
-  <button class="qr-toggle" id="qrToggleBtn" onclick="toggleQR()">📱 QR Code</button>
-</div>
-<footer class="footer-noemi">
-  <p>Progetto e idea di <a href="mailto:tnoemi.marcolini@gmail.com" class="link-noemi">Noemi Marcolini</a></p>
-</footer>
 </body>
 </html>

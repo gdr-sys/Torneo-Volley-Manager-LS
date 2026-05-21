@@ -97,11 +97,36 @@ function classificaGenerale(gironi){
   return res;
 }
 
-function buildElimStruct(top8){
-  const n=top8.length;const nm=i=>top8[i]?.nome||'?';const lb=i=>top8[i]?.posLabel||'?';const e={};
-  if(n>=4){e.q1={t1:nm(0),t2:nm(Math.min(7,n-1)),da1:lb(0),da2:lb(Math.min(7,n-1)),s1h:'',s1a:''};e.q2={t1:nm(1),t2:nm(Math.min(6,n-2)),da1:lb(1),da2:lb(Math.min(6,n-2)),s1h:'',s1a:''};e.q3={t1:nm(2),t2:nm(Math.min(5,n-3)),da1:lb(2),da2:lb(Math.min(5,n-3)),s1h:'',s1a:''};e.q4={t1:nm(3),t2:nm(Math.min(4,n-4)),da1:lb(3),da2:lb(Math.min(4,n-4)),s1h:'',s1a:''};e.sf1={t1:'Vincente Q1',t2:'Vincente Q4',s1h:'',s1a:''};e.sf2={t1:'Vincente Q2',t2:'Vincente Q3',s1h:'',s1a:''};}
-  else if(n>=2){e.sf1={t1:nm(0),t2:nm(Math.min(3,n-1)),da1:lb(0),da2:lb(Math.min(3,n-1)),s1h:'',s1a:''};e.sf2={t1:nm(1),t2:nm(Math.min(2,n-2)),da1:lb(1),da2:lb(Math.min(2,n-2)),s1h:'',s1a:''};}
-  e.fin12={t1:'Vincente SF1',t2:'Vincente SF2',s1h:'',s1a:''};e.fin34={t1:'Perdente SF1',t2:'Perdente SF2',s1h:'',s1a:''};
+function buildElimStruct(teams){
+  // teams: array of top N squadre
+  // Supports: 2 (solo finali), 4 (SF+F), 8 (Q+SF+F), 16 (ottavi+Q+SF+F)
+  // For odd numbers, rounds down to nearest power of 2 bracket
+  const n=teams.length;
+  const nm=i=>teams[i]?.nome||'?';
+  const lb=i=>teams[i]?.posLabel||'?';
+  const e={};
+
+  if(n>=8){
+    // Quarti: 1°vs8°, 2°vs7°, 3°vs6°, 4°vs5° (incrocio)
+    const last=Math.min(n-1,7);
+    e.q1={t1:nm(0),t2:nm(Math.min(7,last)),  da1:lb(0),da2:lb(Math.min(7,last)),  s1h:'',s1a:''};
+    e.q2={t1:nm(1),t2:nm(Math.min(6,last-1)),da1:lb(1),da2:lb(Math.min(6,last-1)),s1h:'',s1a:''};
+    e.q3={t1:nm(2),t2:nm(Math.min(5,last-2)),da1:lb(2),da2:lb(Math.min(5,last-2)),s1h:'',s1a:''};
+    e.q4={t1:nm(3),t2:nm(Math.min(4,last-3)),da1:lb(3),da2:lb(Math.min(4,last-3)),s1h:'',s1a:''};
+    e.sf1={t1:'Vincente Q1',t2:'Vincente Q4',s1h:'',s1a:''};
+    e.sf2={t1:'Vincente Q2',t2:'Vincente Q3',s1h:'',s1a:''};
+  } else if(n>=4){
+    // Solo semifinali (4 squadre): 1°vs4°, 2°vs3°
+    e.sf1={t1:nm(0),t2:nm(Math.min(3,n-1)),da1:lb(0),da2:lb(Math.min(3,n-1)),s1h:'',s1a:''};
+    e.sf2={t1:nm(1),t2:nm(Math.min(2,n-2)),da1:lb(1),da2:lb(Math.min(2,n-2)),s1h:'',s1a:''};
+  } else if(n>=2){
+    // Solo finali (2 squadre)
+    e.sf1={t1:nm(0),t2:nm(1),da1:lb(0),da2:lb(1),s1h:'',s1a:''};
+    e.sf2=null;
+  }
+
+  e.fin12={t1:'Vincente SF1',t2:e.sf2?'Vincente SF2':nm(1),s1h:'',s1a:''};
+  e.fin34={t1:'Perdente SF1',t2:e.sf2?'Perdente SF2':'',s1h:'',s1a:''};
   return e;
 }
 

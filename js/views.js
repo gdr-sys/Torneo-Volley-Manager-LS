@@ -518,6 +518,25 @@ function builderConfirm(){
   builderState=null;sv();render();
 }
 
+function renderNumElimSelector(numElim, totSq){
+  const options=[
+    {n:2,  label:'2 — Finale diretta'},
+    {n:4,  label:'4 — Semifinali'},
+    {n:8,  label:'8 — Quarti di finale'},
+    {n:16, label:'16 — Ottavi di finale'},
+    {n:32, label:'32 — Sedicesimi di finale'},
+  ];
+  const opts=options.filter(x=>x.n<=totSq)
+    .map(x=>'<option value="'+x.n+'"'+(numElim===x.n?' selected':'')+'>'+x.label+'</option>')
+    .join('');
+  const resto=totSq-numElim>0?'Le restanti '+(totSq-numElim)+' vanno ai gironi':'';
+  return '<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap">'
+    +'<div class="sec" style="margin:0">Squadre alle eliminatorie:</div>'
+    +'<select class="set-sel" onchange="setNumElim(parseInt(this.value))">'+opts+'</select>'
+    +(resto?'<span style="font-size:12px;color:var(--txt2)">'+resto+'</span>':'')
+    +'</div>';
+}
+
 function renderBuilder(b){
   if(!builderState)return'';const{mode,top8,dal9,draft,gironiSets,maxGironi,numElim,generale}=builderState;const totSq=generale.length;const pool=mode==='gironi'?generale:dal9;
   let html=`<div class="card"><div class="card-title">Nuova fase</div><p style="font-size:13px;color:var(--txt2);margin-bottom:1rem">Squadre totali: <strong>${totSq}</strong></p>
@@ -526,19 +545,7 @@ function renderBuilder(b){
       <div class="type-btn${mode==='quarti'?' sel':''}" onclick="setBuilderMode('quarti')"><h3>⚡ Solo eliminazione</h3><p>Top ${numElim} → elim diretta</p></div>
       <div class="type-btn${mode==='entrambi'?' sel':''}" onclick="setBuilderMode('entrambi')"><h3>🔀 Entrambi</h3><p>Top 8 → elim · Dal 9° → gironi</p></div>
     </div>
-    ${mode!=='gironi'?`<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap">
-      <div class="sec" style="margin:0">Squadre alle eliminatorie:</div>
-      <select class="set-sel" onchange="setNumElim(parseInt(this.value))">
-        ${[
-          {n:2,  label:'2 — Finale diretta'},
-          {n:4,  label:'4 — Semifinali'},
-          {n:8,  label:'8 — Quarti di finale'},
-          {n:16, label:'16 — Ottavi di finale'},
-          {n:32, label:'32 — Sedicesimi di finale'},
-        ].filter(x=>x.n<=totSq).map(x=>`<option value="${x.n}"${numElim===x.n?' selected':''}>${x.label}</option>`).join('')}
-      </select>
-      <span style="font-size:12px;color:var(--txt2)">${totSq-numElim>0?`Le restanti ${totSq-numElim} vanno ai gironi`:''}</span>
-    </div>`:''}
+    ${mode!=='gironi'?renderNumElimSelector(numElim,totSq):''}
     <div style="background:var(--info);border-radius:8px;padding:12px;margin-bottom:12px">
       <div class="sec">Classifica generale — ordine selezione</div>
       <div style="font-size:11px;color:var(--txt2);margin-bottom:8px">Tutti i 1° (per Q.Set) → migliori 2° → migliori 3°, ecc.</div>

@@ -28,35 +28,25 @@ function genPartite(n,ritorno,sets){
 
 // ============================================================
 // ASSEGNAZIONE SQUADRE CON DIVERSITÀ SOCIETÀ
-// Algoritmo: distribuisce le squadre di ogni girone cercando
-// di massimizzare il numero di società diverse per girone.
 // ============================================================
 function assegnaSquadre(cat,gironi,societa){
-  // gironi = array di {n: numero squadre}
-  // societa = array di {nome, squadre:[{nome,cat}]}
-  // Costruisce lista squadre con società
   const pool=[];
   for(const s of societa){
     const sqCat=s.squadre.filter(sq=>sq.cat===cat);
     for(const sq of sqCat) pool.push({nome:sq.nome,soc:s.nome});
   }
-  // Shuffle pool
   for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
 
   const result=gironi.map(g=>({n:g.n,squadre:[]}));
   const remaining=[...pool];
 
-  // Algoritmo greedy: per ogni slot, scegli la squadra che minimizza
-  // il numero di squadre della stessa società già nel girone
   for(let round=0;remaining.length>0;round++){
     for(let gi=0;gi<result.length&&remaining.length>0;gi++){
       const girone=result[gi];
       if(girone.squadre.length>=girone.n) continue;
       const socInGirone=new Set(girone.squadre.map(s=>s.soc));
-      // Preferisce squadre di società non ancora presenti
       const diverse=remaining.filter(s=>!socInGirone.has(s.soc));
       const candidates=diverse.length>0?diverse:remaining;
-      // Prendi la prima candidate
       const chosen=candidates[0];
       girone.squadre.push(chosen);
       remaining.splice(remaining.indexOf(chosen),1);
@@ -98,16 +88,12 @@ function classificaGenerale(gironi){
 }
 
 function buildElimStruct(teams){
-  // teams: array of top N squadre
-  // Supports: 2 (solo finali), 4 (SF+F), 8 (Q+SF+F), 16 (ottavi+Q+SF+F)
-  // For odd numbers, rounds down to nearest power of 2 bracket
   const n=teams.length;
   const nm=i=>teams[i]?.nome||'?';
   const lb=i=>teams[i]?.posLabel||'?';
   const e={};
 
   if(n>=8){
-    // Quarti: 1°vs8°, 2°vs7°, 3°vs6°, 4°vs5° (incrocio)
     const last=Math.min(n-1,7);
     e.q1={t1:nm(0),t2:nm(Math.min(7,last)),  da1:lb(0),da2:lb(Math.min(7,last)),  s1h:'',s1a:''};
     e.q2={t1:nm(1),t2:nm(Math.min(6,last-1)),da1:lb(1),da2:lb(Math.min(6,last-1)),s1h:'',s1a:''};
@@ -116,11 +102,9 @@ function buildElimStruct(teams){
     e.sf1={t1:'Vincente Q1',t2:'Vincente Q4',s1h:'',s1a:''};
     e.sf2={t1:'Vincente Q2',t2:'Vincente Q3',s1h:'',s1a:''};
   } else if(n>=4){
-    // Solo semifinali (4 squadre): 1°vs4°, 2°vs3°
     e.sf1={t1:nm(0),t2:nm(Math.min(3,n-1)),da1:lb(0),da2:lb(Math.min(3,n-1)),s1h:'',s1a:''};
     e.sf2={t1:nm(1),t2:nm(Math.min(2,n-2)),da1:lb(1),da2:lb(Math.min(2,n-2)),s1h:'',s1a:''};
   } else if(n>=2){
-    // Solo finali (2 squadre)
     e.sf1={t1:nm(0),t2:nm(1),da1:lb(0),da2:lb(1),s1h:'',s1a:''};
     e.sf2=null;
   }
@@ -155,12 +139,197 @@ function getGirone(cat,fid,gv){return getFase(cat,fid)?.gironi.find(g=>g.id===gv
 function icKey(cat,fid,gv,pid,f){return`${cat}_${fid}_${gv}_${pid}_${f}`;}
 function onInput(cat,fid,gv,pid,f,v){IC[icKey(cat,fid,gv,pid,f)]=v;}
 function getV(cat,fid,gv,pid,f,saved){const k=icKey(cat,fid,gv,pid,f);return IC[k]!==undefined?IC[k]:saved;}
+
 function setScat(c){
   localCat=c;
-  // Reset builder if switching away from its category
   if(builderState&&builderState.cat!==c)builderState=null;
   socEditState=null;
-  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
-  document.querySelectorAll('.tab')[{white:0,green:1,red:2,admin:3,societa:4}[c]]?.classList.add('active');
   render();
+}
+
+// ============================================================
+// PAGINA LIVE — helpers salvataggio pageConfig
+// ============================================================
+function ensurePageConfig(){
+  const t=currentTorneo();if(!t)return null;
+  if(!t.pageConfig) t.pageConfig={sponsorEnabled:false,infoEnabled:false,sponsor:{cats:[]},infoBlocks:[]};
+  if(!t.pageConfig.sponsor) t.pageConfig.sponsor={cats:[]};
+  if(!Array.isArray(t.pageConfig.sponsor.cats)) t.pageConfig.sponsor.cats=[];
+  if(!Array.isArray(t.pageConfig.infoBlocks)) t.pageConfig.infoBlocks=[];
+  return t.pageConfig;
+}
+
+function toggleSponsorEnabled(){
+  const cfg=ensurePageConfig();if(!cfg)return;
+  cfg.sponsorEnabled=!cfg.sponsorEnabled;sv();render();
+}
+function toggleInfoEnabled(){
+  const cfg=ensurePageConfig();if(!cfg)return;
+  cfg.infoEnabled=!cfg.infoEnabled;sv();render();
+}
+
+// ── Sponsor: gestione categorie ──────────────────────────
+function addSponsorCat(){
+  const cfg=ensurePageConfig();if(!cfg)return;
+  cfg.sponsor.cats.push({id:uid(),nome:'Nuova categoria',items:[]});
+  sv();render();
+}
+function delSponsorCat(ci){
+  const cfg=ensurePageConfig();if(!cfg)return;
+  if(!confirm('Eliminare questa categoria sponsor?'))return;
+  cfg.sponsor.cats.splice(ci,1);sv();render();
+}
+function updateSponsorCatNome(ci,val){
+  const cfg=ensurePageConfig();if(!cfg)return;
+  cfg.sponsor.cats[ci].nome=val;sv();
+}
+function moveSponsorCat(ci,dir){
+  const cfg=ensurePageConfig();if(!cfg)return;
+  const to=ci+dir;if(to<0||to>=cfg.sponsor.cats.length)return;
+  [cfg.sponsor.cats[ci],cfg.sponsor.cats[to]]=[cfg.sponsor.cats[to],cfg.sponsor.cats[ci]];
+  sv();render();
+}
+
+// ── Sponsor: gestione item ────────────────────────────────
+function addSponsorItem(ci){
+  const cfg=ensurePageConfig();if(!cfg)return;
+  cfg.sponsor.cats[ci].items.push({id:uid(),nome:'',frase:'',immagine:'',size:'medio'});
+  sv();render();
+}
+function delSponsorItem(ci,ii){
+  const cfg=ensurePageConfig();if(!cfg)return;
+  cfg.sponsor.cats[ci].items.splice(ii,1);sv();render();
+}
+function updateSponsorItem(ci,ii,field,val){
+  const cfg=ensurePageConfig();if(!cfg)return;
+  cfg.sponsor.cats[ci].items[ii][field]=val;sv();
+}
+function uploadSponsorImg(ci,ii,input){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{updateSponsorItem(ci,ii,'immagine',e.target.result);render();};
+  reader.readAsDataURL(file);
+}
+function moveSponsorItem(ci,ii,dir){
+  const cfg=ensurePageConfig();if(!cfg)return;
+  const items=cfg.sponsor.cats[ci].items;
+  const to=ii+dir;if(to<0||to>=items.length)return;
+  [items[ii],items[to]]=[items[to],items[ii]];
+  sv();render();
+}
+
+// ── Info: gestione blocchi ────────────────────────────────
+function addInfoBlock(){
+  const cfg=ensurePageConfig();if(!cfg)return;
+  cfg.infoBlocks.push({id:uid(),titolo:'',testo:''});
+  sv();render();
+}
+function delInfoBlock(bi){
+  const cfg=ensurePageConfig();if(!cfg)return;
+  cfg.infoBlocks.splice(bi,1);sv();render();
+}
+function updateInfoBlock(bi,field,val){
+  const cfg=ensurePageConfig();if(!cfg)return;
+  cfg.infoBlocks[bi][field]=val;sv();
+}
+function moveInfoBlock(bi,dir){
+  const cfg=ensurePageConfig();if(!cfg)return;
+  const to=bi+dir;if(to<0||to>=cfg.infoBlocks.length)return;
+  [cfg.infoBlocks[bi],cfg.infoBlocks[to]]=[cfg.infoBlocks[to],cfg.infoBlocks[bi]];
+  sv();render();
+}
+
+// ============================================================
+// SUGGERIMENTO GIRONI DA NUMERO CAMPI
+// ============================================================
+// Dati N squadre e M campi (= max M gironi), distribuisce le
+// squadre il più equamente possibile dando priorità a gironi
+// tutti uguali (per evitare classifiche avulse).
+// Restituisce un array di interi es. [5,5,4] oppure null.
+function suggerisciGironi(totSq, nCampi){
+  if(!totSq||!nCampi||nCampi<1)return null;
+  // Numero di gironi: al massimo nCampi, ma non più del numero di squadre
+  // Trova il numero di gironi G (1..nCampi) che minimizza la varianza
+  // delle dimensioni, preferendo gironi più grandi (almeno 3 sq)
+  let best=null;let bestScore=Infinity;
+  for(let G=nCampi;G>=1;G--){
+    const base=Math.floor(totSq/G);
+    const resto=totSq%G;
+    // resto gironi hanno base+1 squadre, gli altri base
+    if(base<3)continue; // gironi troppo piccoli non hanno senso
+    // score: varianza ponderata (0 se tutti uguali, 1 se c'è un girone diverso)
+    const score=resto===0?0:1;
+    if(score<bestScore){
+      bestScore=score;
+      // costruisce array: prima i gironi più grandi
+      best=[];
+      for(let i=0;i<G;i++) best.push(i<resto?base+1:base);
+    }
+    // Se già tutti uguali, non serve cercare oltre
+    if(bestScore===0)break;
+  }
+  return best;
+}
+
+// Crea automaticamente i gironi suggeriti eliminando quelli esistenti
+function creaSuggeriti(cat){
+  const t=currentTorneo();if(!t)return;
+  if(!t.cats)t.cats={white:{fasi:[]},green:{fasi:[]},red:{fasi:[]}};
+  if(!t.cats[cat])t.cats[cat]={fasi:[]};
+  if(!t.cats[cat].fasi.length)t.cats[cat].fasi.push({id:uid(),label:'Fase 1',gironi:[]});
+  const f1=t.cats[cat].fasi[0];
+  const totSq=(t.societa||[]).reduce((s,x)=>s+(x.sqPerCat?.[cat]||0),0);
+  const nCampi=PREFS[cat].campi||0;
+  const sug=suggerisciGironi(totSq,nCampi);
+  if(!sug){alert('Nessun suggerimento disponibile. Verifica il numero di campi e le squadre iscritte.');return;}
+  const sets=PREFS[cat].sets||2;
+
+  // Costruisce pool squadre da società (stesso algoritmo di addGirone)
+  const fasi=t.cats[cat].fasi;
+  const usedNomi=[];
+  const socPool=[];
+  for(const soc of(t.societa||[])){
+    const n=soc.sqPerCat?.[cat]||0;
+    for(let i=0;i<n;i++) socPool.push({soc:soc.nome});
+  }
+  // Shuffle pool
+  for(let i=socPool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[socPool[i],socPool[j]]=[socPool[j],socPool[i]];}
+
+  // Reset gironi esistenti
+  f1.gironi=[];
+  const availNomi=[...NAMES[cat]];
+
+  let poolIdx=0;
+  for(let gi=0;gi<sug.length;gi++){
+    const sz=sug[gi];
+    const label=String.fromCharCode(65+gi);
+    const squadre=[];
+    const socInGirone=new Set();
+    // Greedy: massimizza diversità società
+    const remaining=socPool.slice(poolIdx);
+    const chosen=[];
+    for(let slot=0;slot<sz;slot++){
+      const diverse=remaining.filter((s,idx)=>!socInGirone.has(s.soc)&&!chosen.includes(idx));
+      const fallback=remaining.filter((_,idx)=>!chosen.includes(idx));
+      const candidates=diverse.length>0?diverse:fallback;
+      if(!candidates.length)break;
+      const pick=candidates[0];
+      const pickIdx=remaining.indexOf(pick);
+      chosen.push(pickIdx);
+      socInGirone.add(pick.soc);
+      squadre.push({nome:availNomi.shift()||`Sq${squadre.length+1}`,soc:pick.soc});
+    }
+    // Rimuovi le scelte dal pool globale
+    const pickedSocs=squadre.map(s=>s.soc);
+    for(const ps of pickedSocs){
+      const idx=socPool.findIndex((s,i)=>i>=poolIdx&&s.soc===ps);
+      if(idx>=0)socPool.splice(idx,1);
+    }
+    // Se squadre insufficienti dal pool, completa con slot vuoti
+    while(squadre.length<sz)squadre.push({nome:availNomi.shift()||`Sq${squadre.length+1}`,soc:''});
+
+    f1.gironi.push({id:uid(),label,squadre,sets,ritorno:false,partite:genPartite(sz,false,sets)});
+  }
+
+  sv();render();
 }

@@ -25,16 +25,25 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:v
   overflow:hidden;text-overflow:ellipsis;display:inline-block}
 
 /* Categoria tabs */
-.cat-tabs{display:flex;background:#1a1d27;border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch}
-.cat-tab{flex:1;min-width:80px;padding:10px 8px;text-align:center;font-size:13px;font-weight:600;cursor:pointer;color:var(--txt2);border-bottom:2px solid transparent;white-space:nowrap;transition:all .15s}
+.cat-tabs{display:flex;background:#1a1d27;border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;flex-wrap:nowrap}
+.cat-tab{flex-shrink:0;padding:10px 14px;text-align:center;font-size:13px;font-weight:600;cursor:pointer;color:var(--txt2);border-bottom:2px solid transparent;white-space:nowrap;transition:all .15s}
 .cat-tab.active-w{color:var(--accent-w);border-bottom-color:var(--accent-w)}
 .cat-tab.active-g{color:var(--accent-g);border-bottom-color:var(--accent-g)}
 .cat-tab.active-r{color:var(--accent-r);border-bottom-color:var(--accent-r)}
+.cat-tab.active-sp{color:#f59e0b;border-bottom-color:#f59e0b}
+.cat-tab.active-info{color:#a78bfa;border-bottom-color:#a78bfa}
 
-/* Sub tabs (Classifiche / Partite) */
-.sub-tabs{display:flex;gap:4px;padding:10px 12px 0;background:#1a1d27}
-.sub-tab{padding:6px 14px;border-radius:8px 8px 0 0;font-size:12px;font-weight:600;cursor:pointer;color:var(--txt2);border:1px solid transparent;border-bottom:none;background:rgba(255,255,255,0.04)}
+/* Sub tabs (Classifiche / Partite / Gironi) */
+.sub-tabs{display:flex;gap:4px;padding:10px 12px 0;background:#1a1d27;overflow-x:auto;flex-wrap:nowrap}
+.sub-tab{flex-shrink:0;padding:6px 14px;border-radius:8px 8px 0 0;font-size:12px;font-weight:600;cursor:pointer;color:var(--txt2);border:1px solid transparent;border-bottom:none;background:rgba(255,255,255,0.04);white-space:nowrap}
 .sub-tab.active{background:var(--bg);color:#fff;border-color:var(--border)}
+
+/* Girone sub tabs */
+.girone-pills{display:flex;gap:6px;padding:10px 12px;background:#1a1d27;overflow-x:auto;flex-wrap:nowrap;border-bottom:1px solid var(--border)}
+.girone-pill{flex-shrink:0;padding:5px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;color:var(--txt2);border:1px solid var(--border);background:rgba(255,255,255,0.04);white-space:nowrap;transition:all .15s}
+.girone-pill.active-w{color:var(--accent-w);border-color:var(--accent-w);background:rgba(74,158,255,0.12)}
+.girone-pill.active-g{color:var(--accent-g);border-color:var(--accent-g);background:rgba(74,222,128,0.12)}
+.girone-pill.active-r{color:var(--accent-r);border-color:var(--accent-r);background:rgba(248,113,113,0.12)}
 
 /* Content */
 .live-body{padding:14px 12px;max-width:900px;margin:0 auto}
@@ -93,6 +102,39 @@ tr:last-child td{border-bottom:none}
 .podium-trophy{font-size:20px}
 .podium-nome-live{font-size:12px;font-weight:700;color:#fff;margin-top:4px}
 
+/* ── SPONSOR PAGE ─────────────────────────────────────── */
+.sponsor-page{padding:20px 12px;max-width:900px;margin:0 auto}
+.sponsor-cat-section{margin-bottom:32px}
+.sponsor-cat-title{font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+.sponsor-cat-subtitle{font-size:13px;color:var(--txt2);margin:-8px 0 12px;font-style:italic}
+.sponsor-grid-lg{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-bottom:16px}
+.sponsor-grid-md{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:16px}
+.sponsor-grid-sm{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-bottom:16px}
+.sponsor-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center}
+.sponsor-card.lg{padding:20px}
+.sponsor-card.sm{padding:12px;gap:6px}
+.sponsor-img-wrap{display:flex;align-items:center;justify-content:center;width:100%}
+.sponsor-img{max-width:100%;border-radius:8px;object-fit:contain}
+.sponsor-img.lg{max-height:140px}
+.sponsor-img.md{max-height:90px}
+.sponsor-img.sm{max-height:60px}
+.sponsor-nome{font-size:14px;font-weight:700;color:#fff}
+.sponsor-nome.lg{font-size:16px}
+.sponsor-nome.sm{font-size:12px}
+.sponsor-frase{font-size:12px;color:var(--txt2);line-height:1.5}
+.sponsor-frase.lg{font-size:13px}
+.sponsor-size-badge{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:2px 7px;border-radius:10px;margin-bottom:4px}
+.sz-grande{background:rgba(251,191,36,0.15);color:#fbbf24}
+.sz-medio{background:rgba(74,222,128,0.15);color:#4ade80}
+.sz-piccolo{background:rgba(148,163,184,0.15);color:#94a3b8}
+
+/* ── INFO PAGE ────────────────────────────────────────── */
+.info-page{padding:20px 12px;max-width:700px;margin:0 auto}
+.info-block{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:14px}
+.info-block-title{font-size:15px;font-weight:700;color:#fff;margin-bottom:10px}
+.info-block-body{font-size:13px;color:var(--txt2);line-height:1.7;white-space:pre-wrap}
+.info-tag{display:inline-block;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;margin-right:6px;margin-bottom:6px}
+
 /* QR panel */
 .qr-panel{position:fixed;bottom:20px;right:16px;z-index:500;display:flex;flex-direction:column;align-items:flex-end;gap:8px}
 .qr-toggle{padding:9px 16px;border:none;border-radius:20px;background:#4ade80;color:#0f1117;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(74,222,128,0.4)}
@@ -126,13 +168,20 @@ tr:last-child td{border-bottom:none}
   </div>
 </div>
 
-<!-- Tab categorie -->
+<!-- Tab categorie + sponsor + info -->
 <div class="cat-tabs" id="catTabs"></div>
 
-<!-- Sub tab classifiche/partite -->
-<div class="sub-tabs" id="subTabs"></div>
+<!-- Sub tab classifiche/partite (solo per categorie sport) -->
+<div id="subTabsWrap">
+  <div class="sub-tabs" id="subTabs"></div>
+</div>
 
-<!-- Contenuto -->
+<!-- Pill selettore girone (solo per classifiche/partite) -->
+<div id="gironePillsWrap" style="display:none">
+  <div class="girone-pills" id="gironePills"></div>
+</div>
+
+<!-- Contenuto principale -->
 <div id="liveRoot"><div class="no-data"><p>Connessione...</p></div></div>
 
 <!-- QR Panel -->
@@ -161,12 +210,13 @@ function loadFromStorage(){
 }
 setInterval(loadFromStorage,3000);
 try{const bc=new BroadcastChannel('torneo_update');bc.onmessage=()=>loadFromStorage();}catch(e){}
-window.addEventListener('DOMContentLoaded',()=>{loadFromStorage();});
+window.addEventListener('DOMContentLoaded',()=>loadFromStorage());
 
 // ── Stato ─────────────────────────────────────────────────
 let activeTorneoId=null;
-let activeCat='white';
-let activeSub='classifiche'; // 'classifiche' | 'partite'
+let activeCat='white';         // 'white' | 'green' | 'red' | 'sponsor' | 'info'
+let activeSub='classifiche';  // 'classifiche' | 'partite'
+let activeGirone='all';       // 'all' | girone.id
 let DB={tornei:{}};
 
 function setSyncStatus(){
@@ -176,9 +226,15 @@ function setSyncStatus(){
   if(t)t.textContent='Live · '+new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
 }
 
-
-function setCatLive(cat){activeCat=cat;renderContent();}
-function setSubLive(sub){activeSub=sub;renderContent();}
+function setCatLive(cat){
+  activeCat=cat;
+  activeGirone='all';
+  // Se cambia categoria sportiva, rimetti classifiche
+  if(['white','green','red'].includes(cat)) activeSub='classifiche';
+  renderLive();
+}
+function setSubLive(sub){activeSub=sub;activeGirone='all';renderLive();}
+function setGironeLive(gid){activeGirone=gid;renderContent();}
 
 // ── Calcoli ───────────────────────────────────────────────
 function calcCl(g){
@@ -207,21 +263,15 @@ function renderLive(){
   setSyncStatus();
   const tornei=DB.tornei||{};
 
-  // Legge il torneo impostato come "live" dall'app di gestione
   const liveId=localStorage.getItem('torneo_live_id');
-  if(liveId&&tornei[liveId]){
-    activeTorneoId=liveId;
-  } else {
-    // Fallback: primo torneo disponibile
+  if(liveId&&tornei[liveId]) activeTorneoId=liveId;
+  else{
     const ids=Object.keys(tornei).sort((a,b)=>(tornei[b].createdAt||0)-(tornei[a].createdAt||0));
     activeTorneoId=ids[0]||null;
   }
 
-  // Mostra solo il nome del torneo (non il selettore)
   const nameEl=document.getElementById('torneoSelect');
-  if(nameEl&&activeTorneoId&&tornei[activeTorneoId]){
-    nameEl.textContent=tornei[activeTorneoId].nome;
-  }
+  if(nameEl&&activeTorneoId&&tornei[activeTorneoId]) nameEl.textContent=tornei[activeTorneoId].nome;
 
   if(!activeTorneoId||!tornei[activeTorneoId]){
     document.getElementById('liveRoot').innerHTML='<div class="no-data"><p>Nessun torneo in corso.<br>Impostalo dall\'app di gestione.</p></div>';
@@ -232,29 +282,41 @@ function renderLive(){
   document.getElementById('liveSubtitle').textContent=torneo.nome;
   document.title=torneo.nome+' — Live';
 
-  // Tab categorie
-  const cats=[
+  // ── Tab categorie sportive
+  const sportCats=[
     {k:'white',label:'⬜ White',ac:'active-w'},
     {k:'green', label:'🟩 Green', ac:'active-g'},
     {k:'red',   label:'🟥 Red',   ac:'active-r'},
   ].filter(c=>(torneo.cats?.[c.k]?.fasi||[]).some(f=>f.gironi?.length||f.tipo==='elim'));
 
-  if(!cats.length){
-    document.getElementById('liveRoot').innerHTML='<div class="no-data"><p>Nessun girone ancora</p></div>';
-    return;
-  }
+  // ── Tab extra (sponsor / info)
+  const hasSponsor=torneo.pageConfig?.sponsorEnabled&&(torneo.pageConfig?.sponsor?.cats||[]).some(c=>c.items?.length);
+  const hasInfo=torneo.pageConfig?.infoEnabled&&torneo.pageConfig?.infoBlocks?.some(b=>b.titolo||b.testo);
 
-  if(!cats.find(c=>c.k===activeCat)) activeCat=cats[0].k;
+  const allTabs=[...sportCats];
+  if(hasSponsor) allTabs.push({k:'sponsor',label:'🤝 Sponsor',ac:'active-sp'});
+  if(hasInfo)    allTabs.push({k:'info',label:'ℹ️ Info',ac:'active-info'});
 
-  document.getElementById('catTabs').innerHTML=cats.map(c=>`
+  // Se la categoria attiva non è più disponibile, torna alla prima
+  if(!allTabs.find(t=>t.k===activeCat)) activeCat=allTabs[0]?.k||'white';
+
+  const isSportCat=['white','green','red'].includes(activeCat);
+
+  document.getElementById('catTabs').innerHTML=allTabs.map(c=>`
     <div class="cat-tab${activeCat===c.k?' '+c.ac:''}" onclick="setCatLive('${c.k}')">${c.label}</div>
   `).join('');
 
-  // Sub tabs
-  document.getElementById('subTabs').innerHTML=`
-    <div class="sub-tab${activeSub==='classifiche'?' active':''}" onclick="setSubLive('classifiche')">📊 Classifiche</div>
-    <div class="sub-tab${activeSub==='partite'?' active':''}" onclick="setSubLive('partite')">📋 Partite</div>
-  `;
+  // Sub tabs (solo per categorie sportive)
+  const subWrap=document.getElementById('subTabsWrap');
+  if(isSportCat){
+    subWrap.style.display='';
+    document.getElementById('subTabs').innerHTML=`
+      <div class="sub-tab${activeSub==='classifiche'?' active':''}" onclick="setSubLive('classifiche')">📊 Classifiche</div>
+      <div class="sub-tab${activeSub==='partite'?' active':''}" onclick="setSubLive('partite')">📋 Partite</div>
+    `;
+  } else {
+    subWrap.style.display='none';
+  }
 
   renderContent();
 }
@@ -262,27 +324,69 @@ function renderLive(){
 function renderContent(){
   const torneo=DB.tornei[activeTorneoId];
   if(!torneo)return;
+
+  // ── Pagina sponsor
+  if(activeCat==='sponsor'){
+    document.getElementById('gironePillsWrap').style.display='none';
+    document.getElementById('liveRoot').innerHTML=renderSponsorPage(torneo);
+    return;
+  }
+
+  // ── Pagina info
+  if(activeCat==='info'){
+    document.getElementById('gironePillsWrap').style.display='none';
+    document.getElementById('liveRoot').innerHTML=renderInfoPage(torneo);
+    return;
+  }
+
+  // ── Categoria sportiva
   const fasi=(torneo.cats?.[activeCat]?.fasi)||[];
   const cat=activeCat;
   const cc=cat==='white'?'w':cat==='green'?'g':'r';
+
+  // Raccoglie tutti i gironi (non elim) per i pill
+  const tuttiGironi=[];
+  for(const fase of fasi){
+    if(fase.tipo!=='elim'){
+      for(const g of(fase.gironi||[])){
+        tuttiGironi.push({id:g.id,label:`${fase.label} — Girone ${g.label}`,fase,g});
+      }
+    }
+  }
+
+  // Pill selettore girone
+  const pillsWrap=document.getElementById('gironePillsWrap');
+  const pillsEl=document.getElementById('gironePills');
+  if(tuttiGironi.length>1){
+    pillsWrap.style.display='';
+    // verifica che activeGirone sia ancora valido
+    if(activeGirone!=='all'&&!tuttiGironi.find(x=>x.id===activeGirone)) activeGirone='all';
+    pillsEl.innerHTML=`<div class="girone-pill${activeGirone==='all'?' active-'+cc:''}" onclick="setGironeLive('all')">Tutti</div>`
+      +tuttiGironi.map(x=>`<div class="girone-pill${activeGirone===x.id?' active-'+cc:''}" onclick="setGironeLive('${x.id}')">${x.label}</div>`).join('');
+  } else {
+    pillsWrap.style.display='none';
+    activeGirone='all';
+  }
 
   let html='<div class="live-body">';
 
   for(const fase of fasi){
     if(fase.tipo==='elim'){
+      // Elim: mostra sempre (non filtrabile per girone)
       html+=renderElimLive(fase,cc);
     } else {
-      for(const g of(fase.gironi||[])){
+      const gironiDaMostrare=(activeGirone==='all')
+        ?(fase.gironi||[])
+        :(fase.gironi||[]).filter(g=>g.id===activeGirone);
+
+      for(const g of gironiDaMostrare){
         html+=`<div class="girone-card">
           <div class="girone-card-hdr ${cc}">
             <span class="girone-label ${cc}">${fase.label} — Girone ${g.label}</span>
             <span class="girone-prog">${g.partite.filter(p=>p.s1h!=='').length}/${g.partite.length} partite</span>
           </div>`;
-        if(activeSub==='classifiche'){
-          html+=renderClassificaLive(g,cc);
-        } else {
-          html+=renderPartiteLive(g,cc);
-        }
+        if(activeSub==='classifiche') html+=renderClassificaLive(g,cc);
+        else                          html+=renderPartiteLive(g,cc);
         html+=`</div>`;
       }
     }
@@ -292,6 +396,7 @@ function renderContent(){
   document.getElementById('liveRoot').innerHTML=html;
 }
 
+// ── Classifica ─────────────────────────────────────────────
 function renderClassificaLive(g,cc){
   const cl=calcCl(g);const sets=g.sets||2;
   let h=`<table><thead><tr>
@@ -312,6 +417,7 @@ function renderClassificaLive(g,cc){
   return h+`</tbody></table>`;
 }
 
+// ── Partite ────────────────────────────────────────────────
 function renderPartiteLive(g,cc){
   const sets=g.sets||2;
   const andata=g.partite.filter(p=>!p.leg||p.leg===1);
@@ -347,6 +453,7 @@ function renderPartiteLive(g,cc){
   return h;
 }
 
+// ── Eliminazione ───────────────────────────────────────────
 function renderElimLive(fase,cc){
   const e=fase.elim||{};
   const hasQ=e.q1||e.q2||e.q3||e.q4;
@@ -393,6 +500,70 @@ function renderElimLive(fase,cc){
   return html;
 }
 
+// ── Pagina Sponsor ─────────────────────────────────────────
+function renderSponsorPage(torneo){
+  const cfg=torneo.pageConfig||{};
+  const cats=cfg.sponsor?.cats||[];
+  if(!cats.length) return`<div class="no-data"><p>Nessuno sponsor configurato.</p></div>`;
+
+  let html='<div class="sponsor-page">';
+  for(const cat of cats){
+    const items=cat.items||[];
+    if(!items.length) continue;
+
+    const grandi=items.filter(x=>x.size==='grande');
+    const medi  =items.filter(x=>x.size==='medio');
+    const piccoli=items.filter(x=>x.size==='piccolo');
+
+    html+=`<div class="sponsor-cat-section">`;
+    if(cat.nome) html+=`<div class="sponsor-cat-title">${cat.nome}</div>`;
+
+    function sponsorCard(sp,sz){
+      const gridClass=sz==='grande'?'lg':sz==='medio'?'md':'sm';
+      const imgClass=sz==='grande'?'lg':sz==='medio'?'md':'sm';
+      let card=`<div class="sponsor-card ${gridClass}">`;
+      if(sp.immagine) card+=`<div class="sponsor-img-wrap"><img class="sponsor-img ${imgClass}" src="${sp.immagine}" alt="${sp.nome||''}"></div>`;
+      if(sp.nome) card+=`<div class="sponsor-nome ${gridClass}">${sp.nome}</div>`;
+      if(sp.frase) card+=`<div class="sponsor-frase ${gridClass}">${sp.frase}</div>`;
+      card+=`</div>`;
+      return card;
+    }
+
+    if(grandi.length){
+      html+=`<div class="sponsor-grid-lg">${grandi.map(sp=>sponsorCard(sp,'grande')).join('')}</div>`;
+    }
+    if(medi.length){
+      html+=`<div class="sponsor-grid-md">${medi.map(sp=>sponsorCard(sp,'medio')).join('')}</div>`;
+    }
+    if(piccoli.length){
+      html+=`<div class="sponsor-grid-sm">${piccoli.map(sp=>sponsorCard(sp,'piccolo')).join('')}</div>`;
+    }
+    html+=`</div>`;
+  }
+  html+=`</div>`;
+  return html;
+}
+
+// ── Pagina Info ────────────────────────────────────────────
+function renderInfoPage(torneo){
+  const cfg=torneo.pageConfig||{};
+  const blocks=cfg.infoBlocks||[];
+  if(!blocks.length) return`<div class="no-data"><p>Nessuna informazione disponibile.</p></div>`;
+
+  let html='<div class="info-page">';
+  for(const b of blocks){
+    if(!b.titolo&&!b.testo) continue;
+    html+=`<div class="info-block">`;
+    if(b.titolo) html+=`<div class="info-block-title">${b.titolo}</div>`;
+    if(b.testo)  html+=`<div class="info-block-body">${escHtml(b.testo)}</div>`;
+    html+=`</div>`;
+  }
+  html+=`</div>`;
+  return html;
+}
+
+function escHtml(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
 // ── QR Code ───────────────────────────────────────────────
 let qrOpen=false,qrGenerated=false;
 function toggleQR(){
@@ -418,6 +589,5 @@ function toggleQR(){
 }
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&qrOpen)toggleQR();});
 </script>
-
 </body>
 </html>

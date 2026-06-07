@@ -100,8 +100,8 @@ function renderTorneoSetup(){
       ${w.societa.length?`
       <div class="sec">Società inserite</div>
       <div style="background:var(--info);border-radius:8px;padding:8px;margin-bottom:1rem">
-        <div style="display:grid;grid-template-columns:1fr repeat(3,80px) 36px;gap:6px;align-items:center;padding:4px 8px;font-size:11px;font-weight:600;color:var(--txt2)">
-          <div>SOCIETÀ</div><div style="text-align:center">WHITE</div><div style="text-align:center">GREEN</div><div style="text-align:center">RED</div><div></div>
+        <div style="display:grid;grid-template-columns:1fr repeat(3,80px) repeat(3,80px) 36px;gap:6px;align-items:center;padding:4px 8px;font-size:11px;font-weight:600;color:var(--txt2)">
+          <div>SOCIETÀ</div><div style="text-align:center;color:#1e40af">SQ W</div><div style="text-align:center;color:#166534">SQ G</div><div style="text-align:center;color:#991b1b">SQ R</div><div style="text-align:center;color:#1e40af">🧒 W</div><div style="text-align:center;color:#166534">🧒 G</div><div style="text-align:center;color:#991b1b">🧒 R</div><div></div>
         </div>
         ${w.societa.map((s,si)=>`
         <div class="soc-row">
@@ -110,12 +110,16 @@ function renderTorneoSetup(){
             <div style="text-align:center">
               <input type="number" min="0" max="20" value="${s.sqPerCat[cat]||0}" style="width:60px;text-align:center;padding:4px;font-size:13px" oninput="setSocCat(${si},'${cat}',parseInt(this.value)||0)">
             </div>`).join('')}
+          ${['white','green','red'].map(cat=>`
+            <div style="text-align:center">
+              <input type="number" min="0" max="999" value="${s.bambini?.[cat]||0}" style="width:60px;text-align:center;padding:4px;font-size:13px" oninput="setSocBambini(${si},'${cat}',parseInt(this.value)||0)">
+            </div>`).join('')}
           <button class="bd bxsm" onclick="rimuoviSoc(${si})">✕</button>
         </div>`).join('')}
       </div>
       <div style="background:var(--info);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--txt2);margin-bottom:1rem">
         <strong>Riepilogo squadre per categoria:</strong><br>
-        ${['white','green','red'].map(cat=>{const tot=w.societa.reduce((s,x)=>s+(x.sqPerCat[cat]||0),0);return`<span class="gbadge ${badge(cat)}" style="margin:2px">${catLabel(cat)}: ${tot} squadre</span>`;}).join(' ')}
+        ${['white','green','red'].map(cat=>{const tot=w.societa.reduce((s,x)=>s+(x.sqPerCat[cat]||0),0);const totB=w.societa.reduce((s,x)=>s+(x.bambini?.[cat]||0),0);return`<span class="gbadge ${badge(cat)}" style="margin:2px">${catLabel(cat)}: ${tot} sq · 🧒 ${totB}</span>`;}).join(' ')}
       </div>
       `:`<p style="color:var(--txt2);font-size:13px;text-align:center;padding:1rem">Nessuna società ancora. Aggiungine una.</p>`}
 
@@ -136,11 +140,12 @@ function aggiungiSoc(){
   const nome=(wizardState.nuovaSocNome||document.getElementById('nuovaSocInput')?.value||'').trim();
   if(!nome)return;
   if(wizardState.societa.find(s=>s.nome.toLowerCase()===nome.toLowerCase())){alert('Società già presente.');return;}
-  wizardState.societa.push({nome,sqPerCat:{white:0,green:0,red:0}});
+  wizardState.societa.push({nome,sqPerCat:{white:0,green:0,red:0},bambini:{white:0,green:0,red:0}});
   wizardState.nuovaSocNome='';render();
 }
 function rimuoviSoc(i){wizardState.societa.splice(i,1);render();}
 function setSocCat(i,cat,n){wizardState.societa[i].sqPerCat[cat]=n;}
+function setSocBambini(i,cat,n){if(!wizardState.societa[i].bambini)wizardState.societa[i].bambini={white:0,green:0,red:0};wizardState.societa[i].bambini[cat]=n;}
 
 function creaTorneo(){
   if(!wizardState.nome.trim()){alert('Nome mancante.');return;}
@@ -151,7 +156,7 @@ function creaTorneo(){
       const n=s.sqPerCat[cat]||0;
       for(let i=0;i<n;i++) squadre.push({cat,nome:'',soc:s.nome}); // nome verrà assegnato alla creazione gironi
     }
-    return{nome:s.nome,sqPerCat:s.sqPerCat,squadre};
+    return{nome:s.nome,sqPerCat:s.sqPerCat,bambini:s.bambini||{white:0,green:0,red:0},squadre};
   });
   const id=uid();
   DB.tornei[id]={nome:wizardState.nome.trim(),createdAt:Date.now(),societa,cats:{
@@ -174,10 +179,12 @@ function renderTorneo(){
     <button class="tab tr2${cat==='red'?' active':''}" onclick="setScat('red')">🟥 Red</button>
     <button class="tab${cat==='admin'?' active':''}" onclick="setScat('admin')">⚙️ Setup gironi</button>
     <button class="tab${cat==='societa'?' active':''}" onclick="setScat('societa')">🏢 Società</button>
+    <button class="tab${cat==='paginaLive'?' active':''}" onclick="setScat('paginaLive')">📄 Pagina Live</button>
   </div>`;
   let html='';
   if(cat==='admin') html=renderSetupGironi();
   else if(cat==='societa') html=renderSocieta();
+  else if(cat==='paginaLive') html=renderPaginaLive();
   else html=renderCategoria(cat);
   return tabsHtml+html;
 }
@@ -196,7 +203,7 @@ function renderSocieta(){
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="bsm" onclick="importTorneo()">⬆ Importa torneo</button>
         <button class="bsm" onclick="exportTorneo()">⬇ Esporta torneo</button>
-        <button class="bsm bp" onclick="socEditState={si:-1,nome:'',sqPerCat:{white:0,green:0,red:0}};render()">+ Società</button>
+        <button class="bsm bp" onclick="socEditState={si:-1,nome:'',sqPerCat:{white:0,green:0,red:0},bambini:{white:0,green:0,red:0}};render()">+ Società</button>
       </div>
     </div>
     ${socEditState&&socEditState.si===-1?renderSocForm(-1):''}
@@ -207,15 +214,16 @@ function renderSocieta(){
 
 function renderSocTable(soc){
   return`<div style="background:var(--info);border-radius:8px;padding:8px;margin-bottom:1rem">
-    <div style="display:grid;grid-template-columns:1fr repeat(3,68px) 76px;gap:6px;align-items:center;padding:4px 8px;font-size:11px;font-weight:600;color:var(--txt2)">
-      <div>SOCIETÀ</div><div style="text-align:center">W</div><div style="text-align:center">G</div><div style="text-align:center">R</div><div></div>
+    <div style="display:grid;grid-template-columns:1fr repeat(3,48px) repeat(3,52px) 76px;gap:6px;align-items:center;padding:4px 8px;font-size:11px;font-weight:600;color:var(--txt2)">
+      <div>SOCIETÀ</div><div style="text-align:center;color:#1e40af">SQ W</div><div style="text-align:center;color:#166534">SQ G</div><div style="text-align:center;color:#991b1b">SQ R</div><div style="text-align:center;color:#1e40af">🧒W</div><div style="text-align:center;color:#166534">🧒G</div><div style="text-align:center;color:#991b1b">🧒R</div><div></div>
     </div>
     ${soc.map((s,si)=>socEditState&&socEditState.si===si?renderSocForm(si):
       `<div class="soc-row">
         <div class="soc-nome">${s.nome}</div>
         ${['white','green','red'].map(cat=>`<div style="text-align:center;font-size:14px;font-weight:700;color:${(s.sqPerCat?.[cat]||0)>0?'var(--txt)':'var(--txt2)'}">${s.sqPerCat?.[cat]||0}</div>`).join('')}
+        ${['white','green','red'].map(cat=>`<div style="text-align:center;font-size:13px;color:${(s.bambini?.[cat]||0)>0?'var(--txt)':'var(--txt2)'}">${s.bambini?.[cat]||0}</div>`).join('')}
         <div style="display:flex;gap:4px">
-          <button class="bxsm" onclick="socEditState={si:${si},nome:'${s.nome.replace(/'/g,"\\'")}',sqPerCat:{white:${s.sqPerCat?.white||0},green:${s.sqPerCat?.green||0},red:${s.sqPerCat?.red||0}}};render()">✏️</button>
+          <button class="bxsm" onclick="socEditState={si:${si},nome:'${s.nome.replace(/'/g,"\\'")}',sqPerCat:{white:${s.sqPerCat?.white||0},green:${s.sqPerCat?.green||0},red:${s.sqPerCat?.red||0}},bambini:{white:${s.bambini?.white||0},green:${s.bambini?.green||0},red:${s.bambini?.red||0}}};render()">✏️</button>
           <button class="bxsm bd" onclick="rimuoviSocTorneo(${si})">✕</button>
         </div>
       </div>`
@@ -223,7 +231,7 @@ function renderSocTable(soc){
   </div>
   <div style="background:var(--info);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--txt2)">
     <strong>Totale:</strong>
-    ${['white','green','red'].map(cat=>{const tot=soc.reduce((s,x)=>s+(x.sqPerCat?.[cat]||0),0);return`<span class="gbadge ${badge(cat)}" style="margin:2px">${catLabel(cat)}: ${tot} sq</span>`;}).join(' ')}
+    ${['white','green','red'].map(cat=>{const tot=soc.reduce((s,x)=>s+(x.sqPerCat?.[cat]||0),0);const totB=soc.reduce((s,x)=>s+(x.bambini?.[cat]||0),0);return`<span class="gbadge ${badge(cat)}" style="margin:2px">${catLabel(cat)}: ${tot} sq · 🧒 ${totB}</span>`;}).join(' ')}
   </div>`;
 }
 
@@ -232,10 +240,18 @@ function renderSocForm(si){
   return`<div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px">
     <div class="sec">${isNew?'Nuova società':'Modifica società'}</div>
     <input type="text" placeholder="Nome società" value="${st.nome}" style="margin-bottom:10px" oninput="socEditState.nome=this.value" onkeydown="if(event.key==='Enter')saveSoc()">
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px">
+    <div style="font-size:12px;font-weight:600;color:var(--txt2);margin-bottom:6px">Squadre per categoria</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px">
       ${['white','green','red'].map(cat=>`<div>
         <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:4px"><span class="gbadge ${badge(cat)}">${catLabel(cat)}</span></label>
         <input type="number" min="0" max="30" value="${st.sqPerCat[cat]||0}" style="text-align:center" oninput="socEditState.sqPerCat['${cat}']=parseInt(this.value)||0">
+      </div>`).join('')}
+    </div>
+    <div style="font-size:12px;font-weight:600;color:var(--txt2);margin-bottom:6px">🧒 Bambini iscritti per categoria</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px">
+      ${['white','green','red'].map(cat=>`<div>
+        <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:4px"><span class="gbadge ${badge(cat)}">${catLabel(cat)}</span></label>
+        <input type="number" min="0" max="9999" value="${st.bambini?.[cat]||0}" style="text-align:center" oninput="if(!socEditState.bambini)socEditState.bambini={white:0,green:0,red:0};socEditState.bambini['${cat}']=parseInt(this.value)||0">
       </div>`).join('')}
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end">
@@ -249,8 +265,8 @@ function saveSoc(){
   const t=currentTorneo();if(!t)return;if(!t.societa)t.societa=[];
   const st=socEditState;if(!st)return;
   const nome=st.nome.trim();if(!nome){alert('Inserisci il nome.');return;}
-  if(st.si===-1){t.societa.push({nome,sqPerCat:{...st.sqPerCat},squadre:[]});}
-  else{t.societa[st.si].nome=nome;t.societa[st.si].sqPerCat={...st.sqPerCat};}
+  if(st.si===-1){t.societa.push({nome,sqPerCat:{...st.sqPerCat},bambini:{...(st.bambini||{white:0,green:0,red:0})},squadre:[]});}
+  else{t.societa[st.si].nome=nome;t.societa[st.si].sqPerCat={...st.sqPerCat};t.societa[st.si].bambini={...(st.bambini||{white:0,green:0,red:0})};}
   socEditState=null;sv();render();
 }
 function rimuoviSocTorneo(si){
@@ -296,26 +312,46 @@ function renderSetupGironi(){
   // Assicura che fase1 esista in memoria (NO sv() qui — mai salvare dentro render)
   for(const c of['white','green','red']){const fa=getFasi(c);if(!fa.length)fa.push({id:uid(),label:'Fase 1',gironi:[]});}
   let html=`<div style="background:var(--info);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--txt2);margin-bottom:1rem;line-height:1.7">
-    Crea i gironi iniziali (Fase 1). Scegli numero di squadre e set, poi clicca <strong>+ Girone</strong>. Le squadre e le società vengono assegnate automaticamente.
+    Crea i gironi iniziali (Fase 1). Imposta il numero di campi disponibili per ottenere un suggerimento gironi, poi clicca <strong>+ Girone</strong> o <strong>Crea suggeriti</strong>.
   </div>`;
   for(const cat of['white','green','red']){
     const fasi=getFasi(cat);
     const fase1=fasi[0];const gs=fase1.gironi;
     const pref=PREFS[cat];
     const b=badge(cat);const lbl=cat==='white'?'⬜ White':cat==='green'?'🟩 Green':'🟥 Red';
-    // Quante squadre totali in questa categoria
     const totSq=(t.societa||[]).reduce((s,x)=>s+(x.sqPerCat?.[cat]||0),0);
+    const nCampi=pref.campi||0;
+    // Calcola suggerimento gironi
+    const sug=nCampi>0&&totSq>0?suggerisciGironi(totSq,nCampi):null;
+    const sugTxt=sug?sug.map(n=>`${n} sq`).join(' + '):'—';
+    const sugLabel=sug?`${sug.length} giron${sug.length===1?'e':'i'} da ${sugTxt}`:'Imposta i campi per il suggerimento';
     html+=`<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
       <span style="font-size:15px;font-weight:600;color:var(--txt)">${lbl} — ${gs.length} giron${gs.length===1?'e':'i'} — ${totSq} squadre totali</span>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <select id="sz_${cat}" style="width:auto;padding:5px 8px;font-size:13px" onchange="PREFS['${cat}'].sz=parseInt(this.value)">
-          ${[3,4,5,6,7,8].map(n=>`<option value="${n}"${pref.sz===n?' selected':''}>${n} sq/girone</option>`).join('')}
-        </select>
-        <select id="sets_${cat}" style="width:auto;padding:5px 8px;font-size:13px" onchange="PREFS['${cat}'].sets=parseInt(this.value)">
-          <option value="1"${pref.sets===1?' selected':''}>1 set</option><option value="2"${pref.sets===2?' selected':''}>2 set</option>
-        </select>
-        <button class="bp bsm" onclick="addGirone('${cat}')">+ Girone</button>
-      </div></div>`;
+    </div>
+    <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;padding:12px;background:var(--info);border-radius:8px">
+      <div>
+        <div style="font-size:11px;font-weight:600;color:var(--txt2);margin-bottom:4px">CAMPI DISPONIBILI</div>
+        <input type="number" min="1" max="20" value="${nCampi||''}" placeholder="es. 3"
+          style="width:80px;text-align:center;font-size:15px;font-weight:700"
+          oninput="PREFS['${cat}'].campi=parseInt(this.value)||0;render()">
+      </div>
+      <div style="flex:1;min-width:160px">
+        <div style="font-size:11px;font-weight:600;color:var(--txt2);margin-bottom:4px">SUGGERIMENTO</div>
+        <div style="font-size:13px;color:${sug?'var(--txt)':'var(--txt2)'};font-weight:${sug?'600':'400'}">${sugLabel}</div>
+        ${sug?`<div style="font-size:11px;color:var(--txt2);margin-top:2px">max ${nCampi} giron${nCampi===1?'e':'i'} · ${totSq} squadre distribuite</div>`:''}
+      </div>
+      ${sug&&!gs.length?`<button class="bg bsm" onclick="creaSuggeriti('${cat}')">✓ Crea suggeriti</button>`:''}
+      ${sug&&gs.length?`<button class="bsm" onclick="if(confirm('Elimina i gironi esistenti e crea quelli suggeriti?'))creaSuggeriti('${cat}')">↺ Ricrea suggeriti</button>`:''}
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+      <select id="sz_${cat}" style="width:auto;padding:5px 8px;font-size:13px" onchange="PREFS['${cat}'].sz=parseInt(this.value)">
+        ${[3,4,5,6,7,8].map(n=>`<option value="${n}"${pref.sz===n?' selected':''}>${n} sq/girone</option>`).join('')}
+      </select>
+      <select id="sets_${cat}" style="width:auto;padding:5px 8px;font-size:13px" onchange="PREFS['${cat}'].sets=parseInt(this.value)">
+        <option value="1"${pref.sets===1?' selected':''}>1 set</option><option value="2"${pref.sets===2?' selected':''}>2 set</option>
+      </select>
+      <button class="bp bsm" onclick="addGirone('${cat}')">+ Girone manuale</button>
+    </div>`;
     for(const g of gs){
       html+=`<div style="border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:6px">
@@ -584,3 +620,127 @@ function renderBuilder(b){
   html+=`<div style="display:flex;gap:10px;margin-top:1.5rem;justify-content:flex-end"><button onclick="builderCancel()">Annulla</button><button class="bp" onclick="builderConfirm()">✓ Crea fase</button></div></div>`;
   return html;
 }
+
+// ============================================================
+// PAGINA LIVE — configurazione sponsor e info
+// ============================================================
+function renderPaginaLive(){
+  const t=currentTorneo();if(!t)return'';
+  const cfg=t.pageConfig||{};
+  const sponsorEnabled=!!cfg.sponsorEnabled;
+  const infoEnabled=!!cfg.infoEnabled;
+  const sponsorCats=cfg.sponsor?.cats||[];
+  const infoBlocks=cfg.infoBlocks||[];
+
+  const toggleStyle='display:flex;align-items:center;gap:10px;margin-bottom:1.5rem';
+  const toggleEl=(enabled,fn)=>`<label class="toggle"><input type="checkbox" ${enabled?'checked':''} onchange="${fn}()"><span class="slider"></span></label>`;
+
+  // SEZIONE SPONSOR
+  let sponsorHtml=`<div class="card" style="margin-bottom:1rem">
+    <div style="${toggleStyle}">
+      ${toggleEl(sponsorEnabled,'toggleSponsorEnabled')}
+      <div>
+        <div style="font-size:15px;font-weight:600">🤝 Tab Sponsor</div>
+        <div style="font-size:12px;color:var(--txt2)">Mostra una pagina sponsor nella schermata live pubblica</div>
+      </div>
+    </div>`;
+
+  if(sponsorEnabled){
+    sponsorHtml+=`<div style="margin-top:.5rem">`;
+    sponsorCats.forEach((cat,ci)=>{
+      const nCats=sponsorCats.length;
+      sponsorHtml+=`<div style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:12px">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+          <div style="display:flex;gap:2px">
+            ${ci>0?`<button class="bxsm" onclick="moveSponsorCat(${ci},-1)" title="Sposta su">&#8593;</button>`:'<span style="width:28px"></span>'}
+            ${ci<nCats-1?`<button class="bxsm" onclick="moveSponsorCat(${ci},1)" title="Sposta giu">&#8595;</button>`:'<span style="width:28px"></span>'}
+          </div>
+          <input type="text" value="${escV(cat.nome)}" placeholder="Nome categoria (es: Main Sponsor)"
+            style="flex:1;font-weight:600;font-size:14px"
+            oninput="updateSponsorCatNome(${ci},this.value)">
+          <button class="bsm bd" onclick="delSponsorCat(${ci})">&#10005; Elimina</button>
+        </div>`;
+
+      const nItems=(cat.items||[]).length;
+      (cat.items||[]).forEach((sp,ii)=>{
+        const sizeOpts=['grande','medio','piccolo'].map(s=>`<option value="${s}"${sp.size===s?' selected':''}>${s.charAt(0).toUpperCase()+s.slice(1)}</option>`).join('');
+        sponsorHtml+=`<div style="background:var(--info);border-radius:8px;padding:12px;margin-bottom:8px">
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
+            <div style="display:flex;gap:2px">
+              ${ii>0?`<button class="bxsm" onclick="moveSponsorItem(${ci},${ii},-1)">&#8593;</button>`:'<span style="width:28px"></span>'}
+              ${ii<nItems-1?`<button class="bxsm" onclick="moveSponsorItem(${ci},${ii},1)">&#8595;</button>`:'<span style="width:28px"></span>'}
+            </div>
+            <select style="width:auto;padding:5px 8px;font-size:12px" onchange="updateSponsorItem(${ci},${ii},'size',this.value)">${sizeOpts}</select>
+            <input type="text" value="${escV(sp.nome)}" placeholder="Nome sponsor"
+              style="flex:1" oninput="updateSponsorItem(${ci},${ii},'nome',this.value)">
+            <button class="bxsm bd" onclick="delSponsorItem(${ci},${ii})">&#10005;</button>
+          </div>
+          <input type="text" value="${escV(sp.frase)}" placeholder="Frase o slogan (opzionale)"
+            style="margin-bottom:8px" oninput="updateSponsorItem(${ci},${ii},'frase',this.value)">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            ${sp.immagine
+              ?`<img src="${sp.immagine}" style="height:48px;border-radius:6px;object-fit:contain;background:#fff;padding:4px">`
+              :'<span style="font-size:12px;color:var(--txt2)">Nessuna immagine</span>'}
+            <label style="cursor:pointer">
+              <span class="bp bxsm" style="display:inline-block;cursor:pointer">&#128206; ${sp.immagine?'Cambia':'Carica'} immagine</span>
+              <input type="file" accept="image/*" style="display:none" onchange="uploadSponsorImg(${ci},${ii},this)">
+            </label>
+            <input type="text" value="${sp.immagine&&!sp.immagine.startsWith('data:')?escV(sp.immagine):''}"
+              placeholder="...oppure incolla URL immagine"
+              style="flex:1;min-width:160px;font-size:12px"
+              oninput="updateSponsorItem(${ci},${ii},'immagine',this.value)">
+          </div>
+        </div>`;
+      });
+
+      sponsorHtml+=`<button class="bsm" onclick="addSponsorItem(${ci})" style="margin-top:4px">+ Aggiungi sponsor</button>
+      </div>`;
+    });
+
+    sponsorHtml+=`<button class="bp bsm" onclick="addSponsorCat()">+ Nuova categoria</button>
+    </div>`;
+  }
+  sponsorHtml+=`</div>`;
+
+  // SEZIONE INFO
+  let infoHtml=`<div class="card">
+    <div style="${toggleStyle}">
+      ${toggleEl(infoEnabled,'toggleInfoEnabled')}
+      <div>
+        <div style="font-size:15px;font-weight:600">&#8505;&#65039; Tab Info</div>
+        <div style="font-size:12px;color:var(--txt2)">Mostra una pagina informazioni nella schermata live pubblica</div>
+      </div>
+    </div>`;
+
+  if(infoEnabled){
+    infoHtml+=`<div style="margin-top:.5rem">`;
+    infoBlocks.forEach((bl,bi)=>{
+      infoHtml+=`<div style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+          <input type="text" value="${escV(bl.titolo)}" placeholder="Titolo blocco"
+            style="flex:1;font-weight:600" oninput="updateInfoBlock(${bi},'titolo',this.value)">
+          <div style="display:flex;gap:4px">
+            ${bi>0?`<button class="bxsm" onclick="moveInfoBlock(${bi},-1)">&#8593;</button>`:''}
+            ${bi<infoBlocks.length-1?`<button class="bxsm" onclick="moveInfoBlock(${bi},1)">&#8595;</button>`:''}
+            <button class="bxsm bd" onclick="delInfoBlock(${bi})">&#10005;</button>
+          </div>
+        </div>
+        <textarea rows="4" placeholder="Testo informativo..."
+          style="width:100%;padding:8px;border:1px solid var(--border2);border-radius:8px;font-size:13px;background:var(--inp);color:var(--txt);resize:vertical;font-family:inherit"
+          oninput="updateInfoBlock(${bi},'testo',this.value)">${escV(bl.testo)}</textarea>
+      </div>`;
+    });
+    infoHtml+=`<button class="bp bsm" onclick="addInfoBlock()">+ Nuovo blocco</button>
+    </div>`;
+  }
+  infoHtml+=`</div>`;
+
+  return`<div class="card" style="background:var(--info);border-color:transparent;margin-bottom:1rem">
+    <p style="font-size:13px;color:var(--txt2);line-height:1.6">
+      Configura le tab opzionali che appariranno nella pagina <strong>live.html</strong> pubblica.
+      Attivale con il toggle e compilale — le modifiche vengono salvate automaticamente.
+    </p>
+  </div>`+sponsorHtml+infoHtml;
+}
+
+function escV(s){return(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}

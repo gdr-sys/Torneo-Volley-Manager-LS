@@ -248,27 +248,24 @@ function moveInfoBlock(bi,dir){
 // Restituisce un array di interi es. [5,5,4] oppure null.
 function suggerisciGironi(totSq, nCampi){
   if(!totSq||!nCampi||nCampi<1)return null;
-  // Numero di gironi: al massimo nCampi, ma non più del numero di squadre
-  // Trova il numero di gironi G (1..nCampi) che minimizza la varianza
-  // delle dimensioni, preferendo gironi più grandi (almeno 3 sq)
-  let best=null;let bestScore=Infinity;
+  // Scorre da G=nCampi (max gironi) verso G=1.
+  // Priorità 1: massimo numero di gironi (firstValid).
+  // Priorità 2: tutti gironi uguali (bestEqual) ma solo se G === firstValid.G.
+  let firstValid=null;
+  let bestEqual=null;
   for(let G=nCampi;G>=1;G--){
     const base=Math.floor(totSq/G);
     const resto=totSq%G;
-    // resto gironi hanno base+1 squadre, gli altri base
     if(base<3)continue; // gironi troppo piccoli non hanno senso
-    // score: varianza ponderata (0 se tutti uguali, 1 se c'è un girone diverso)
-    const score=resto===0?0:1;
-    if(score<bestScore){
-      bestScore=score;
-      // costruisce array: prima i gironi più grandi
-      best=[];
-      for(let i=0;i<G;i++) best.push(i<resto?base+1:base);
-    }
-    // Se già tutti uguali, non serve cercare oltre
-    if(bestScore===0)break;
+    if(firstValid===null) firstValid={G,base,resto};
+    if(resto===0&&bestEqual===null) bestEqual={G,base,resto};
   }
-  return best;
+  if(!firstValid)return null;
+  // Usa gironi tutti uguali solo se hanno lo stesso numero del primo valido
+  const chosen=(bestEqual&&bestEqual.G===firstValid.G)?bestEqual:firstValid;
+  const arr=[];
+  for(let i=0;i<chosen.G;i++) arr.push(i<chosen.resto?chosen.base+1:chosen.base);
+  return arr;
 }
 
 // Crea automaticamente i gironi suggeriti eliminando quelli esistenti

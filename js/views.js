@@ -99,26 +99,29 @@ function renderTorneoSetup(){
 
       ${w.societa.length?`
       <div class="sec">Società inserite</div>
-      <div style="background:var(--info);border-radius:8px;padding:8px;margin-bottom:1rem">
-        <div style="display:grid;grid-template-columns:1fr repeat(3,80px) repeat(3,80px) 36px;gap:6px;align-items:center;padding:4px 8px;font-size:11px;font-weight:600;color:var(--txt2)">
-          <div>SOCIETÀ</div><div style="text-align:center;color:#1e40af">SQ W</div><div style="text-align:center;color:#166534">SQ G</div><div style="text-align:center;color:#991b1b">SQ R</div><div style="text-align:center;color:#1e40af">🧒 W</div><div style="text-align:center;color:#166534">🧒 G</div><div style="text-align:center;color:#991b1b">🧒 R</div><div></div>
+      ${w.societa.map((s,si)=>`
+      <div style="border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;background:var(--card)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <span style="font-weight:700;font-size:15px">${s.nome}</span>
+          <button class="bd bxsm" onclick="rimuoviSoc(${si})">✕ Rimuovi</button>
         </div>
-        ${w.societa.map((s,si)=>`
-        <div class="soc-row">
-          <div class="soc-nome">${s.nome}</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">
           ${['white','green','red'].map(cat=>`
-            <div style="text-align:center">
-              <input type="number" min="0" max="20" value="${s.sqPerCat[cat]||0}" style="width:60px;text-align:center;padding:4px;font-size:13px" oninput="setSocCat(${si},'${cat}',parseInt(this.value)||0)">
-            </div>`).join('')}
-          ${['white','green','red'].map(cat=>`
-            <div style="text-align:center">
-              <input type="number" min="0" max="999" value="${s.bambini?.[cat]||0}" style="width:60px;text-align:center;padding:4px;font-size:13px" oninput="setSocBambini(${si},'${cat}',parseInt(this.value)||0)">
-            </div>`).join('')}
-          <button class="bd bxsm" onclick="rimuoviSoc(${si})">✕</button>
-        </div>`).join('')}
-      </div>
+          <div style="background:var(--info);border-radius:8px;padding:8px;text-align:center">
+            <div style="font-size:10px;font-weight:700;margin-bottom:6px"><span class="gbadge ${badge(cat)}">${catLabel(cat)}</span></div>
+            <div style="font-size:10px;color:var(--txt2);margin-bottom:3px">🏐 Squadre</div>
+            <input type="number" min="0" max="20" value="${s.sqPerCat[cat]||0}"
+              style="width:100%;text-align:center;padding:5px 2px;font-size:18px;font-weight:700"
+              oninput="setSocCat(${si},'${cat}',parseInt(this.value)||0)">
+            <div style="font-size:10px;color:var(--txt2);margin:6px 0 3px">🧒 Bambini</div>
+            <input type="number" min="0" max="999" value="${s.bambini?.[cat]||0}"
+              style="width:100%;text-align:center;padding:5px 2px;font-size:18px;font-weight:700"
+              oninput="setSocBambini(${si},'${cat}',parseInt(this.value)||0)">
+          </div>`).join('')}
+        </div>
+      </div>`).join('')}
       <div style="background:var(--info);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--txt2);margin-bottom:1rem">
-        <strong>Riepilogo squadre per categoria:</strong><br>
+        <strong>Riepilogo per categoria:</strong><br>
         ${['white','green','red'].map(cat=>{const tot=w.societa.reduce((s,x)=>s+(x.sqPerCat[cat]||0),0);const totB=w.societa.reduce((s,x)=>s+(x.bambini?.[cat]||0),0);return`<span class="gbadge ${badge(cat)}" style="margin:2px">${catLabel(cat)}: ${tot} sq · 🧒 ${totB}</span>`;}).join(' ')}
       </div>
       `:`<p style="color:var(--txt2);font-size:13px;text-align:center;padding:1rem">Nessuna società ancora. Aggiungine una.</p>`}

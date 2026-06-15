@@ -108,20 +108,21 @@ function renderTorneoSetup(){
       ${w.categorie.map((cat,ci)=>`
       <div style="border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <div style="display:flex;gap:2px">
-          ${ci>0?`<button class="bxsm" onclick="wizardMoveCat(${ci},-1)">↑</button>`:'<span style="width:26px"></span>'}
-          ${ci<w.categorie.length-1?`<button class="bxsm" onclick="wizardMoveCat(${ci},1)">↓</button>`:'<span style="width:26px"></span>'}
+          ${ci>0?`<button class="bxsm" onclick="wizardSalvaNomi();wizardMoveCat(${ci},-1)">↑</button>`:'<span style="width:26px"></span>'}
+          ${ci<w.categorie.length-1?`<button class="bxsm" onclick="wizardSalvaNomi();wizardMoveCat(${ci},1)">↓</button>`:'<span style="width:26px"></span>'}
         </div>
         <select style="width:60px;font-size:18px;padding:4px 2px;text-align:center" onchange="wizardState.categorie[${ci}].emoji=this.value">
           <option value="${cat.emoji?'':''}">— </option>
           ${['⬜','🟩','🟥','🟣','🟠','🔵','🟡','⚫','🟤','🔴','⚪'].map(e=>`<option value="${e}"${cat.emoji===e?' selected':''}>${e}</option>`).join('')}
         </select>
         <input type="text" value="${escV(cat.nome)}" placeholder="Nome categoria"
+          data-cat-nome-idx="${ci}"
           style="flex:1;font-weight:600;min-width:100px" oninput="wizardState.categorie[${ci}].nome=this.value">
         <div style="display:flex;gap:4px;flex-wrap:wrap">
-          ${COLORI_DISPONIBILI.map(col=>`<button onclick="wizardState.categorie[${ci}].colore='${col.hex}';render()"
+          ${COLORI_DISPONIBILI.map(col=>`<button onclick="wizardSalvaNomi();wizardState.categorie[${ci}].colore='${col.hex}';render()"
             style="width:22px;height:22px;border-radius:50%;background:${col.hex};border:3px solid ${cat.colore===col.hex?'var(--txt)':'transparent'};cursor:pointer;padding:0"></button>`).join('')}
         </div>
-        ${w.categorie.length>1?`<button class="bxsm bd" onclick="wizardDelCat(${ci})">✕</button>`:''}
+        ${w.categorie.length>1?`<button class="bxsm bd" onclick="wizardSalvaNomi();wizardDelCat(${ci})">✕</button>`:''}
       </div>`).join('')}
       <button class="bsm" onclick="wizardAddCat()" style="margin-bottom:1.5rem">+ Aggiungi categoria</button>
       <div style="display:flex;gap:8px;justify-content:flex-end">
@@ -182,8 +183,16 @@ function renderTorneoSetup(){
 }
 
 // Wizard helpers categorie
+function wizardSalvaNomi(){
+  // Legge i valori attuali degli input nome categoria prima di ogni re-render
+  document.querySelectorAll('[data-cat-nome-idx]').forEach(el=>{
+    const i=parseInt(el.getAttribute('data-cat-nome-idx'));
+    if(wizardState&&wizardState.categorie[i]!==undefined)
+      wizardState.categorie[i].nome=el.value;
+  });
+}
 function wizardStep2(){if(!wizardState.nome.trim()){alert('Inserisci un nome per il torneo.');return;}wizardState.step=2;render();}
-function wizardStep3(){if(!wizardState.categorie.length){alert('Aggiungi almeno una categoria.');return;}wizardState.step=3;render();}
+function wizardStep3(){wizardSalvaNomi();if(!wizardState.categorie.length){alert('Aggiungi almeno una categoria.');return;}wizardState.step=3;render();}
 function wizardAddCat(){
   const cols=COLORI_DISPONIBILI;const emojis=EMOJI_DISPONIBILI;
   const ci=wizardState.categorie.length;

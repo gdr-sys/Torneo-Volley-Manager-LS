@@ -250,6 +250,41 @@ function creaSuggeriti(catId){
 // ============================================================
 // PAGINA LIVE — helpers pageConfig
 // ============================================================
+
+// ============================================================
+// NORMALIZZAZIONE PREZZO MENU
+// Accetta: 1 / 1.00 / 1,00 / €1 / € 1.50 / 1.5 ecc
+// Restituisce sempre: € X,XX
+// ============================================================
+function normalizzaPrezzo(raw){
+  if(!raw||!raw.toString().trim())return'';
+  // Rimuovi simboli €, spazi, caratteri non numerici tranne . e ,
+  let s=raw.toString().replace(/€/g,'').replace(/\s/g,'').trim();
+  // Se vuoto dopo pulizia, ritorna vuoto
+  if(!s)return'';
+  // Gestisci separatori: se c'è sia . che , usa l'ultimo come decimale
+  // Esempi: 1.000,50 → 1000.50 | 1,000.50 → 1000.50 | 1,5 → 1.5 | 1.5 → 1.5
+  const hasDot=s.includes('.');const hasComma=s.includes(',');
+  if(hasDot&&hasComma){
+    // Determina quale è il separatore decimale (l'ultimo)
+    const lastDot=s.lastIndexOf('.');const lastComma=s.lastIndexOf(',');
+    if(lastComma>lastDot){// virgola = decimale
+      s=s.replace(/\./g,'').replace(',','.');
+    } else {// punto = decimale
+      s=s.replace(/,/g,'');
+    }
+  } else if(hasComma){
+    // Solo virgola: se dopo la virgola ci sono 1-2 cifre è decimale, altrimenti migliaia
+    const parts=s.split(',');
+    if(parts.length===2&&parts[1].length<=2){s=s.replace(',','.');}
+    else{s=s.replace(/,/g,'');}
+  }
+  // Converti in numero
+  const n=parseFloat(s);
+  if(isNaN(n))return raw; // se non è un numero valido, lascia com'è
+  // Formatta con 2 decimali e virgola italiana
+  return'€ '+n.toFixed(2).replace('.',',');
+}
 function ensurePageConfig(){
   const t=currentTorneo();if(!t)return null;
   if(!t.pageConfig)t.pageConfig={sponsorEnabled:false,infoEnabled:false,menuEnabled:false,sponsor:{cats:[]},infoBlocks:[],menu:{sezioni:[]}};

@@ -657,12 +657,10 @@ function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace
 
 function getSocLogo(torneo,socNome){
   if(!socNome)return'';
-  // Cerca nel torneo passato
   if(torneo&&torneo.societa){
     const s=torneo.societa.find(x=>x.nome===socNome);
     if(s&&s.logo)return s.logo;
   }
-  // Fallback: cerca in tutti i tornei del DB
   for(const t of Object.values(DB.tornei||{})){
     if(t.societa){
       const s=t.societa.find(x=>x.nome===socNome);
@@ -671,6 +669,7 @@ function getSocLogo(torneo,socNome){
   }
   return'';
 }
+
 function findSquadra(torneo,nomeSquadra){
   // Cerca in tutti i gironi la squadra con quel nome e restituisce {nome, soc}
   if(!torneo||!nomeSquadra)return null;

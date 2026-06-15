@@ -41,10 +41,10 @@ function renderHome(){
       return`<div class="torneo-item${isLive?' active-t':''}" onclick="openTorneo('${id}')">
         <div>
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-            <div class="torneo-nome">${t.nome}</div>
+            <div class="torneo-nome" style="color:var(--txt)">${t.nome}</div>
             ${isLive?'<span style="font-size:11px;background:#dcfce7;color:#166534;padding:1px 8px;border-radius:10px;font-weight:600">🔴 LIVE</span>':''}
           </div>
-          <div class="torneo-meta">${(()=>{
+          <div class="torneo-meta" style="color:var(--txt2)">${(()=>{
             const cats=t.categorie||[];
             const totGironi=cats.reduce((s,cat)=>(cat.fasi||[]).reduce((s2,f)=>s2+(f.gironi||[]).length,s),0);
             const totPart=cats.reduce((s,cat)=>(cat.fasi||[]).reduce((s2,f)=>(f.gironi||[]).reduce((s3,g)=>s3+g.partite.filter(p=>p.s1h!=='').length,s2),s),0);
@@ -834,8 +834,8 @@ function renderElimMatch(catId,fid,mk,m,title,sets){
 }
 
 function renderElimBlock(catId,fase){
+  const es=fase.elimSets||1;  // dichiarato per primo — evita TDZ
   const e=fase.elim||{};propagateElim(fase);const hasQ=e.q1||e.q2||e.q3||e.q4;
-  const es=fase.elimSets||1;
   const wF=getWinner(e.fin12,es),lF=getLoser(e.fin12,es),wF34=getWinner(e.fin34,es);
   let html=`<div style="display:flex;justify-content:flex-end;margin-bottom:8px">
     <button class="bg bsm" onclick="exportPDFElim('${catId}','${fase.id}')">📄 PDF tabellone</button>

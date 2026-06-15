@@ -22,9 +22,20 @@ function renderHome(){
     if(!!ta.archiviato!==!!tb.archiviato)return ta.archiviato?1:-1;
     return(tb.createdAt||0)-(ta.createdAt||0);
   });
+  // Info spazio localStorage
+  let storageInfo='';
+  try{
+    const used=Object.keys(localStorage).reduce((s,k)=>s+(localStorage.getItem(k)||'').length,0);
+    const kb=Math.round(used/1024);
+    const pct=Math.round(kb/5000*100);
+    const col=pct>80?'#dc2626':pct>60?'#854d0e':'var(--txt2)';
+    storageInfo=`<span style="font-size:11px;color:${col}">💾 ${kb}KB usati${pct>60?' ('+pct+'%)':''}</span>`;
+  }catch(e){}
+
   let html=`<div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
       <div class="card-title" style="margin-bottom:0">🏐 Gestione Tornei</div>
+      ${storageInfo}
     </div>
     <div style="display:flex;gap:8px;margin-bottom:1.5rem;flex-wrap:wrap">
       <button class="bp" style="flex:1;padding:12px;font-size:15px;min-width:160px" onclick="startNuovoTorneo()">+ Nuovo torneo</button>
@@ -756,6 +767,16 @@ function toggleInCorso(catId,fid,gv,pid){
   p.inCorso=!p.inCorso;
   sv();render();
 }
+function cambiaSetGirone(catId,fid,gv,nuoviSet){
+  const g=getGirone(catId,fid,gv);if(!g)return;
+  if(g.sets===nuoviSet)return;
+  const giocate=g.partite.filter(p=>p.s1h!==''||p.s1a!=='').length;
+  if(giocate>0&&!confirm(`Cambiare da ${g.sets} a ${nuoviSet} set? I risultati del Set ${nuoviSet===1?'2 verranno ignorati':'2 saranno vuoti da compilare'}.`))return;
+  g.sets=nuoviSet;
+  // Aggiorna sets in ogni partita
+  g.partite.forEach(p=>{p.sets=nuoviSet;if(nuoviSet===1){p.s2h='';p.s2a='';}});
+  sv();render();
+}
 function toggleRitorno(catId,fid,gv){const g=getGirone(catId,fid,gv);if(!g)return;g.ritorno=!g.ritorno;const old={};g.partite.filter(p=>p.leg===1||!p.leg).forEach(p=>{old[`${p.h}_${p.a}`]=p});const np=genPartite(g.squadre.length,g.ritorno,g.sets||2);np.forEach(p=>{if(p.leg===1){const o=old[`${p.h}_${p.a}`];if(o){p.s1h=o.s1h;p.s1a=o.s1a;p.s2h=o.s2h;p.s2a=o.s2a;}}});g.partite=np;sv();render();}
 function saveResult(catId,fid,gv,pid){
   const g=getGirone(catId,fid,gv);if(!g)return;
@@ -811,10 +832,11 @@ function renderCategoria(catId){
   let html='';
   // Sub-tab vista storico
   const showStorico=collapsed.has('storico_'+catId);
-  html+=`<div style="display:flex;gap:4px;margin-bottom:12px">
-    <button class="bsm${!showStorico?' bp':''}" onclick="${!showStorico?'':'collapsed.delete(\'storico_'+catId+'\');render()'}">🏐 Gironi</button>
-    <button class="bsm${showStorico?' bp':''}" onclick="collapsed.add('storico_'+catId);render()">📋 Storico partite</button>
-    <button class="bsm${collapsed.has('stats_'+catId)?' bp':''}" onclick="${collapsed.has('stats_'+catId)?'collapsed.delete(\'stats_'+catId+'\')':'collapsed.add(\'stats_'+catId+'\')'}render()">📊 Statistiche</button>
+  html+=`<div style="display:flex;gap:4px;margin-bottom:12px;flex-wrap:wrap">
+    <button class="bsm${!showStorico&&!collapsed.has('stats_'+catId)?' bp':''}" onclick="collapsed.delete('storico_'+catId);collapsed.delete('stats_'+catId);render()">🏐 Gironi</button>
+    <button class="bsm${showStorico?' bp':''}" onclick="collapsed.add('storico_'+catId);collapsed.delete('stats_'+catId);render()">📋 Storico</button>
+    <button class="bsm${collapsed.has('stats_'+catId)?' bp':''}" onclick="collapsed.add('stats_'+catId);collapsed.delete('storico_'+catId);render()">📊 Statistiche</button>
+    <button class="bsm" style="margin-left:auto" onclick="exportPDFCategoria('${catId}')">📄 PDF categoria</button>
   </div>`;
   if(showStorico){html+=renderStorico(catId);html+=`<div class="card" style="text-align:center;padding:1.5rem"><button class="bp" onclick="openBuilder('${catId}')">+ Fase successiva</button></div>`;return html;}
   if(collapsed.has('stats_'+catId)){html+=renderStats(catId);html+=`<div class="card" style="text-align:center;padding:1.5rem"><button class="bp" onclick="openBuilder('${catId}')">+ Fase successiva</button></div>`;return html;}
@@ -902,7 +924,14 @@ function renderGironeContent(catId,fase,g){
       <span style="font-size:12px;color:var(--txt2)">${giocate}/${g.partite.length} partite · ${sets} set</span>
     </div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-      <div style="display:flex;align-items:center;gap:8px"><label class="toggle"><input type="checkbox" ${g.ritorno?'checked':''} onchange="toggleRitorno('${catId}','${fase.id}','${g.id}')"><span class="slider"></span></label><span style="font-size:13px;color:var(--txt2)">A/R</span></div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <label class="toggle"><input type="checkbox" ${g.ritorno?'checked':''} onchange="toggleRitorno('${catId}','${fase.id}','${g.id}')"><span class="slider"></span></label>
+        <span style="font-size:13px;color:var(--txt2)">A/R</span>
+      </div>
+      <select style="width:auto;padding:4px 8px;font-size:12px" onchange="cambiaSetGirone('${catId}','${fase.id}','${g.id}',parseInt(this.value))">
+        <option value="1"${sets===1?' selected':''}>1 set</option>
+        <option value="2"${sets===2?' selected':''}>2 set</option>
+      </select>
       <button class="bg bsm" onclick="exportPDF('${catId}','${fase.id}','${g.id}')">📄 PDF</button>
     </div></div>
     <div class="g2"><div><div class="sec">Classifica</div>${clHtml}</div><div><div class="sec">Partite${g.ritorno?' — Andata':''}</div>${rPL(andataP)}${ritornoP.length?`<div class="sec" style="margin-top:14px">Ritorno</div>${rPL(ritornoP)}`:''}</div></div>

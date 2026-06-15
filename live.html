@@ -137,6 +137,28 @@ tr:last-child td{border-bottom:none}
 .footer-noemi{text-align:center;padding:40px 10px 100px;font-size:.85em;color:var(--footer-text)}
 .link-noemi{color:inherit;text-decoration:none;font-weight:600;border-bottom:1px solid currentColor}
 .no-data{text-align:center;padding:3rem 1rem;color:var(--txt2)}
+
+/* Modalità presentazione */
+body.present-mode .cat-tabs{display:none}
+body.present-mode .sub-tabs{display:none!important}
+body.present-mode .girone-pills{display:none!important}
+body.present-mode .search-bar{display:none!important}
+body.present-mode .live-header{padding:8px 16px}
+body.present-mode .live-title{font-size:24px}
+body.present-mode .live-torneo-name{font-size:16px}
+body.present-mode table{font-size:18px}
+body.present-mode th{font-size:13px;padding:10px 14px}
+body.present-mode td{padding:14px}
+body.present-mode .team-name{font-size:20px}
+body.present-mode .pts{font-size:24px}
+body.present-mode .rank{font-size:20px}
+body.present-mode .girone-card-hdr{padding:14px 20px}
+body.present-mode .match-teams-live{font-size:18px}
+body.present-mode .match-score-live{font-size:24px}
+body.present-mode .present-tabs{display:flex!important}
+.present-tabs{display:none;gap:0;overflow-x:auto;background:#1a1d27;border-bottom:1px solid var(--border)}
+.present-tab{flex:1;padding:14px;text-align:center;font-size:16px;font-weight:700;cursor:pointer;color:var(--txt2);border-bottom:3px solid transparent;min-width:120px}
+.present-tab.active{color:#fff}
 </style>
 </head>
 <body>
@@ -155,6 +177,8 @@ tr:last-child td{border-bottom:none}
 </div>
 
 <div class="cat-tabs" id="catTabs"></div>
+<!-- Tab modalità presentazione (grandi) -->
+<div class="present-tabs" id="presentTabs"></div>
 <div id="subTabsWrap"><div class="sub-tabs" id="subTabs"></div></div>
 <div id="gironePillsWrap" style="display:none"><div class="girone-pills" id="gironePills"></div></div>
 <div id="searchBarWrap" style="display:none"><div class="search-bar"><input class="search-input" id="searchInput" placeholder="🔍 Cerca squadra..." oninput="onSearch(this.value)"></div></div>
@@ -167,6 +191,7 @@ tr:last-child td{border-bottom:none}
     <div style="display:flex;justify-content:center;margin-bottom:10px"><div id="qrCode"></div></div>
     <div class="qr-url-panel" id="qrUrl"></div>
   </div>
+  <button class="qr-toggle" id="presentBtn" onclick="togglePresent()" style="background:#7c3aed;margin-bottom:6px">📺 Present</button>
   <button class="qr-toggle" id="qrToggleBtn" onclick="toggleQR()">📱 QR</button>
 </div>
 
@@ -235,8 +260,19 @@ function calcCl(g){
   t.sort((a,b)=>b.pt-a.pt||b.ds-a.ds||b.dp-a.dp);
   return t;
 }
-function getWinner(m){if(!m||m.s1h===''||m.s1a==='')return null;return(parseInt(m.s1h)||0)>(parseInt(m.s1a)||0)?m.t1:m.t2;}
-function getLoser(m){if(!m||m.s1h===''||m.s1a==='')return null;return(parseInt(m.s1h)||0)<=(parseInt(m.s1a)||0)?m.t1:m.t2;}
+function getWinner(m,sets){
+  if(!m||m.s1h===''||m.s1a==='')return null;
+  if(!sets||sets===1)return(parseInt(m.s1h)||0)>(parseInt(m.s1a)||0)?m.t1:m.t2;
+  const s1h=parseInt(m.s1h)||0,s1a=parseInt(m.s1a)||0;
+  let sh=(s1h>s1a?1:0),sa=(s1a>s1h?1:0);
+  if(m.s2h!==''&&m.s2a!==''){const s2h=parseInt(m.s2h)||0,s2a=parseInt(m.s2a)||0;sh+=(s2h>s2a?1:0);sa+=(s2a>s2h?1:0);}
+  if(sh===sa)return null;return sh>sa?m.t1:m.t2;
+}
+function getLoser(m,sets){
+  if(!m||m.s1h===''||m.s1a==='')return null;
+  const w=getWinner(m,sets);if(!w)return null;
+  return w===m.t1?m.t2:m.t1;
+}
 function hexRgb(hex){try{return[parseInt(hex.slice(1,3),16),parseInt(hex.slice(3,5),16),parseInt(hex.slice(5,7),16)];}catch(e){return[100,100,100];}}
 
 // ── Render principale ──────────────────────────────────────
@@ -380,8 +416,11 @@ function renderPartiteLive(g,col){
           <div style="color:var(--txt2);font-size:11px;margin:2px 0">vs</div>
           <div style="display:flex;align-items:center;gap:5px">${logoHtml(getSocLogo(DB.tornei[activeTorneoId],as),18)}<span>${an}${as?` <span class="match-soc-live">(${as})</span>`:''}</span></div>
         </div>
-        ${p.leg===2?`<span style="font-size:9px;background:rgba(254,249,195,0.15);color:#fde047;padding:1px 5px;border-radius:4px;font-weight:600">RIT</span>`:''}
-        ${played?`<div class="match-score-live" style="color:${col}">${score}</div>`:`<div class="match-pending">da giocare</div>`}
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px">
+          ${p.inCorso?'<span style="font-size:9px;background:#dc2626;color:#fff;padding:2px 6px;border-radius:4px;font-weight:700;animation:pulse 1s infinite">🔴 IN CORSO</span>':''}
+          ${p.leg===2?`<span style="font-size:9px;background:rgba(254,249,195,0.15);color:#fde047;padding:1px 5px;border-radius:4px;font-weight:600">RIT</span>`:''}
+          ${played?`<div class="match-score-live" style="color:${col}">${score}</div>`:`<div class="match-pending">${p.inCorso?'🔴':'da giocare'}</div>`}
+        </div>
         <button class="fav-star${isFav(hn)||isFav(an)?' active':''}" onclick="toggleFav('${isFav(hn)?hn.replace(/'/g,"\\'"):an.replace(/'/g,"\\'")}')">⭐</button>
       </div>`;
     }).join('');
@@ -395,7 +434,8 @@ function renderPartiteLive(g,col){
 function renderElimLive(fase,cat){
   const e=fase.elim||{};const col=cat.colore;
   const hasQ=e.q1||e.q2||e.q3||e.q4;
-  const wFin=getWinner(e.fin12),lFin=getLoser(e.fin12),wFin34=getWinner(e.fin34);
+  const s=fase.elimSets||1;
+  const wFin=getWinner(e.fin12,s),lFin=getLoser(e.fin12,s),wFin34=getWinner(e.fin34,s);
   let html=`<div class="girone-card">
     <div class="girone-card-hdr" style="background:${col}18;border-bottom-color:${col}33">
       <span style="font-size:13px;font-weight:700;color:${col}">⚡ ${fase.label}</span>
@@ -406,7 +446,7 @@ function renderElimLive(fase,cat){
     <div class="podium-item p3-live"><div style="font-size:20px">🥉</div><div class="podium-nome-live">${wFin34||'—'}</div></div>
   </div>`;
   function eMatch(m,title){
-    if(!m)return'';const w=getWinner(m);const played=m.s1h!==''&&m.s1a!=='';
+    if(!m)return'';const w=getWinner(m,s);const played=m.s1h!==''&&m.s1a!=='';
     return`<div class="elim-match">
       <div class="elim-match-title">${title}</div>
       <div class="elim-team-live${w===m.t1?' win':played?' lose':''}"><span>${m.t1||'—'}</span>${played?`<span class="elim-score">${m.s1h}</span>`:''}</div>
@@ -629,6 +669,46 @@ function normalizzaPrezzo(raw){
 
 
 // ── QR Code ────────────────────────────────────────────────
+// ── Modalità presentazione ───────────────────────────────────
+let presentMode=false;
+function togglePresent(){
+  presentMode=!presentMode;
+  document.body.classList.toggle('present-mode',presentMode);
+  const btn=document.getElementById('presentBtn');
+  if(btn)btn.textContent=presentMode?'✕ Esci':'📺 Present';
+  // Aggiorna le tab grandi
+  updatePresentTabs();
+  if(presentMode)startPresentRotation();else stopPresentRotation();
+}
+let presentRotTimer=null;
+let presentTabIdx=0;
+function updatePresentTabs(){
+  const torneo=DB.tornei?.[activeTorneoId];if(!torneo)return;
+  const cats=(torneo.categorie||[]).filter(c=>(c.fasi||[]).some(f=>f.gironi?.length||f.tipo==='elim'));
+  const el=document.getElementById('presentTabs');if(!el)return;
+  el.innerHTML=cats.map((cat,i)=>`
+    <div class="present-tab${activeCat===cat.id?' active':''}"
+      style="${activeCat===cat.id?'border-bottom-color:'+cat.colore+';color:'+cat.colore:''}"
+      onclick="setCatLive('${cat.id}');updatePresentTabs()">
+      ${cat.emoji||''} ${cat.nome}
+    </div>`).join('');
+}
+function startPresentRotation(){
+  // Auto-scroll tra classifiche ogni 15 secondi
+  presentRotTimer=setInterval(()=>{
+    const torneo=DB.tornei?.[activeTorneoId];if(!torneo)return;
+    const cats=(torneo.categorie||[]).filter(c=>(c.fasi||[]).some(f=>f.gironi?.length));
+    if(!cats.length)return;
+    presentTabIdx=(presentTabIdx+1)%cats.length;
+    activeCat=cats[presentTabIdx].id;
+    activeSub='classifiche';
+    renderLive();
+  },15000);
+}
+function stopPresentRotation(){
+  if(presentRotTimer){clearInterval(presentRotTimer);presentRotTimer=null;}
+}
+
 let qrOpen=false,qrGenerated=false;
 function toggleQR(){
   qrOpen=!qrOpen;const box=document.getElementById('qrBox');const btn=document.getElementById('qrToggleBtn');

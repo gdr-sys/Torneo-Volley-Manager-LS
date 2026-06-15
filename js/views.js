@@ -915,8 +915,18 @@ function renderGironeContent(catId,fase,g){
   const andataP=g.partite.filter(p=>!p.leg||p.leg===1);const ritornoP=g.partite.filter(p=>p.leg===2);
   const giocate=g.partite.filter(p=>p.s1h!==''&&p.s1a!=='').length;
   const badgeSt=catBadgeStyle(catId);
+  // Helper logo società
+  const t_curr=currentTorneo();
+  function getSocLogoAdmin(socNome){
+    if(!socNome||!t_curr?.societa)return'';
+    const s=t_curr.societa.find(x=>x.nome===socNome);
+    return(s&&s.logo)||'';
+  }
   let clHtml=`<table><thead><tr><th>#</th><th>Squadra</th><th>Soc</th><th>Pt</th>${sets===2?'<th>Sv</th><th>Sp</th><th>DS</th>':''}<th>DP</th></tr></thead><tbody>`;
-  cl.forEach((tt,i)=>{clHtml+=`<tr><td class="${i===0?'pos1':i===1?'pos2':i===2?'pos3':''}" style="font-weight:700">${i+1}</td><td style="font-weight:500">${tt.nome}</td><td style="font-size:11px;color:var(--txt2)">${tt.soc||''}</td><td style="font-weight:700;font-size:15px">${tt.pt}</td>${sets===2?`<td>${tt.sv}</td><td>${tt.sp}</td><td class="${tt.ds>0?'dsp':tt.ds<0?'dsn':''}">${tt.ds>0?'+':''}${tt.ds}</td>`:''}<td class="${tt.dp>0?'dsp':tt.dp<0?'dsn':''}">${tt.dp>0?'+':''}${tt.dp}</td></tr>`;});
+  cl.forEach((tt,i)=>{
+    const logoSrc=getSocLogoAdmin(tt.soc);
+    const logoTag=logoSrc?`<img src="${logoSrc}" style="width:22px;height:22px;object-fit:contain;border-radius:4px;background:#fff;padding:1px;margin-right:5px;vertical-align:middle" onerror="this.style.display='none'">`:'';
+  clHtml+=`<tr><td class="${i===0?'pos1':i===1?'pos2':i===2?'pos3':''}" style="font-weight:700">${i+1}</td><td style="font-weight:500">${logoTag}${tt.nome}</td><td style="font-size:11px;color:var(--txt2)">${tt.soc||''}</td><td style="font-weight:700;font-size:15px">${tt.pt}</td>${sets===2?`<td>${tt.sv}</td><td>${tt.sp}</td><td class="${tt.ds>0?'dsp':tt.ds<0?'dsn':''}">${tt.ds>0?'+':''}${tt.ds}</td>`:''}<td class="${tt.dp>0?'dsp':tt.dp<0?'dsn':''}">${tt.dp>0?'+':''}${tt.dp}</td></tr>`;});
   clHtml+=`</tbody></table><p style="font-size:11px;color:var(--txt2);margin-top:6px">Pt=set vinti${sets===2?' · DS=diff set':''} · DP=diff punti</p>`;
   function rPL(pList){return pList.map(p=>{
     const pid=g.partite.indexOf(p);const hn=g.squadre[p.h].nome,an=g.squadre[p.a].nome;
@@ -926,7 +936,17 @@ function renderGironeContent(catId,fase,g){
     return`<div class="match-card">
       ${p.leg===2?`<div style="font-size:10px;background:#fef9c3;color:#854d0e;border-radius:4px;padding:2px 8px;display:inline-block;margin-bottom:4px;font-weight:600">RITORNO</div>`:''}
       ${campoEff?`<div style="font-size:10px;background:var(--info);color:var(--txt2);border-radius:4px;padding:2px 8px;display:inline-block;margin-bottom:4px;font-weight:600">📍 ${campoEff}</div>`:''}
-      <div class="match-teams">${hn}<span class="soc-tag"> (${hs||'—'})</span><br><span style="font-weight:400;color:var(--txt2);font-size:12px">vs</span><br>${an}<span class="soc-tag"> (${as||'—'})</span></div>
+      <div class="match-teams">
+        <div style="display:flex;align-items:center;gap:5px">
+          ${(()=>{const l=getSocLogoAdmin(hs);return l?`<img src="${l}" style="width:22px;height:22px;object-fit:contain;border-radius:4px;background:#fff;padding:1px" onerror="this.style.display='none'">`:''})()}
+          <span>${hn}</span><span class="soc-tag"> (${hs||'—'})</span>
+        </div>
+        <span style="font-weight:400;color:var(--txt2);font-size:12px">vs</span>
+        <div style="display:flex;align-items:center;gap:5px">
+          ${(()=>{const l=getSocLogoAdmin(as);return l?`<img src="${l}" style="width:22px;height:22px;object-fit:contain;border-radius:4px;background:#fff;padding:1px" onerror="this.style.display='none'">`:''})()}
+          <span>${an}</span><span class="soc-tag"> (${as||'—'})</span>
+        </div>
+      </div>
       <div class="set-row"><span class="set-lbl">Set 1</span><input type="number" class="score" inputmode="numeric" value="${V('s1h',p.s1h)}" placeholder="0" oninput="onInput('${catId}','${fase.id}','${g.id}',${pid},'s1h',this.value)"><span class="sep">–</span><input type="number" class="score" inputmode="numeric" value="${V('s1a',p.s1a)}" placeholder="0" oninput="onInput('${catId}','${fase.id}','${g.id}',${pid},'s1a',this.value)"></div>
       ${sets===2?`<div class="set-row"><span class="set-lbl">Set 2</span><input type="number" class="score" inputmode="numeric" value="${V('s2h',p.s2h)}" placeholder="0" oninput="onInput('${catId}','${fase.id}','${g.id}',${pid},'s2h',this.value)"><span class="sep">–</span><input type="number" class="score" inputmode="numeric" value="${V('s2a',p.s2a)}" placeholder="0" oninput="onInput('${catId}','${fase.id}','${g.id}',${pid},'s2a',this.value)"></div>`:''}
       <div class="save-row">

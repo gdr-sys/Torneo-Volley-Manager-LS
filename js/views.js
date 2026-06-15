@@ -468,8 +468,27 @@ function saveSoc(){
   const st=socEditState;if(!st)return;
   const nome=st.nome.trim();if(!nome){alert('Inserisci il nome.');return;}
   const logo=st.logo||'';
-  if(st.si===-1)t.societa.push({nome,sqPerCat:{...st.sqPerCat},bambini:{...st.bambini},logo,squadre:[]});
-  else{t.societa[st.si].nome=nome;t.societa[st.si].sqPerCat={...st.sqPerCat};t.societa[st.si].bambini={...st.bambini};t.societa[st.si].logo=logo;}
+  if(st.si===-1){
+    t.societa.push({nome,sqPerCat:{...st.sqPerCat},bambini:{...st.bambini},logo,squadre:[]});
+  } else {
+    const vecchioNome=t.societa[st.si].nome;
+    t.societa[st.si].nome=nome;
+    t.societa[st.si].sqPerCat={...st.sqPerCat};
+    t.societa[st.si].bambini={...st.bambini};
+    t.societa[st.si].logo=logo;
+    // Aggiorna il nome società in tutte le squadre dei gironi
+    if(vecchioNome!==nome){
+      for(const cat of getCats()){
+        for(const fase of(cat.fasi||[])){
+          for(const g of(fase.gironi||[])){
+            for(const sq of g.squadre){
+              if(sq.soc===vecchioNome)sq.soc=nome;
+            }
+          }
+        }
+      }
+    }
+  }
   socEditState=null;sv();render();
 }
 function rimuoviSocTorneo(si){
@@ -760,7 +779,7 @@ function azzeraRisultati(catId,fid,gv){
   sv();render();
 }
 function delGirone(catId,fid,gv){const f=getFase(catId,fid);if(f)f.gironi=f.gironi.filter(g=>g.id!==gv);sv();render();}
-function updSq(catId,fid,gv,idx,field,val){const g=getGirone(catId,fid,gv);if(g)g.squadre[idx][field]=val;}
+function updSq(catId,fid,gv,idx,field,val){const g=getGirone(catId,fid,gv);if(g){g.squadre[idx][field]=val;sv();}}
 function saveSquadre(catId,fid,gv){
   const g=getGirone(catId,fid,gv);if(!g)return;
   const giocate=g.partite.filter(p=>p.s1h!==''||p.s1a!=='').length;

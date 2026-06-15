@@ -91,7 +91,7 @@ tr:last-child td{border-bottom:none}
 /* Sponsor */
 .sponsor-page{padding:20px 12px;max-width:900px;margin:0 auto}
 .sponsor-cat-section{margin-bottom:32px}
-.sponsor-cat-title{font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+.sponsor-cat-title{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;margin-bottom:14px;padding:6px 10px;border-radius:6px;background:rgba(245,158,11,0.15);color:#f59e0b;border-left:3px solid #f59e0b}
 .sponsor-grid-lg{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-bottom:16px}
 .sponsor-grid-md{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:16px}
 .sponsor-grid-sm{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-bottom:16px}
@@ -111,7 +111,7 @@ tr:last-child td{border-bottom:none}
 /* Menu */
 .menu-page{padding:20px 12px;max-width:700px;margin:0 auto}
 .menu-sezione{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:14px}
-.menu-sezione-title{font-size:16px;font-weight:700;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.menu-sezione-title{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;margin-bottom:14px;padding:6px 10px;border-radius:6px;background:rgba(167,139,250,0.18);color:#a78bfa;border-left:3px solid #a78bfa}
 .menu-voce{display:flex;justify-content:space-between;align-items:flex-start;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05);gap:12px}
 .menu-voce:last-child{border-bottom:none}
 .menu-voce-nome{font-size:14px;font-weight:600}
@@ -415,35 +415,51 @@ function renderElimLive(fase,cat){
 }
 
 // ── Sponsor ────────────────────────────────────────────────
+function mkSponsorCard(sp,sz){
+  const gc=sz==='grande'?'lg':sz==='piccolo'?'sm':'md';
+  const minH=sz==='grande'?'100px':sz==='piccolo'?'50px':'70px';
+  let card=`<div class="sponsor-card ${gc}">`;
+  if(sp.immagine){
+    card+=`<div style="display:flex;align-items:center;justify-content:center;width:100%;min-height:${minH}">`;
+    card+=`<img class="sponsor-img ${gc}" src="${sp.immagine}" alt="${esc(sp.nome||'')}" onerror="this.style.display='none'">`;
+    card+=`</div>`;
+  }
+  if(sp.nome)card+=`<div class="sponsor-nome ${gc}">${esc(sp.nome)}</div>`;
+  if(sp.frase)card+=`<div class="sponsor-frase ${gc}">${esc(sp.frase)}</div>`;
+  if(!sp.immagine&&!sp.nome&&!sp.frase)card+=`<div style="color:var(--txt2);font-size:12px">Sponsor</div>`;
+  card+=`</div>`;
+  return card;
+}
+
 function renderSponsorPage(cfg){
-  const cats=cfg.sponsor?.cats||[];
+  const cats=(cfg.sponsor&&cfg.sponsor.cats)||[];
   if(!cats.length)return`<div class="no-data"><p>Nessuno sponsor configurato.</p></div>`;
   let html='<div class="sponsor-page">';
-  for(const cat of cats){
-    const items=cat.items||[];if(!items.length)continue;
-    // Raggruppa per grandezza mantenendo l'ordine originale
-    const grandi=items.filter(x=>x.size==='grande');
-    const medi=items.filter(x=>x.size==='medio'||!x.size);
-    const piccoli=items.filter(x=>x.size==='piccolo');
-    html+=`<div class="sponsor-cat-section">`;
-    if(cat.nome)html+=`<div class="sponsor-cat-title">${esc(cat.nome)}</div>`;
-    function sponsorCard(sp,sz){
-      const gc=sz==='grande'?'lg':sz==='piccolo'?'sm':'md';
-      let card=`<div class="sponsor-card ${gc}">`;
-      if(sp.immagine){
-        card+=`<div style="display:flex;align-items:center;justify-content:center;width:100%;min-height:${sz==='grande'?'100px':sz==='piccolo'?'50px':'70px'}">`;
-        card+=`<img class="sponsor-img ${gc}" src="${sp.immagine}" alt="${esc(sp.nome||'')}" onerror="this.style.display='none'">`;
-        card+=`</div>`;
-      }
-      if(sp.nome)card+=`<div class="sponsor-nome ${gc}">${esc(sp.nome)}</div>`;
-      if(sp.frase)card+=`<div class="sponsor-frase ${gc}">${esc(sp.frase)}</div>`;
-      card+=`</div>`;
-      return card;
+  for(let ci=0;ci<cats.length;ci++){
+    const cat=cats[ci];
+    const items=cat.items||[];
+    if(!items.length)continue;
+    const grandi=items.filter(function(x){return x.size==='grande';});
+    const medi=items.filter(function(x){return x.size==='medio'||!x.size;});
+    const piccoli=items.filter(function(x){return x.size==='piccolo';});
+    html+='<div class="sponsor-cat-section">';
+    if(cat.nome)html+='<div class="sponsor-cat-title">'+esc(cat.nome)+'</div>';
+    if(grandi.length){
+      html+='<div class="sponsor-grid-lg">';
+      for(var gi=0;gi<grandi.length;gi++)html+=mkSponsorCard(grandi[gi],'grande');
+      html+='</div>';
     }
-    if(grandi.length)html+=`<div class="sponsor-grid-lg">${grandi.map(sp=>sponsorCard(sp,'grande')).join('')}</div>`;
-    if(medi.length)html+=`<div class="sponsor-grid-md">${medi.map(sp=>sponsorCard(sp,'medio')).join('')}</div>`;
-    if(piccoli.length)html+=`<div class="sponsor-grid-sm">${piccoli.map(sp=>sponsorCard(sp,'piccolo')).join('')}</div>`;
-    html+=`</div>`;
+    if(medi.length){
+      html+='<div class="sponsor-grid-md">';
+      for(var mi=0;mi<medi.length;mi++)html+=mkSponsorCard(medi[mi],'medio');
+      html+='</div>';
+    }
+    if(piccoli.length){
+      html+='<div class="sponsor-grid-sm">';
+      for(var pi=0;pi<piccoli.length;pi++)html+=mkSponsorCard(piccoli[pi],'piccolo');
+      html+='</div>';
+    }
+    html+='</div>';
   }
   return html+'</div>';
 }

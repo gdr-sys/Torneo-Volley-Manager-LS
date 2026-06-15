@@ -4,11 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Torneo Pallavolo — Manager</title>
-
-  <!-- Librerie esterne -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
-  <!-- Stili -->
   <link rel="stylesheet" href="css/main.css">
 </head>
 <body>
@@ -28,25 +24,23 @@
       <button class="theme-btn" onclick="toggleTheme()" id="themeBtn">🌙</button>
     </div>
   </div>
-
   <div id="root"></div>
 </div>
 
-<!-- Footer -->
 <footer class="footer-noemi">
   <p>Progetto e idea di
     <a href="mailto:tnoemi.marcolini@gmail.com" class="link-noemi">Noemi Marcolini</a>
   </p>
 </footer>
 
-<!-- Script applicazione (ordine importante: dipendenze prima) -->
-<script src="js/config.js"></script>    <!-- nomi squadre, costanti -->
-<script src="js/state.js"></script>     <!-- variabili globali -->
-<script src="js/storage.js"></script>   <!-- localStorage: sv, lsv, lload -->
-<script src="js/utils.js"></script>     <!-- calcoli, shuffle, helpers -->
-<script src="js/pdf.js"></script>       <!-- export PDF -->
-<script src="js/views.js"></script>     <!-- tutte le funzioni render* -->
-<script src="js/main.js"></script>      <!-- render() e avvio -->
+<!-- v=20250615 — aggiorna questo numero per forzare il reload dei file JS -->
+<script src="js/config.js?v=20250615"></script>
+<script src="js/state.js?v=20250615"></script>
+<script src="js/storage.js?v=20250615"></script>
+<script src="js/utils.js?v=20250615"></script>
+<script src="js/pdf.js?v=20250615"></script>
+<script src="js/views.js?v=20250615"></script>
+<script src="js/main.js?v=20250615"></script>
 
 </body>
 </html>

@@ -383,8 +383,12 @@ function renderClassificaLive(g,col){
     const ri=i===0?'r1':i===1?'r2':i===2?'r3':'';
     h+=`<tr style="${isFavTeam?'background:rgba(251,191,36,0.08)':''}">
       <td class="rank ${ri}">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</td>
-      <td><div style="display:flex;align-items:center;gap:6px">
-        ${logoHtml(getSocLogo(DB.tornei[activeTorneoId],t.soc),22)}
+      <td><div style="display:flex;align-items:center;gap:8px">
+        ${(()=>{const logo=getSocLogo(DB.tornei[activeTorneoId],t.soc);
+          return logo
+            ?`<img src="${logo}" style="width:32px;height:32px;object-fit:contain;border-radius:6px;background:#fff;padding:2px;flex-shrink:0" onerror="this.style.display='none'">`
+            :'';
+        })()}
         <div><div class="team-name">${t.nome}</div>${t.soc?`<div class="team-soc">${t.soc}</div>`:''}</div>
       </div></td>
       <td class="r"><span class="pts" style="color:${col}">${t.pt}</span></td>
@@ -413,9 +417,9 @@ function renderPartiteLive(g,col){
       return`<div class="match-item${played?' played':''}${isFavMatch?' fav-highlight':''}">
         <div class="match-teams-live">
           ${(p.campo||g.campo)?`<div style="font-size:9px;color:var(--txt2);margin-bottom:3px">📍 ${p.campo||g.campo}</div>`:''}
-          <div style="display:flex;align-items:center;gap:5px">${logoHtml(getSocLogo(DB.tornei[activeTorneoId],hs),18)}<span>${hn}${hs?` <span class="match-soc-live">(${hs})</span>`:''}</span></div>
+          <div style="display:flex;align-items:center;gap:7px">${(()=>{const l=getSocLogo(DB.tornei[activeTorneoId],hs);return l?`<img src="${l}" style="width:26px;height:26px;object-fit:contain;border-radius:5px;background:#fff;padding:1px;flex-shrink:0" onerror="this.style.display='none'">`:''})()}<span>${hn}${hs?` <span class="match-soc-live">(${hs})</span>`:''}</span></div>
           <div style="color:var(--txt2);font-size:11px;margin:2px 0">vs</div>
-          <div style="display:flex;align-items:center;gap:5px">${logoHtml(getSocLogo(DB.tornei[activeTorneoId],as),18)}<span>${an}${as?` <span class="match-soc-live">(${as})</span>`:''}</span></div>
+          <div style="display:flex;align-items:center;gap:7px">${(()=>{const l=getSocLogo(DB.tornei[activeTorneoId],as);return l?`<img src="${l}" style="width:26px;height:26px;object-fit:contain;border-radius:5px;background:#fff;padding:1px;flex-shrink:0" onerror="this.style.display='none'">`:''})()}<span>${an}${as?` <span class="match-soc-live">(${as})</span>`:''}</span></div>
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px">
           ${p.inCorso?'<span style="font-size:9px;background:#dc2626;color:#fff;padding:2px 6px;border-radius:4px;font-weight:700;animation:pulse 1s infinite">🔴 IN CORSO</span>':''}
@@ -450,8 +454,20 @@ function renderElimLive(fase,cat){
     if(!m)return'';const w=getWinner(m,s);const played=m.s1h!==''&&m.s1a!=='';
     return`<div class="elim-match">
       <div class="elim-match-title">${title}</div>
-      <div class="elim-team-live${w===m.t1?' win':played?' lose':''}"><span>${m.t1||'—'}</span>${played?`<span class="elim-score">${m.s1h}</span>`:''}</div>
-      <div class="elim-team-live${w===m.t2?' win':played?' lose':''}"><span>${m.t2||'—'}</span>${played?`<span class="elim-score">${m.s1a}</span>`:''}</div>
+      <div class="elim-team-live${w===m.t1?' win':played?' lose':''}">
+        <div style="display:flex;align-items:center;gap:7px">
+          ${(()=>{const sq=findSquadra(DB.tornei[activeTorneoId],m.t1);const l=sq?getSocLogo(DB.tornei[activeTorneoId],sq.soc):'';return l?`<img src="${l}" style="width:24px;height:24px;object-fit:contain;border-radius:4px;background:#fff;padding:1px;flex-shrink:0" onerror="this.style.display='none'">`:''})()}
+          <span>${m.t1||'—'}</span>
+        </div>
+        ${played?`<span class="elim-score">${m.s1h}</span>`:''}
+      </div>
+      <div class="elim-team-live${w===m.t2?' win':played?' lose':''}">
+        <div style="display:flex;align-items:center;gap:7px">
+          ${(()=>{const sq=findSquadra(DB.tornei[activeTorneoId],m.t2);const l=sq?getSocLogo(DB.tornei[activeTorneoId],sq.soc):'';return l?`<img src="${l}" style="width:24px;height:24px;object-fit:contain;border-radius:4px;background:#fff;padding:1px;flex-shrink:0" onerror="this.style.display='none'">`:''})()}
+          <span>${m.t2||'—'}</span>
+        </div>
+        ${played?`<span class="elim-score">${m.s1a}</span>`:''}
+      </div>
     </div>`;
   }
   html+=`<div class="elim-grid">`;
@@ -643,6 +659,19 @@ function getSocLogo(torneo,socNome){
   if(!socNome||!torneo||!torneo.societa)return'';
   const s=torneo.societa.find(x=>x.nome===socNome);
   return(s&&s.logo)||'';
+}
+function findSquadra(torneo,nomeSquadra){
+  // Cerca in tutti i gironi la squadra con quel nome e restituisce {nome, soc}
+  if(!torneo||!nomeSquadra)return null;
+  for(const cat of(torneo.categorie||[])){
+    for(const fase of(cat.fasi||[])){
+      for(const g of(fase.gironi||[])){
+        const sq=g.squadre.find(s=>s.nome===nomeSquadra);
+        if(sq)return sq;
+      }
+    }
+  }
+  return null;
 }
 function logoHtml(logo,size){
   if(!logo)return'';

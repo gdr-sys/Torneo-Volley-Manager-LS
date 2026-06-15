@@ -268,7 +268,7 @@ function renderSocieta(){
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="bsm" onclick="importTorneo()">⬆ Importa torneo</button>
         <button class="bsm" onclick="exportTorneo()">⬇ Esporta torneo</button>
-        <button class="bsm bp" onclick="socEditState={si:-1,nome:'',sqPerCat:{},bambini:{}};render()">+ Società</button>
+        <button class="bsm bp" onclick="socEditState={si:-1,nome:'',sqPerCat:{},bambini:{},logo:''};render()">+ Società</button>
       </div>
     </div>
     ${socEditState&&socEditState.si===-1?renderSocForm(-1):''}
@@ -336,18 +336,18 @@ function renderSocForm(si){
     </div>
     <div style="font-size:12px;font-weight:600;color:var(--txt2);margin-bottom:6px">🏢 Logo società</div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
-      ${st.logo
+      ${(st.logo||'')
         ?`<img src="${st.logo}" style="height:52px;width:52px;border-radius:8px;object-fit:contain;background:#fff;padding:3px;border:1px solid var(--border)">`
         :'<div style="height:52px;width:52px;border-radius:8px;background:var(--info);display:flex;align-items:center;justify-content:center;font-size:24px">🏢</div>'}
       <label style="cursor:pointer">
         <span class="bp bxsm" style="display:inline-block">📎 ${st.logo?'Cambia':'Carica'} logo</span>
         <input type="file" accept="image/*" style="display:none" onchange="uploadSocLogo(this)">
       </label>
-      <input type="text" value="${st.logo&&!st.logo.startsWith('data:')?escV(st.logo):''}"
+      <input type="text" value="${(st.logo||'')&&!(st.logo||'').startsWith('data:')?escV(st.logo):''}"
         placeholder="...oppure URL immagine"
         style="flex:1;min-width:160px;font-size:12px"
         oninput="socEditState.logo=this.value">
-      ${st.logo?`<button class="bxsm bd" onclick="socEditState.logo='';render()">✕ Rimuovi</button>`:''}
+      ${(st.logo||'')?`<button class="bxsm bd" onclick="socEditState.logo='';render()">✕ Rimuovi</button>`:''}
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end">
       <button onclick="socEditState=null;render()">Annulla</button>
@@ -390,6 +390,7 @@ function uploadSocLogo(input){
       const canvas=document.createElement('canvas');
       canvas.width=w;canvas.height=h;
       canvas.getContext('2d').drawImage(img,0,0,w,h);
+      if(!socEditState)return;
       if(!socEditState)return;
       socEditState.logo=canvas.toDataURL('image/png',0.85);
       render();

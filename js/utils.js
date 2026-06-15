@@ -320,6 +320,16 @@ function normalizzaPrezzo(raw){
   // Formatta con 2 decimali e virgola italiana
   return'€ '+n.toFixed(2).replace('.',',');
 }
+// ============================================================
+// HELPER LOGO SOCIETÀ (globale, usato da views e pdf)
+// ============================================================
+function getSocLogoAdmin(socNome){
+  const t=currentTorneo();
+  if(!socNome||!t?.societa)return'';
+  const s=t.societa.find(x=>x.nome===socNome);
+  return(s&&s.logo)||'';
+}
+
 function ensurePageConfig(){
   const t=currentTorneo();if(!t)return null;
   if(!t.pageConfig)t.pageConfig={};

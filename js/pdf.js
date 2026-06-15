@@ -393,3 +393,154 @@ function exportPDFCategoria(catId){
 
   doc.save(`${t.nome}_${catName}_completo.pdf`);
 }
+
+
+// ============================================================
+// PDF PROGRAMMA DI SALA (tutti i gironi, ordinati per campo)
+// ============================================================
+function exportPDFProgramma(){
+  const t=currentTorneo();if(!t)return;
+  if(!window.jspdf){alert('Libreria PDF non caricata.');return;}
+  const{jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const W=210,M=12;
+
+  function hexRgb(hex){
+    try{return[parseInt(hex.slice(1,3),16),parseInt(hex.slice(3,5),16),parseInt(hex.slice(5,7),16)];}
+    catch(e){return[50,50,50];}
+  }
+
+  let isFirst=true;
+  let y=M;
+
+  function newPage(){
+    if(!isFirst)doc.addPage();
+    isFirst=false;
+    doc.setFillColor(30,30,30);doc.rect(0,0,W,20,'F');
+    doc.setTextColor(255,255,255);doc.setFontSize(14);doc.setFont('helvetica','bold');
+    doc.text(`📋 ${t.nome} — Programma di sala`,M,9);
+    doc.setFontSize(8);doc.setFont('helvetica','normal');
+    doc.text(`${new Date().toLocaleString('it-IT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})} · Pagina ${doc.getNumberOfPages()}`,M,16);
+    y=24;
+  }
+
+  function chk(n=12){if(y+n>284)newPage();}
+
+  newPage();
+
+  // Raccoglie tutti i gironi di tutte le categorie, raggruppati per campo
+  const campiMap={}; // campo → [{catId, cat, fase, g}]
+  const senzaCampo=[];
+
+  for(const cat of getCats()){
+    for(const fase of(cat.fasi||[])){
+      if(fase.tipo==='elim')continue;
+      for(const g of(fase.gironi||[])){
+        const campo=(g.campo||'').trim();
+        const entry={catId:cat.id,cat,fase,g};
+        if(campo){
+          if(!campiMap[campo])campiMap[campo]=[];
+          campiMap[campo].push(entry);
+        }else{
+          senzaCampo.push(entry);
+        }
+      }
+    }
+  }
+
+  const campiOrdinati=Object.keys(campiMap).sort((a,b)=>a.localeCompare(b,'it',{numeric:true}));
+
+  function drawGironeBlock(entry){
+    const{catId,cat,fase,g}=entry;
+    const CR=hexRgb(cat.colore||'#166634');
+    const sets=g.sets||2;
+    const andataP=g.partite.filter(p=>!p.leg||p.leg===1);
+    const ritornoP=g.partite.filter(p=>p.leg===2);
+    const giocate=g.partite.filter(p=>p.s1h!==''&&p.s1a!=='').length;
+
+    // Header girone
+    chk(10);
+    doc.setFillColor(...CR);
+    doc.rect(M,y,W-2*M,8,'F');
+    doc.setTextColor(255,255,255);doc.setFontSize(10);doc.setFont('helvetica','bold');
+    doc.text(`${cat.emoji||''} ${cat.nome} · ${fase.label} · Girone ${g.label}${g.campo?' · 📍 '+g.campo:''} · ${sets} set · ${giocate}/${g.partite.length} partite`,M+3,y+5.5);
+    y+=10;
+
+    // Partite
+    function drawPList(pList,ritorno){
+      pList.forEach((p,i)=>{
+        chk(9);
+        const hn=g.squadre[p.h]?.nome||'?';
+        const an=g.squadre[p.a]?.nome||'?';
+        const played=p.s1h!==''&&p.s1a!=='';
+        const campoEff=(p.campo||g.campo||'').trim();
+        if(i%2===0){doc.setFillColor(248,248,248);doc.rect(M,y,W-2*M,8,'F');}
+        // Numero partita
+        doc.setTextColor(120,120,120);doc.setFontSize(8);doc.setFont('helvetica','normal');
+        doc.text(String(i+1+(ritorno?pList.length:0))+'.',M+2,y+5.5);
+        // Squadre
+        doc.setTextColor(30,30,30);doc.setFont('helvetica','bold');doc.setFontSize(9.5);
+        doc.text(hn.substring(0,18),M+9,y+5.5);
+        doc.setFont('helvetica','normal');doc.setTextColor(120,120,120);doc.setFontSize(8.5);
+        doc.text('vs',M+72,y+5.5);
+        doc.setFont('helvetica','bold');doc.setTextColor(30,30,30);doc.setFontSize(9.5);
+        doc.text(an.substring(0,18),M+82,y+5.5);
+        // Campo override
+        if(p.campo){
+          doc.setTextColor(100,100,200);doc.setFontSize(7.5);doc.setFont('helvetica','bold');
+          doc.text('📍'+p.campo,M+148,y+5.5);
+        }
+        // Risultato
+        if(played){
+          doc.setTextColor(...CR);doc.setFont('helvetica','bold');doc.setFontSize(10);
+          const score=`${p.s1h}–${p.s1a}${sets===2&&p.s2h!==''?' / '+p.s2h+'–'+p.s2a:''}`;
+          doc.text(score,W-M-2,y+5.5,{align:'right'});
+        }else{
+          doc.setTextColor(200,200,200);doc.setFontSize(8);
+          doc.text('–',W-M-4,y+5.5,{align:'right'});
+        }
+        // Nota
+        if(p.nota){
+          doc.setTextColor(150,150,150);doc.setFontSize(7);doc.setFont('helvetica','oblique');
+          doc.text('📝 '+p.nota,M+9,y+7.5);
+        }
+        y+=p.nota?10:8;
+      });
+    }
+
+    drawPList(andataP,false);
+    if(ritornoP.length){
+      chk(5);
+      doc.setFillColor(254,249,195);doc.rect(M,y,W-2*M,5,'F');
+      doc.setTextColor(133,77,14);doc.setFont('helvetica','bold');doc.setFontSize(7.5);
+      doc.text('RITORNO',M+3,y+3.5);y+=5;
+      drawPList(ritornoP,true);
+    }
+    y+=5;
+  }
+
+  // Stampa per campo
+  for(const campo of campiOrdinati){
+    chk(16);
+    // Banner campo
+    doc.setFillColor(50,50,50);doc.rect(M,y,W-2*M,10,'F');
+    doc.setTextColor(255,255,255);doc.setFontSize(12);doc.setFont('helvetica','bold');
+    doc.text(`📍 Campo ${campo}`,M+4,y+7);y+=13;
+    for(const entry of campiMap[campo])drawGironeBlock(entry);
+  }
+
+  // Gironi senza campo assegnato
+  if(senzaCampo.length){
+    chk(16);
+    doc.setFillColor(180,180,180);doc.rect(M,y,W-2*M,10,'F');
+    doc.setTextColor(255,255,255);doc.setFontSize(11);doc.setFont('helvetica','bold');
+    doc.text('Campo non assegnato',M+4,y+7);y+=13;
+    for(const entry of senzaCampo)drawGironeBlock(entry);
+  }
+
+  if(isFirst&&y===24){
+    doc.setTextColor(100,100,100);doc.setFont('helvetica','normal');doc.setFontSize(11);
+    doc.text('Nessun girone configurato.',M,40);
+  }
+
+  doc.save(`${t.nome}_programma_sala.pdf`);
+}

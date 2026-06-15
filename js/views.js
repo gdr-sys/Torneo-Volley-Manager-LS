@@ -698,7 +698,19 @@ function saveResult(catId,fid,gv,pid){
   if(s1h===s1a){alert('Il Set 1 non può finire in parità (stesso punteggio).');return;}
   sv();render();
 }
+function salvaNotaPartita(catId,fid,gv,pid,val){
+  const g=getGirone(catId,fid,gv);if(!g)return;
+  if(g.partite[pid])g.partite[pid].nota=val;
+  sv();
+}
 function clearResult(catId,fid,gv,pid){const g=getGirone(catId,fid,gv);if(!g)return;const p=g.partite[pid];p.s1h='';p.s1a='';p.s2h='';p.s2a='';['s1h','s1a','s2h','s2a'].forEach(f=>delete IC[icKey(catId,fid,gv,pid,f)]);sv();render();}
+function renameFase(evt,catId,fid){
+  evt.stopPropagation();
+  const fase=getFase(catId,fid);if(!fase)return;
+  const nome=prompt('Rinomina fase:',fase.label);
+  if(!nome||!nome.trim())return;
+  fase.label=nome.trim();sv();render();
+}
 function delFase(catId,fid){if(!confirm('Eliminare questa fase?'))return;const cat=getCat(catId);if(cat)cat.fasi=cat.fasi.filter(f=>f.id!==fid);sv();render();}
 function saveElim(catId,fid,mk){const f=getFase(catId,fid);if(!f||!f.elim)return;const m=f.elim[mk];if(!m)return;['s1h','s1a','s2h','s2a'].forEach(field=>{const k=`elim_${fid}_${mk}_${field}`;if(IC[k]!==undefined)m[field]=IC[k];});propagateElim(f);sv();render();}
 function onInputElim(fid,mk,field,val){IC[`elim_${fid}_${mk}_${field}`]=val;}
@@ -721,7 +733,9 @@ function renderCategoria(catId){
     html+=`<div class="card"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;cursor:pointer" onclick="toggleCollapse('${fase.id}')">
         <span style="font-size:18px;color:var(--txt2)">${isCollapsed?'▶':'▼'}</span>
-        <span style="font-size:16px;font-weight:600">${fase.label}</span>
+        <span style="font-size:16px;font-weight:600" 
+          ondblclick="renameFase(event,'${catId}','${fase.id}')"
+          title="Doppio click per rinominare">${fase.label}</span>
         <span style="font-size:11px;padding:3px 10px;border-radius:20px;background:#fef9c3;color:#854d0e;font-weight:500">${isElim?'⚡ Eliminazione':isCollapsed?`${giocate}/${totP} partite`:`${fase.gironi?.length||0} giron${(fase.gironi?.length||0)===1?'e':'i'}`}</span>
       </div>
       ${fi>0?`<button class="bsm bd" onclick="delFase('${catId}','${fase.id}')">✕ Elimina</button>`:''}
@@ -746,7 +760,19 @@ function renderCategoria(catId){
     }
     html+=`</div>`;
   }
-  html+=`<div class="card" style="text-align:center;padding:1.5rem"><p style="font-size:13px;color:var(--txt2);margin-bottom:12px">Creare una fase successiva?</p><button class="bp" onclick="openBuilder('${catId}')">+ Fase successiva</button></div>`;
+  // Banner riepilogo: quante partite totali giocate
+  const totAll=cat.fasi.flatMap(f=>f.gironi||[]).reduce((s,g)=>s+g.partite.length,0);
+  const playAll=cat.fasi.flatMap(f=>f.gironi||[]).reduce((s,g)=>s+g.partite.filter(p=>p.s1h!==''&&p.s1a!=='').length,0);
+  const hasElim=cat.fasi.some(f=>f.tipo==='elim');
+  if(!hasElim){
+    html+=`<div class="card" style="text-align:center;padding:1.5rem">
+      ${playAll===totAll&&totAll>0
+        ?`<div style="font-size:13px;color:var(--saved-txt);background:var(--saved-bg);border-radius:8px;padding:8px 14px;margin-bottom:12px">✅ Tutte le ${totAll} partite completate!</div>`
+        :`<p style="font-size:13px;color:var(--txt2);margin-bottom:6px">${playAll}/${totAll} partite inserite</p>`}
+      <p style="font-size:13px;color:var(--txt2);margin-bottom:12px">Creare una fase successiva?</p>
+      <button class="bp" onclick="openBuilder('${catId}')">+ Fase successiva</button>
+    </div>`;
+  }
   return html;
 }
 
@@ -768,6 +794,11 @@ function renderGironeContent(catId,fase,g){
       ${sets===2?`<div class="set-row"><span class="set-lbl">Set 2</span><input type="number" class="score" inputmode="numeric" value="${V('s2h',p.s2h)}" placeholder="0" oninput="onInput('${catId}','${fase.id}','${g.id}',${pid},'s2h',this.value)"><span class="sep">–</span><input type="number" class="score" inputmode="numeric" value="${V('s2a',p.s2a)}" placeholder="0" oninput="onInput('${catId}','${fase.id}','${g.id}',${pid},'s2a',this.value)"></div>`:''}
       <div class="save-row"><button class="bp" style="flex:1;padding:8px;font-size:13px;font-weight:600" onclick="saveResult('${catId}','${fase.id}','${g.id}',${pid})">✓ Salva</button>${played?`<button style="padding:8px 14px;font-size:13px" class="bd" onclick="clearResult('${catId}','${fase.id}','${g.id}',${pid})">✕</button>`:''}</div>
       ${played?`<div class="saved">✓ Set1: ${p.s1h}–${p.s1a}${sets===2&&p.s2h!==''?' | Set2: '+p.s2h+'–'+p.s2a:''}</div>`:''}
+      <div style="display:flex;gap:6px;align-items:center;margin-top:4px">
+        <input type="text" value="${p.nota||''}" placeholder="📝 Nota partita (campo, orario...)"
+          style="font-size:11px;padding:4px 8px;color:var(--txt2);background:transparent;border:1px dashed var(--border)"
+          onblur="salvaNotaPartita('${catId}','${fase.id}','${g.id}',${pid},this.value)">
+      </div>
     </div>`;}).join('');}
   return`<div class="girone-box"><div class="girone-hdr">
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -783,8 +814,7 @@ function renderGironeContent(catId,fase,g){
 }
 
 function renderElimMatch(catId,fid,mk,m,title,sets){
-  if(!m)return'';const w=getWinner(m,sets);const played=m.s1h!==''&&m.s1a!=='';
-  const es=fase.elimSets||1;
+  if(!m)return'';const es=sets||1;const w=getWinner(m,es);const played=m.s1h!==''&&m.s1a!=='';
   return`<div class="elim-card"><div class="elim-lbl">${title}</div>
     <div class="elim-team${w===m.t1?' win':played?' lose':''}"><div><div>${m.t1||'—'}</div>${m.da1?`<div class="org">${m.da1}</div>`:''}</div>${w===m.t1?'🏆':''}</div>
     <div class="elim-team${w===m.t2?' win':played?' lose':''}"><div><div>${m.t2||'—'}</div>${m.da2?`<div class="org">${m.da2}</div>`:''}</div>${w===m.t2?'🏆':''}</div>
@@ -805,10 +835,12 @@ function renderElimMatch(catId,fid,mk,m,title,sets){
 
 function renderElimBlock(catId,fase){
   const e=fase.elim||{};propagateElim(fase);const hasQ=e.q1||e.q2||e.q3||e.q4;
-  const wF=getWinner(e.fin12,es),lF=getLoser(e.fin12,es),wF34=getWinner(e.fin34,es);
-  let html='';
-  if(wF){html+=`<div class="podium-grid"><div class="podium p2" style="margin-top:20px"><div style="font-size:28px">🥈</div><div class="podium-name">${lF||'—'}</div><div class="podium-lbl">2° posto</div></div><div class="podium p1"><div style="font-size:28px">🥇</div><div class="podium-name">${wF}</div><div class="podium-lbl">1° posto</div></div><div class="podium p3" style="margin-top:30px"><div style="font-size:28px">🥉</div><div class="podium-name">${wF34||'—'}</div><div class="podium-lbl">3° posto</div></div></div>`;}
   const es=fase.elimSets||1;
+  const wF=getWinner(e.fin12,es),lF=getLoser(e.fin12,es),wF34=getWinner(e.fin34,es);
+  let html=`<div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+    <button class="bg bsm" onclick="exportPDFElim('${catId}','${fase.id}')">📄 PDF tabellone</button>
+  </div>`;
+  if(wF){html+=`<div class="podium-grid"><div class="podium p2" style="margin-top:20px"><div style="font-size:28px">🥈</div><div class="podium-name">${lF||'—'}</div><div class="podium-lbl">2° posto</div></div><div class="podium p1"><div style="font-size:28px">🥇</div><div class="podium-name">${wF}</div><div class="podium-lbl">1° posto</div></div><div class="podium p3" style="margin-top:30px"><div style="font-size:28px">🥉</div><div class="podium-name">${wF34||'—'}</div><div class="podium-lbl">3° posto</div></div></div>`;}
   if(hasQ){html+=`<div class="bracket-round"><div class="bracket-title">⚡ Quarti di Finale</div><div class="bracket-grid">${['q1','q2','q3','q4'].filter(k=>e[k]).map((k,i)=>renderElimMatch(catId,fase.id,k,e[k],`Quarto ${i+1}: ${['1°vs8°','2°vs7°','3°vs6°','4°vs5°'][i]}`,es)).join('')}</div></div>`;}
   html+=`<div class="bracket-round"><div class="bracket-title">🏅 Semifinali</div><div class="bracket-grid">${renderElimMatch(catId,fase.id,'sf1',e.sf1,'Semifinale 1',es)}${renderElimMatch(catId,fase.id,'sf2',e.sf2,'Semifinale 2',es)}</div></div>`;
   html+=`<div class="bracket-round"><div class="bracket-title">🏆 Finali</div><div class="bracket-grid">${renderElimMatch(catId,fase.id,'fin12',e.fin12,'Finale 1° - 2° posto',es)}${renderElimMatch(catId,fase.id,'fin34',e.fin34,'Finale 3° - 4° posto',es)}</div></div>`;

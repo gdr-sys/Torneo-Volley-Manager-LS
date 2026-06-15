@@ -252,9 +252,10 @@ function renderLive(){
 
   const cats=(torneo.categorie||[]).filter(c=>(c.fasi||[]).some(f=>f.gironi?.length||f.tipo==='elim'));
   const cfg=torneo.pageConfig||{};
-  const hasSponsor=cfg.sponsorEnabled&&(cfg.sponsor?.cats||[]).some(c=>c.items?.length);
-  const hasInfo=cfg.infoEnabled&&(cfg.infoBlocks||[]).some(b=>b.titolo||b.testo);
-  const hasMenu=cfg.menuEnabled&&(cfg.menu?.sezioni||[]).some(s=>s.voci?.length);
+  // Mostra la tab se il toggle è attivo (indipendentemente dal contenuto)
+  const hasSponsor=cfg.sponsorEnabled&&(cfg.sponsor?.cats||[]).length>0;
+  const hasInfo=cfg.infoEnabled;
+  const hasMenu=cfg.menuEnabled;
   const hasFavs=FAVS.size>0;
 
   const allTabs=[...cats.map(c=>({k:c.id,label:`${c.emoji} ${c.nome}`,col:c.colore,isSport:true}))];

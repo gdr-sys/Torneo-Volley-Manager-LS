@@ -8,7 +8,8 @@ function escV(s){return(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').repl
 
 function renderBadgeCat(catId,extra){
   const st=`font-size:11px;padding:3px 10px;border-radius:20px;font-weight:600;display:inline-block;${catBadgeStyle(catId)}${extra||''}`;
-  return`<span style="${st}">${catEmoji(catId)} ${catLabel(catId)}</span>`;
+  const em=catEmoji(catId);
+  return`<span style="${st}">${em?em+' ':''}${catLabel(catId)}</span>`;
 }
 
 // ============================================================
@@ -110,8 +111,9 @@ function renderTorneoSetup(){
           ${ci>0?`<button class="bxsm" onclick="wizardMoveCat(${ci},-1)">↑</button>`:'<span style="width:26px"></span>'}
           ${ci<w.categorie.length-1?`<button class="bxsm" onclick="wizardMoveCat(${ci},1)">↓</button>`:'<span style="width:26px"></span>'}
         </div>
-        <select style="width:46px;font-size:18px;padding:4px 2px;text-align:center" onchange="wizardState.categorie[${ci}].emoji=this.value">
-          ${['⬜','🟩','🟥','🟣','🟠','🔵','🟡','⚫','🟤','🔴','⚪'].map(e=>`<option${cat.emoji===e?' selected':''}>${e}</option>`).join('')}
+        <select style="width:60px;font-size:18px;padding:4px 2px;text-align:center" onchange="wizardState.categorie[${ci}].emoji=this.value">
+          <option value="${cat.emoji?'':''}">— </option>
+          ${['⬜','🟩','🟥','🟣','🟠','🔵','🟡','⚫','🟤','🔴','⚪'].map(e=>`<option value="${e}"${cat.emoji===e?' selected':''}>${e}</option>`).join('')}
         </select>
         <input type="text" value="${escV(cat.nome)}" placeholder="Nome categoria"
           style="flex:1;font-weight:600;min-width:100px" oninput="wizardState.categorie[${ci}].nome=this.value">
@@ -267,34 +269,37 @@ function renderSocieta(){
 }
 
 function renderSocTable(soc,cats){
-  const colW=`1fr repeat(${cats.length},56px) repeat(${cats.length},56px) 76px`;
-  let hdr=`<div style="display:grid;grid-template-columns:${colW};gap:6px;align-items:center;padding:4px 8px;font-size:11px;font-weight:600;color:var(--txt2)">
-    <div>SOCIETÀ</div>
-    ${cats.map(c=>`<div style="text-align:center;color:${c.colore}">SQ ${c.nome.substring(0,1).toUpperCase()}</div>`).join('')}
-    ${cats.map(c=>`<div style="text-align:center;color:${c.colore}">🧒${c.nome.substring(0,1).toUpperCase()}</div>`).join('')}
-    <div></div>
-  </div>`;
+  // Layout responsive a card: niente grid orizzontale, funziona su mobile
   let rows=soc.map((s,si)=>{
     if(socEditState&&socEditState.si===si)return renderSocForm(si);
-    return`<div class="soc-row">
-      <div class="soc-nome">${escV(s.nome)}</div>
-      ${cats.map(c=>`<div style="text-align:center;font-size:14px;font-weight:700;color:${(s.sqPerCat?.[c.id]||0)>0?'var(--txt)':'var(--txt2)'}">${s.sqPerCat?.[c.id]||0}</div>`).join('')}
-      ${cats.map(c=>`<div style="text-align:center;font-size:13px;color:${(s.bambini?.[c.id]||0)>0?'var(--txt)':'var(--txt2)'}">${s.bambini?.[c.id]||0}</div>`).join('')}
-      <div style="display:flex;gap:4px">
-        <button class="bxsm" onclick="socEditState={si:${si},nome:'${s.nome.replace(/'/g,"\\'")}',sqPerCat:{${cats.map(c=>`'${c.id}':${s.sqPerCat?.[c.id]||0}`).join(',')}},bambini:{${cats.map(c=>`'${c.id}':${s.bambini?.[c.id]||0}`).join(',')}}};render()">✏️</button>
+    const righe=cats.map(c=>{
+      const sq=s.sqPerCat?.[c.id]||0;const bb=s.bambini?.[c.id]||0;
+      if(!sq&&!bb)return'';
+      const em=catEmoji(c.id)?catEmoji(c.id)+' ':'';
+      return`<span style="font-size:11px;padding:2px 8px;border-radius:10px;margin:2px;display:inline-block;${catBadgeStyle(c.id)}">${em}${catLabel(c.id)}: ${sq} sq${bb?' · 🧒'+bb:''}</span>`;
+    }).join('');
+    return`<div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap">
+      <div style="flex:1;min-width:100px">
+        <div style="font-weight:700;font-size:14px;margin-bottom:6px">${escV(s.nome)}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:2px">${righe||'<span style="font-size:11px;color:var(--txt2)">Nessuna squadra</span>'}</div>
+      </div>
+      <div style="display:flex;gap:4px;flex-shrink:0;margin-top:2px">
+        <button class="bxsm" onclick="socEditState={si:${si},nome:'${s.nome.replace(/'/g,"\\'")}',sqPerCat:{${cats.map(c=>`'${c.id}':${s.sqPerCat?.[c.id]||0}`).join(',')}},bambini:{${cats.map(c=>`'${c.id}':${s.bambini?.[c.id]||0}`).join(',')}}};render()">✏️ Modifica</button>
         <button class="bxsm bd" onclick="rimuoviSocTorneo(${si})">✕</button>
       </div>
     </div>`;
   }).join('');
-  const totali=`<div style="background:var(--info);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--txt2);margin-top:8px">
-    <strong>Totale:</strong>
+  const totali=`<div style="background:var(--info);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--txt2);margin-top:4px">
+    <strong>Totale per categoria:</strong>
+    <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">
     ${cats.map(c=>{
       const tot=soc.reduce((s,x)=>s+(x.sqPerCat?.[c.id]||0),0);
       const totB=soc.reduce((s,x)=>s+(x.bambini?.[c.id]||0),0);
       return`${renderBadgeCat(c.id,'margin:2px')} <span style="font-size:11px">${tot} sq · 🧒 ${totB}</span>`;
-    }).join(' ')}
+    }).join('')}
+    </div>
   </div>`;
-  return`<div style="background:var(--info);border-radius:8px;padding:8px;margin-bottom:1rem">${hdr}${rows}</div>${totali}`;
+  return`<div style="margin-bottom:1rem">${rows}</div>${totali}`;
 }
 
 function renderSocForm(si){
@@ -472,6 +477,7 @@ function renderSetupGironi(){
       <div style="margin-bottom:10px">
         <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:4px">Emoji</label>
         <select id="catModalEmoji" style="width:100%;font-size:18px">
+          <option value="">— Nessuna emoji —</option>
           ${['⬜','🟩','🟥','🟣','🟠','🔵','🟡','⚫','🟤','🔴','⚪','🩵','🩶','💜','🧡'].map(e=>`<option>${e}</option>`).join('')}
         </select>
       </div>
@@ -881,7 +887,9 @@ function renderPaginaLive(){
                 <input type="text" value="${escV(v.nome)}" placeholder="Nome voce" style="margin-bottom:4px" oninput="updateMenuVoce(${si},${vi},'nome',this.value)">
                 <input type="text" value="${escV(v.desc||'')}" placeholder="Descrizione (opz.)" style="font-size:12px" oninput="updateMenuVoce(${si},${vi},'desc',this.value)">
               </div>
-              <input type="text" value="${escV(v.prezzo)}" placeholder="€ 0,00" style="text-align:center;font-weight:700" oninput="updateMenuVoce(${si},${vi},'prezzo',this.value)">
+              <input type="text" value="${escV(v.prezzo)}" placeholder="€ 0,00" style="text-align:center;font-weight:700"
+                oninput="updateMenuVoce(${si},${vi},'prezzo',this.value)"
+                onblur="const n=normalizzaPrezzo(this.value);if(n&&n!==this.value){this.value=n;updateMenuVoce(${si},${vi},'prezzo',n);}">
               <div style="display:flex;flex-direction:column;gap:2px">
                 ${vi>0?`<button class="bxsm" onclick="moveMenuVoce(${si},${vi},-1)">↑</button>`:''}
                 ${vi<nVoci-1?`<button class="bxsm" onclick="moveMenuVoce(${si},${vi},1)">↓</button>`:''}

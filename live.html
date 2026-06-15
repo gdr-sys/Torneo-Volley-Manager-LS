@@ -656,9 +656,20 @@ function renderGiornataPage(torneo){
 function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
 function getSocLogo(torneo,socNome){
-  if(!socNome||!torneo||!torneo.societa)return'';
-  const s=torneo.societa.find(x=>x.nome===socNome);
-  return(s&&s.logo)||'';
+  if(!socNome)return'';
+  // Cerca nel torneo passato
+  if(torneo&&torneo.societa){
+    const s=torneo.societa.find(x=>x.nome===socNome);
+    if(s&&s.logo)return s.logo;
+  }
+  // Fallback: cerca in tutti i tornei del DB
+  for(const t of Object.values(DB.tornei||{})){
+    if(t.societa){
+      const s=t.societa.find(x=>x.nome===socNome);
+      if(s&&s.logo)return s.logo;
+    }
+  }
+  return'';
 }
 function findSquadra(torneo,nomeSquadra){
   // Cerca in tutti i gironi la squadra con quel nome e restituisce {nome, soc}

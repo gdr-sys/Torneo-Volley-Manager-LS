@@ -2,15 +2,86 @@
 'use strict';
 
 // ============================================================
-// UTILS
+// UTILS BASE
 // ============================================================
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
 function toggleTheme(){isDark=!isDark;document.documentElement.setAttribute('data-theme',isDark?'dark':'light');document.getElementById('themeBtn').textContent=isDark?'☀️':'🌙';}
 function toggleCollapse(fid){if(collapsed.has(fid))collapsed.delete(fid);else collapsed.add(fid);render();}
-function goHome(){view='home';currentTorneoId=null;localCat='white';IC={};builderState=null;socEditState=null;document.getElementById('torneoNomeHdr').textContent='Nessun torneo selezionato';render();}
+function goHome(){view='home';currentTorneoId=null;localCat=null;IC={};builderState=null;socEditState=null;document.getElementById('torneoNomeHdr').textContent='Nessun torneo selezionato';render();}
 function currentTorneo(){return currentTorneoId?DB.tornei[currentTorneoId]:null;}
-function catLabel(c){return c==='white'?'White':c==='green'?'Green':'Red';}
-function badge(c){return c==='white'?'bw':c==='green'?'bg2':'br2';}
+
+// ============================================================
+// HELPERS CATEGORIE DINAMICHE
+// ============================================================
+// Restituisce le categorie del torneo corrente (con migrazione da vecchio formato)
+function getCats(){
+  const t=currentTorneo();if(!t)return[];
+  // Migrazione: vecchio formato cats:{white,green,red} → nuovo formato categorie:[]
+  if(!t.categorie){
+    t.categorie=[];
+    const oldMap={white:{nome:'White',colore:'#1e40af',emoji:'⬜'},green:{nome:'Green',colore:'#166534',emoji:'🟩'},red:{nome:'Red',colore:'#991b1b',emoji:'🟥'}};
+    for(const [id,meta] of Object.entries(oldMap)){
+      const fasi=t.cats?.[id]?.fasi||[{id:uid(),label:'Fase 1',gironi:[]}];
+      t.categorie.push({id,nome:meta.nome,colore:meta.colore,emoji:meta.emoji,fasi});
+    }
+    delete t.cats;
+  }
+  return t.categorie;
+}
+
+// Trova una categoria per id
+function getCat(catId){return getCats().find(c=>c.id===catId)||null;}
+
+// Etichetta e stile da una categoria
+function catLabel(catId){const c=getCat(catId);return c?c.nome:catId;}
+function catColore(catId){const c=getCat(catId);return c?c.colore:'#555';}
+function catEmoji(catId){const c=getCat(catId);return c?c.emoji:'';}
+
+// Badge inline style per una categoria
+function catBadgeStyle(catId){
+  const col=catColore(catId);
+  // genera bg chiaro dal colore hex
+  return`background:${col}22;color:${col};border:1px solid ${col}55;`;
+}
+
+// Prima categoria disponibile
+function firstCat(){const cats=getCats();return cats.length?cats[0].id:null;}
+
+// ============================================================
+// GESTIONE CATEGORIE (CRUD)
+// ============================================================
+function addCategoria(nome,colore,emoji){
+  const t=currentTorneo();if(!t)return;
+  getCats(); // assicura migrazione
+  const id=uid();
+  t.categorie.push({id,nome:nome||'Nuova',colore:colore||'#7c3aed',emoji:emoji||'🟣',fasi:[{id:uid(),label:'Fase 1',gironi:[]}]});
+  // Aggiungi sqPerCat e bambini per tutte le società
+  for(const s of(t.societa||[])){
+    if(!s.sqPerCat)s.sqPerCat={};
+    if(!s.bambini)s.bambini={};
+    s.sqPerCat[id]=0;s.bambini[id]=0;
+  }
+  sv();render();
+}
+function delCategoria(catId){
+  const t=currentTorneo();if(!t)return;
+  if(!confirm(`Eliminare la categoria "${catLabel(catId)}" e tutti i suoi gironi?`))return;
+  t.categorie=t.categorie.filter(c=>c.id!==catId);
+  if(localCat===catId)localCat=firstCat();
+  sv();render();
+}
+function updateCategoria(catId,field,val){
+  const c=getCat(catId);if(!c)return;
+  c[field]=val;sv();
+}
+function moveCategoria(catId,dir){
+  const t=currentTorneo();if(!t)return;
+  const cats=t.categorie;
+  const idx=cats.findIndex(c=>c.id===catId);
+  const to=idx+dir;if(to<0||to>=cats.length)return;
+  [cats[idx],cats[to]]=[cats[to],cats[idx]];
+  sv();render();
+}
 
 // ============================================================
 // SHUFFLE NO-CONSEC
@@ -27,32 +98,14 @@ function genPartite(n,ritorno,sets){
 }
 
 // ============================================================
-// ASSEGNAZIONE SQUADRE CON DIVERSITÀ SOCIETÀ
+// NOMI SQUADRE DINAMICI
 // ============================================================
-function assegnaSquadre(cat,gironi,societa){
-  const pool=[];
-  for(const s of societa){
-    const sqCat=s.squadre.filter(sq=>sq.cat===cat);
-    for(const sq of sqCat) pool.push({nome:sq.nome,soc:s.nome});
-  }
-  for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
-
-  const result=gironi.map(g=>({n:g.n,squadre:[]}));
-  const remaining=[...pool];
-
-  for(let round=0;remaining.length>0;round++){
-    for(let gi=0;gi<result.length&&remaining.length>0;gi++){
-      const girone=result[gi];
-      if(girone.squadre.length>=girone.n) continue;
-      const socInGirone=new Set(girone.squadre.map(s=>s.soc));
-      const diverse=remaining.filter(s=>!socInGirone.has(s.soc));
-      const candidates=diverse.length>0?diverse:remaining;
-      const chosen=candidates[0];
-      girone.squadre.push(chosen);
-      remaining.splice(remaining.indexOf(chosen),1);
-    }
-  }
-  return result;
+// Per categorie custom usa un pool generico
+const NAMES_GENERIC=["STELLE","COMETE","METEORE","PIANETI","GALASSIE","NEBULOSE","QUASAR","PULSAR","NOVAS","AURORA","ZENITH","NADIR","SOLSTIZIO","EQUINOZIO","ECLISSI","CORONA","CROCE","ORIONE","VEGA","SIRIUS","ALTAIR","DENEB","RIGEL","ANTARES","POLLUCE","CASTORE","PROCIONE","ARTURO","ALDEBARAN","BETELGEUSE"];
+function getNomiCat(catId){
+  // Categorie di base usano NAMES da config.js se disponibili
+  if(typeof NAMES!=='undefined'&&NAMES[catId])return NAMES[catId];
+  return NAMES_GENERIC;
 }
 
 // ============================================================
@@ -92,10 +145,9 @@ function buildElimStruct(teams){
   const nm=i=>teams[i]?.nome||'?';
   const lb=i=>teams[i]?.posLabel||'?';
   const e={};
-
   if(n>=8){
     const last=Math.min(n-1,7);
-    e.q1={t1:nm(0),t2:nm(Math.min(7,last)),  da1:lb(0),da2:lb(Math.min(7,last)),  s1h:'',s1a:''};
+    e.q1={t1:nm(0),t2:nm(Math.min(7,last)),da1:lb(0),da2:lb(Math.min(7,last)),s1h:'',s1a:''};
     e.q2={t1:nm(1),t2:nm(Math.min(6,last-1)),da1:lb(1),da2:lb(Math.min(6,last-1)),s1h:'',s1a:''};
     e.q3={t1:nm(2),t2:nm(Math.min(5,last-2)),da1:lb(2),da2:lb(Math.min(5,last-2)),s1h:'',s1a:''};
     e.q4={t1:nm(3),t2:nm(Math.min(4,last-3)),da1:lb(3),da2:lb(Math.min(4,last-3)),s1h:'',s1a:''};
@@ -108,7 +160,6 @@ function buildElimStruct(teams){
     e.sf1={t1:nm(0),t2:nm(1),da1:lb(0),da2:lb(1),s1h:'',s1a:''};
     e.sf2=null;
   }
-
   e.fin12={t1:'Vincente SF1',t2:e.sf2?'Vincente SF2':nm(1),s1h:'',s1a:''};
   e.fin34={t1:'Perdente SF1',t2:e.sf2?'Perdente SF2':'',s1h:'',s1a:''};
   return e;
@@ -118,27 +169,24 @@ function getWinner(m){if(!m||m.s1h===''||m.s1a==='')return null;return(parseInt(
 function getLoser(m){if(!m||m.s1h===''||m.s1a==='')return null;return(parseInt(m.s1h)||0)<=(parseInt(m.s1a)||0)?m.t1:m.t2;}
 function propagateElim(fase){
   const e=fase.elim;if(!e)return;
-  if(e.q1&&e.q2&&e.sf1){const w1=getWinner(e.q1),w2=getWinner(e.q2);if(w1)e.sf1.t1=w1;if(w2)e.sf2&&(e.sf2.t1=w2);}
+  if(e.q1&&e.q2&&e.sf1){const w1=getWinner(e.q1),w2=getWinner(e.q2);if(w1)e.sf1.t1=w1;if(w2&&e.sf2)e.sf2.t1=w2;}
   if(e.q3&&e.q4){const w4=getWinner(e.q4),w3=getWinner(e.q3);if(w4&&e.sf1)e.sf1.t2=w4;if(w3&&e.sf2)e.sf2.t2=w3;}
   if(e.sf1&&e.sf2){const ws1=getWinner(e.sf1),ws2=getWinner(e.sf2),ls1=getLoser(e.sf1),ls2=getLoser(e.sf2);if(e.fin12){if(ws1)e.fin12.t1=ws1;if(ws2)e.fin12.t2=ws2;}if(e.fin34){if(ls1)e.fin34.t1=ls1;if(ls2)e.fin34.t2=ls2;}}
 }
 
 // ============================================================
-// HELPERS TORNEO
+// HELPERS FASI / GIRONI
 // ============================================================
-function getFasi(cat){
-  const t=currentTorneo();
-  if(!t)return[];
-  if(!t.cats)t.cats={white:{fasi:[]},green:{fasi:[]},red:{fasi:[]}};
-  if(!t.cats[cat])t.cats[cat]={fasi:[]};
-  if(!Array.isArray(t.cats[cat].fasi))t.cats[cat].fasi=[];
-  return t.cats[cat].fasi;
+function getFasi(catId){
+  const c=getCat(catId);if(!c)return[];
+  if(!Array.isArray(c.fasi))c.fasi=[];
+  return c.fasi;
 }
-function getFase(cat,fid){return getFasi(cat).find(f=>f.id===fid);}
-function getGirone(cat,fid,gv){return getFase(cat,fid)?.gironi.find(g=>g.id===gv);}
-function icKey(cat,fid,gv,pid,f){return`${cat}_${fid}_${gv}_${pid}_${f}`;}
-function onInput(cat,fid,gv,pid,f,v){IC[icKey(cat,fid,gv,pid,f)]=v;}
-function getV(cat,fid,gv,pid,f,saved){const k=icKey(cat,fid,gv,pid,f);return IC[k]!==undefined?IC[k]:saved;}
+function getFase(catId,fid){return getFasi(catId).find(f=>f.id===fid);}
+function getGirone(catId,fid,gv){return getFase(catId,fid)?.gironi.find(g=>g.id===gv);}
+function icKey(catId,fid,gv,pid,f){return`${catId}_${fid}_${gv}_${pid}_${f}`;}
+function onInput(catId,fid,gv,pid,f,v){IC[icKey(catId,fid,gv,pid,f)]=v;}
+function getV(catId,fid,gv,pid,f,saved){const k=icKey(catId,fid,gv,pid,f);return IC[k]!==undefined?IC[k]:saved;}
 
 function setScat(c){
   localCat=c;
@@ -148,185 +196,100 @@ function setScat(c){
 }
 
 // ============================================================
-// PAGINA LIVE — helpers salvataggio pageConfig
-// ============================================================
-function ensurePageConfig(){
-  const t=currentTorneo();if(!t)return null;
-  if(!t.pageConfig) t.pageConfig={sponsorEnabled:false,infoEnabled:false,sponsor:{cats:[]},infoBlocks:[]};
-  if(!t.pageConfig.sponsor) t.pageConfig.sponsor={cats:[]};
-  if(!Array.isArray(t.pageConfig.sponsor.cats)) t.pageConfig.sponsor.cats=[];
-  if(!Array.isArray(t.pageConfig.infoBlocks)) t.pageConfig.infoBlocks=[];
-  return t.pageConfig;
-}
-
-function toggleSponsorEnabled(){
-  const cfg=ensurePageConfig();if(!cfg)return;
-  cfg.sponsorEnabled=!cfg.sponsorEnabled;sv();render();
-}
-function toggleInfoEnabled(){
-  const cfg=ensurePageConfig();if(!cfg)return;
-  cfg.infoEnabled=!cfg.infoEnabled;sv();render();
-}
-
-// ── Sponsor: gestione categorie ──────────────────────────
-function addSponsorCat(){
-  const cfg=ensurePageConfig();if(!cfg)return;
-  cfg.sponsor.cats.push({id:uid(),nome:'Nuova categoria',items:[]});
-  sv();render();
-}
-function delSponsorCat(ci){
-  const cfg=ensurePageConfig();if(!cfg)return;
-  if(!confirm('Eliminare questa categoria sponsor?'))return;
-  cfg.sponsor.cats.splice(ci,1);sv();render();
-}
-function updateSponsorCatNome(ci,val){
-  const cfg=ensurePageConfig();if(!cfg)return;
-  cfg.sponsor.cats[ci].nome=val;sv();
-}
-function moveSponsorCat(ci,dir){
-  const cfg=ensurePageConfig();if(!cfg)return;
-  const to=ci+dir;if(to<0||to>=cfg.sponsor.cats.length)return;
-  [cfg.sponsor.cats[ci],cfg.sponsor.cats[to]]=[cfg.sponsor.cats[to],cfg.sponsor.cats[ci]];
-  sv();render();
-}
-
-// ── Sponsor: gestione item ────────────────────────────────
-function addSponsorItem(ci){
-  const cfg=ensurePageConfig();if(!cfg)return;
-  cfg.sponsor.cats[ci].items.push({id:uid(),nome:'',frase:'',immagine:'',size:'medio'});
-  sv();render();
-}
-function delSponsorItem(ci,ii){
-  const cfg=ensurePageConfig();if(!cfg)return;
-  cfg.sponsor.cats[ci].items.splice(ii,1);sv();render();
-}
-function updateSponsorItem(ci,ii,field,val){
-  const cfg=ensurePageConfig();if(!cfg)return;
-  cfg.sponsor.cats[ci].items[ii][field]=val;sv();
-}
-function uploadSponsorImg(ci,ii,input){
-  const file=input.files[0];if(!file)return;
-  const reader=new FileReader();
-  reader.onload=e=>{updateSponsorItem(ci,ii,'immagine',e.target.result);render();};
-  reader.readAsDataURL(file);
-}
-function moveSponsorItem(ci,ii,dir){
-  const cfg=ensurePageConfig();if(!cfg)return;
-  const items=cfg.sponsor.cats[ci].items;
-  const to=ii+dir;if(to<0||to>=items.length)return;
-  [items[ii],items[to]]=[items[to],items[ii]];
-  sv();render();
-}
-
-// ── Info: gestione blocchi ────────────────────────────────
-function addInfoBlock(){
-  const cfg=ensurePageConfig();if(!cfg)return;
-  cfg.infoBlocks.push({id:uid(),titolo:'',testo:''});
-  sv();render();
-}
-function delInfoBlock(bi){
-  const cfg=ensurePageConfig();if(!cfg)return;
-  cfg.infoBlocks.splice(bi,1);sv();render();
-}
-function updateInfoBlock(bi,field,val){
-  const cfg=ensurePageConfig();if(!cfg)return;
-  cfg.infoBlocks[bi][field]=val;sv();
-}
-function moveInfoBlock(bi,dir){
-  const cfg=ensurePageConfig();if(!cfg)return;
-  const to=bi+dir;if(to<0||to>=cfg.infoBlocks.length)return;
-  [cfg.infoBlocks[bi],cfg.infoBlocks[to]]=[cfg.infoBlocks[to],cfg.infoBlocks[bi]];
-  sv();render();
-}
-
-// ============================================================
 // SUGGERIMENTO GIRONI DA NUMERO CAMPI
 // ============================================================
-// Dati N squadre e M campi (= max M gironi), distribuisce le
-// squadre il più equamente possibile dando priorità a gironi
-// tutti uguali (per evitare classifiche avulse).
-// Restituisce un array di interi es. [5,5,4] oppure null.
-function suggerisciGironi(totSq, nCampi){
+function suggerisciGironi(totSq,nCampi){
   if(!totSq||!nCampi||nCampi<1)return null;
-  // Scorre da G=nCampi (max gironi) verso G=1.
-  // Priorità 1: massimo numero di gironi (firstValid).
-  // Priorità 2: tutti gironi uguali (bestEqual) ma solo se G === firstValid.G.
-  let firstValid=null;
-  let bestEqual=null;
+  let firstValid=null,bestEqual=null;
   for(let G=nCampi;G>=1;G--){
-    const base=Math.floor(totSq/G);
-    const resto=totSq%G;
-    if(base<3)continue; // gironi troppo piccoli non hanno senso
-    if(firstValid===null) firstValid={G,base,resto};
-    if(resto===0&&bestEqual===null) bestEqual={G,base,resto};
+    const base=Math.floor(totSq/G),resto=totSq%G;
+    if(base<3)continue;
+    if(firstValid===null)firstValid={G,base,resto};
+    if(resto===0&&bestEqual===null)bestEqual={G,base,resto};
   }
   if(!firstValid)return null;
-  // Usa gironi tutti uguali solo se hanno lo stesso numero del primo valido
   const chosen=(bestEqual&&bestEqual.G===firstValid.G)?bestEqual:firstValid;
   const arr=[];
-  for(let i=0;i<chosen.G;i++) arr.push(i<chosen.resto?chosen.base+1:chosen.base);
+  for(let i=0;i<chosen.G;i++)arr.push(i<chosen.resto?chosen.base+1:chosen.base);
   return arr;
 }
 
-// Crea automaticamente i gironi suggeriti eliminando quelli esistenti
-function creaSuggeriti(cat){
+function creaSuggeriti(catId){
   const t=currentTorneo();if(!t)return;
-  if(!t.cats)t.cats={white:{fasi:[]},green:{fasi:[]},red:{fasi:[]}};
-  if(!t.cats[cat])t.cats[cat]={fasi:[]};
-  if(!t.cats[cat].fasi.length)t.cats[cat].fasi.push({id:uid(),label:'Fase 1',gironi:[]});
-  const f1=t.cats[cat].fasi[0];
-  const totSq=(t.societa||[]).reduce((s,x)=>s+(x.sqPerCat?.[cat]||0),0);
-  const nCampi=PREFS[cat].campi||0;
+  getCats(); // assicura migrazione
+  const cat=getCat(catId);if(!cat)return;
+  if(!cat.fasi||!cat.fasi.length)cat.fasi=[{id:uid(),label:'Fase 1',gironi:[]}];
+  const f1=cat.fasi[0];
+  const totSq=(t.societa||[]).reduce((s,x)=>s+(x.sqPerCat?.[catId]||0),0);
+  const nCampi=getPref(catId,'campi',0);
   const sug=suggerisciGironi(totSq,nCampi);
   if(!sug){alert('Nessun suggerimento disponibile. Verifica il numero di campi e le squadre iscritte.');return;}
-  const sets=PREFS[cat].sets||2;
-
-  // Costruisce pool squadre da società (stesso algoritmo di addGirone)
-  const fasi=t.cats[cat].fasi;
-  const usedNomi=[];
+  const sets=getPref(catId,'sets',2);
+  const nomiDisp=[...getNomiCat(catId)];
   const socPool=[];
-  for(const soc of(t.societa||[])){
-    const n=soc.sqPerCat?.[cat]||0;
-    for(let i=0;i<n;i++) socPool.push({soc:soc.nome});
-  }
-  // Shuffle pool
+  for(const soc of(t.societa||[])){const n=soc.sqPerCat?.[catId]||0;for(let i=0;i<n;i++)socPool.push({soc:soc.nome});}
   for(let i=socPool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[socPool[i],socPool[j]]=[socPool[j],socPool[i]];}
-
-  // Reset gironi esistenti
   f1.gironi=[];
-  const availNomi=[...NAMES[cat]];
-
-  let poolIdx=0;
   for(let gi=0;gi<sug.length;gi++){
-    const sz=sug[gi];
-    const label=String.fromCharCode(65+gi);
-    const squadre=[];
-    const socInGirone=new Set();
-    // Greedy: massimizza diversità società
-    const remaining=socPool.slice(poolIdx);
-    const chosen=[];
-    for(let slot=0;slot<sz;slot++){
-      const diverse=remaining.filter((s,idx)=>!socInGirone.has(s.soc)&&!chosen.includes(idx));
-      const fallback=remaining.filter((_,idx)=>!chosen.includes(idx));
-      const candidates=diverse.length>0?diverse:fallback;
-      if(!candidates.length)break;
-      const pick=candidates[0];
-      const pickIdx=remaining.indexOf(pick);
-      chosen.push(pickIdx);
-      socInGirone.add(pick.soc);
-      squadre.push({nome:availNomi.shift()||`Sq${squadre.length+1}`,soc:pick.soc});
+    const sz=sug[gi];const label=String.fromCharCode(65+gi);
+    const squadre=[];const socInGirone=new Set();const remaining=[...socPool];
+    for(let slot=0;slot<sz&&remaining.length>0;slot++){
+      const diverse=remaining.filter(s=>!socInGirone.has(s.soc));
+      const pick=(diverse.length?diverse:remaining)[0];
+      socInGirone.add(pick.soc);remaining.splice(remaining.indexOf(pick),1);
+      squadre.push({nome:nomiDisp.shift()||`Sq${squadre.length+1}`,soc:pick.soc});
     }
-    // Rimuovi le scelte dal pool globale
-    const pickedSocs=squadre.map(s=>s.soc);
-    for(const ps of pickedSocs){
-      const idx=socPool.findIndex((s,i)=>i>=poolIdx&&s.soc===ps);
-      if(idx>=0)socPool.splice(idx,1);
-    }
-    // Se squadre insufficienti dal pool, completa con slot vuoti
-    while(squadre.length<sz)squadre.push({nome:availNomi.shift()||`Sq${squadre.length+1}`,soc:''});
-
+    // rimuovi usati dal pool globale
+    for(const sq of squadre){const idx=socPool.findIndex(s=>s.soc===sq.soc);if(idx>=0)socPool.splice(idx,1);}
+    while(squadre.length<sz)squadre.push({nome:nomiDisp.shift()||`Sq${squadre.length+1}`,soc:''});
     f1.gironi.push({id:uid(),label,squadre,sets,ritorno:false,partite:genPartite(sz,false,sets)});
   }
-
   sv();render();
 }
+
+// ============================================================
+// PAGINA LIVE — helpers pageConfig
+// ============================================================
+function ensurePageConfig(){
+  const t=currentTorneo();if(!t)return null;
+  if(!t.pageConfig)t.pageConfig={sponsorEnabled:false,infoEnabled:false,menuEnabled:false,sponsor:{cats:[]},infoBlocks:[],menu:{sezioni:[]}};
+  if(!t.pageConfig.sponsor)t.pageConfig.sponsor={cats:[]};
+  if(!Array.isArray(t.pageConfig.sponsor.cats))t.pageConfig.sponsor.cats=[];
+  if(!Array.isArray(t.pageConfig.infoBlocks))t.pageConfig.infoBlocks=[];
+  if(!t.pageConfig.menu)t.pageConfig.menu={sezioni:[]};
+  if(!Array.isArray(t.pageConfig.menu.sezioni))t.pageConfig.menu.sezioni=[];
+  return t.pageConfig;
+}
+function toggleSponsorEnabled(){const cfg=ensurePageConfig();if(!cfg)return;cfg.sponsorEnabled=!cfg.sponsorEnabled;sv();render();}
+function toggleInfoEnabled(){const cfg=ensurePageConfig();if(!cfg)return;cfg.infoEnabled=!cfg.infoEnabled;sv();render();}
+function toggleMenuEnabled(){const cfg=ensurePageConfig();if(!cfg)return;cfg.menuEnabled=!cfg.menuEnabled;sv();render();}
+
+// Sponsor categorie
+function addSponsorCat(){const cfg=ensurePageConfig();if(!cfg)return;cfg.sponsor.cats.push({id:uid(),nome:'Nuova categoria',items:[]});sv();render();}
+function delSponsorCat(ci){const cfg=ensurePageConfig();if(!cfg)return;if(!confirm('Eliminare questa categoria sponsor?'))return;cfg.sponsor.cats.splice(ci,1);sv();render();}
+function updateSponsorCatNome(ci,val){const cfg=ensurePageConfig();if(!cfg)return;cfg.sponsor.cats[ci].nome=val;sv();}
+function moveSponsorCat(ci,dir){const cfg=ensurePageConfig();if(!cfg)return;const to=ci+dir;if(to<0||to>=cfg.sponsor.cats.length)return;[cfg.sponsor.cats[ci],cfg.sponsor.cats[to]]=[cfg.sponsor.cats[to],cfg.sponsor.cats[ci]];sv();render();}
+
+// Sponsor item
+function addSponsorItem(ci){const cfg=ensurePageConfig();if(!cfg)return;cfg.sponsor.cats[ci].items.push({id:uid(),nome:'',frase:'',immagine:'',size:'medio'});sv();render();}
+function delSponsorItem(ci,ii){const cfg=ensurePageConfig();if(!cfg)return;cfg.sponsor.cats[ci].items.splice(ii,1);sv();render();}
+function updateSponsorItem(ci,ii,field,val){const cfg=ensurePageConfig();if(!cfg)return;cfg.sponsor.cats[ci].items[ii][field]=val;sv();}
+function uploadSponsorImg(ci,ii,input){const file=input.files[0];if(!file)return;const reader=new FileReader();reader.onload=e=>{updateSponsorItem(ci,ii,'immagine',e.target.result);render();};reader.readAsDataURL(file);}
+function moveSponsorItem(ci,ii,dir){const cfg=ensurePageConfig();if(!cfg)return;const items=cfg.sponsor.cats[ci].items;const to=ii+dir;if(to<0||to>=items.length)return;[items[ii],items[to]]=[items[to],items[ii]];sv();render();}
+
+// Info blocchi
+function addInfoBlock(){const cfg=ensurePageConfig();if(!cfg)return;cfg.infoBlocks.push({id:uid(),titolo:'',testo:''});sv();render();}
+function delInfoBlock(bi){const cfg=ensurePageConfig();if(!cfg)return;cfg.infoBlocks.splice(bi,1);sv();render();}
+function updateInfoBlock(bi,field,val){const cfg=ensurePageConfig();if(!cfg)return;cfg.infoBlocks[bi][field]=val;sv();}
+function moveInfoBlock(bi,dir){const cfg=ensurePageConfig();if(!cfg)return;const to=bi+dir;if(to<0||to>=cfg.infoBlocks.length)return;[cfg.infoBlocks[bi],cfg.infoBlocks[to]]=[cfg.infoBlocks[to],cfg.infoBlocks[bi]];sv();render();}
+
+// Menu sezioni
+function addMenuSezione(){const cfg=ensurePageConfig();if(!cfg)return;cfg.menu.sezioni.push({id:uid(),nome:'Nuova sezione',voci:[]});sv();render();}
+function delMenuSezione(si){const cfg=ensurePageConfig();if(!cfg)return;if(!confirm('Eliminare questa sezione?'))return;cfg.menu.sezioni.splice(si,1);sv();render();}
+function updateMenuSezione(si,val){const cfg=ensurePageConfig();if(!cfg)return;cfg.menu.sezioni[si].nome=val;sv();}
+function moveMenuSezione(si,dir){const cfg=ensurePageConfig();if(!cfg)return;const to=si+dir;if(to<0||to>=cfg.menu.sezioni.length)return;[cfg.menu.sezioni[si],cfg.menu.sezioni[to]]=[cfg.menu.sezioni[to],cfg.menu.sezioni[si]];sv();render();}
+// Menu voci
+function addMenuVoce(si){const cfg=ensurePageConfig();if(!cfg)return;cfg.menu.sezioni[si].voci.push({id:uid(),nome:'',prezzo:'',desc:''});sv();render();}
+function delMenuVoce(si,vi){const cfg=ensurePageConfig();if(!cfg)return;cfg.menu.sezioni[si].voci.splice(vi,1);sv();render();}
+function updateMenuVoce(si,vi,field,val){const cfg=ensurePageConfig();if(!cfg)return;cfg.menu.sezioni[si].voci[vi][field]=val;sv();}
+function moveMenuVoce(si,vi,dir){const cfg=ensurePageConfig();if(!cfg)return;const voci=cfg.menu.sezioni[si].voci;const to=vi+dir;if(to<0||to>=voci.length)return;[voci[vi],voci[to]]=[voci[to],voci[vi]];sv();render();}

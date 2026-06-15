@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="refresh" content="60">
 <title>Torneo Pallavolo — Live</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
@@ -421,20 +420,28 @@ function renderSponsorPage(cfg){
   let html='<div class="sponsor-page">';
   for(const cat of cats){
     const items=cat.items||[];if(!items.length)continue;
-    const grandi=items.filter(x=>x.size==='grande'),medi=items.filter(x=>x.size==='medio'),piccoli=items.filter(x=>x.size==='piccolo');
+    // Raggruppa per grandezza mantenendo l'ordine originale
+    const grandi=items.filter(x=>x.size==='grande');
+    const medi=items.filter(x=>x.size==='medio'||!x.size);
+    const piccoli=items.filter(x=>x.size==='piccolo');
     html+=`<div class="sponsor-cat-section">`;
-    if(cat.nome)html+=`<div class="sponsor-cat-title">${cat.nome}</div>`;
-    function card(sp,sz){
-      const gc=sz==='grande'?'lg':sz==='medio'?'md':'sm';
-      let c=`<div class="sponsor-card ${gc}">`;
-      if(sp.immagine)c+=`<div style="display:flex;align-items:center;justify-content:center;width:100%"><img class="sponsor-img ${gc}" src="${sp.immagine}" alt="${sp.nome||''}"></div>`;
-      if(sp.nome)c+=`<div class="sponsor-nome ${gc}">${sp.nome}</div>`;
-      if(sp.frase)c+=`<div class="sponsor-frase ${gc}">${sp.frase}</div>`;
-      return c+'</div>';
+    if(cat.nome)html+=`<div class="sponsor-cat-title">${esc(cat.nome)}</div>`;
+    function sponsorCard(sp,sz){
+      const gc=sz==='grande'?'lg':sz==='piccolo'?'sm':'md';
+      let card=`<div class="sponsor-card ${gc}">`;
+      if(sp.immagine){
+        card+=`<div style="display:flex;align-items:center;justify-content:center;width:100%;min-height:${sz==='grande'?'100px':sz==='piccolo'?'50px':'70px'}">`;
+        card+=`<img class="sponsor-img ${gc}" src="${sp.immagine}" alt="${esc(sp.nome||'')}" onerror="this.style.display='none'">`;
+        card+=`</div>`;
+      }
+      if(sp.nome)card+=`<div class="sponsor-nome ${gc}">${esc(sp.nome)}</div>`;
+      if(sp.frase)card+=`<div class="sponsor-frase ${gc}">${esc(sp.frase)}</div>`;
+      card+=`</div>`;
+      return card;
     }
-    if(grandi.length)html+=`<div class="sponsor-grid-lg">${grandi.map(sp=>card(sp,'grande')).join('')}</div>`;
-    if(medi.length)html+=`<div class="sponsor-grid-md">${medi.map(sp=>card(sp,'medio')).join('')}</div>`;
-    if(piccoli.length)html+=`<div class="sponsor-grid-sm">${piccoli.map(sp=>card(sp,'piccolo')).join('')}</div>`;
+    if(grandi.length)html+=`<div class="sponsor-grid-lg">${grandi.map(sp=>sponsorCard(sp,'grande')).join('')}</div>`;
+    if(medi.length)html+=`<div class="sponsor-grid-md">${medi.map(sp=>sponsorCard(sp,'medio')).join('')}</div>`;
+    if(piccoli.length)html+=`<div class="sponsor-grid-sm">${piccoli.map(sp=>sponsorCard(sp,'piccolo')).join('')}</div>`;
     html+=`</div>`;
   }
   return html+'</div>';
@@ -467,7 +474,7 @@ function renderMenuPage(cfg){
     for(const v of voci){
       html+=`<div class="menu-voce">
         <div><div class="menu-voce-nome">${esc(v.nome)}</div>${v.desc?`<div class="menu-voce-desc">${esc(v.desc)}</div>`:''}</div>
-        ${v.prezzo?`<div class="menu-voce-prezzo">${esc(v.prezzo)}</div>`:''}
+        ${v.prezzo?`<div class="menu-voce-prezzo">${esc(normalizzaPrezzo(v.prezzo)||v.prezzo)}</div>`:''}
       </div>`;
     }
     html+=`</div>`;
@@ -562,6 +569,25 @@ function renderGiornataPage(torneo){
 }
 
 function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function normalizzaPrezzo(raw){
+  if(!raw||!raw.toString().trim())return'';
+  var s=raw.toString().replace(/€/g,'').trim();
+  if(!s)return'';
+  var hasDot=s.indexOf('.')>=0,hasComma=s.indexOf(',')>=0;
+  if(hasDot&&hasComma){
+    var ld=s.lastIndexOf('.'),lc2=s.lastIndexOf(',');
+    if(lc2>ld){s=s.replace(/\./g,'').replace(',','.');}
+    else{s=s.replace(/,/g,'');}
+  } else if(hasComma){
+    var parts=s.split(',');
+    if(parts.length===2&&parts[1].length<=2)s=s.replace(',','.');
+    else s=s.replace(/,/g,'');
+  }
+  var n=parseFloat(s);
+  if(isNaN(n))return raw;
+  return'€ '+n.toFixed(2).replace('.',',');
+}
+
 
 // ── QR Code ────────────────────────────────────────────────
 let qrOpen=false,qrGenerated=false;

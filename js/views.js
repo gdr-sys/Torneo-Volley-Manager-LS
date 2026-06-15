@@ -121,7 +121,7 @@ function renderHome(){
 }
 
 function openTorneo(id){
-  currentTorneoId=id;view='torneo';localCat=null;builderState=null;socEditState=null;IC={};
+  currentTorneoId=id;view='torneo';localCat=null;builderState=null;socEditState=null;IC={};window._catView={};
   const t=DB.tornei[id];
   document.getElementById('torneoNomeHdr').textContent=t.nome;
   getCats(); // migrazione vecchio formato se necessario
@@ -543,7 +543,10 @@ function renderSetupGironi(){
 
   let html=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
     <div class="card-title" style="margin-bottom:0">⚙️ Setup gironi</div>
-    <button class="bsm bp" onclick="showAddCatModal()">+ Nuova categoria</button>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button class="bsm" onclick="exportPDFProgramma()">📋 PDF programma</button>
+      <button class="bsm bp" onclick="showAddCatModal()">+ Nuova categoria</button>
+    </div>
   </div>
   <div style="background:var(--info);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--txt2);margin-bottom:1rem;line-height:1.7">
     Imposta i campi disponibili per ogni categoria e crea i gironi. Puoi anche aggiungere nuove categorie personalizzate.
@@ -602,12 +605,20 @@ function renderSetupGironi(){
       for(const g of gs){
         html+=`<div style="border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:6px">
-            <div style="display:flex;align-items:center;gap:8px">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
               <span style="font-size:13px;padding:3px 10px;border-radius:20px;font-weight:600;${catBadgeStyle(cat.id)}">Girone ${g.label}</span>
               <span style="font-size:12px;color:var(--txt2)">${g.squadre.length} sq · ${g.sets||2} set</span>
+              <div style="display:flex;align-items:center;gap:4px">
+                <span style="font-size:11px;color:var(--txt2)">📍 Campo:</span>
+                <input type="text" value="${g.campo||''}" placeholder="es. A" maxlength="20"
+                  style="width:80px;font-size:12px;padding:3px 6px"
+                  onchange="setCampoGirone('${cat.id}','${fase1.id}','${g.id}',this.value)">
+              </div>
             </div>
-            <button class="bsm" onclick="azzeraRisultati('${cat.id}','${fase1.id}','${g.id}')" title="Azzera tutti i risultati">🔄 Azzera</button>
+            <div style="display:flex;gap:4px">
+              <button class="bsm" onclick="azzeraRisultati('${cat.id}','${fase1.id}','${g.id}')" title="Azzera tutti i risultati">🔄 Azzera</button>
               <button class="bsm bd" onclick="delGirone('${cat.id}','${fase1.id}','${g.id}')">✕ Elimina</button>
+            </div>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
             ${g.squadre.map((s,i)=>`<div style="display:flex;gap:6px;align-items:center">
@@ -794,6 +805,14 @@ function saveResult(catId,fid,gv,pid){
   if(!p.ts)p.ts=Date.now();
   sv();render();
 }
+function setCampoGirone(catId,fid,gv,val){
+  const g=getGirone(catId,fid,gv);if(!g)return;
+  g.campo=val.trim();sv();
+}
+function salvaCampoPartita(catId,fid,gv,pid,val){
+  const g=getGirone(catId,fid,gv);if(!g)return;
+  if(g.partite[pid])g.partite[pid].campo=val.trim();sv();
+}
 function salvaNotaPartita(catId,fid,gv,pid,val){
   const g=getGirone(catId,fid,gv);if(!g)return;
   if(g.partite[pid])g.partite[pid].nota=val;
@@ -830,16 +849,17 @@ function renderCategoria(catId){
   if(!fasi.length||!fasi[0]?.gironi?.length)return`<div style="text-align:center;padding:3rem;color:var(--txt2)">
     <p>Nessun girone per ${cat.emoji} ${cat.nome}.<br>Vai in ⚙️ Setup e clicca + Girone.</p></div>`;
   let html='';
-  // Sub-tab vista storico
-  const showStorico=collapsed.has('storico_'+catId);
+  // Sub-tab vista — usa variabile globale dedicata
+  if(!window._catView)window._catView={};
+  const catView=window._catView[catId]||'gironi';
   html+=`<div style="display:flex;gap:4px;margin-bottom:12px;flex-wrap:wrap">
-    <button class="bsm${!showStorico&&!collapsed.has('stats_'+catId)?' bp':''}" onclick="collapsed.delete('storico_'+catId);collapsed.delete('stats_'+catId);render()">🏐 Gironi</button>
-    <button class="bsm${showStorico?' bp':''}" onclick="collapsed.add('storico_'+catId);collapsed.delete('stats_'+catId);render()">📋 Storico</button>
-    <button class="bsm${collapsed.has('stats_'+catId)?' bp':''}" onclick="collapsed.add('stats_'+catId);collapsed.delete('storico_'+catId);render()">📊 Statistiche</button>
+    <button class="bsm${catView==='gironi'?' bp':''}" onclick="setCatView('${catId}','gironi')">🏐 Gironi</button>
+    <button class="bsm${catView==='storico'?' bp':''}" onclick="setCatView('${catId}','storico')">📋 Storico</button>
+    <button class="bsm${catView==='stats'?' bp':''}" onclick="setCatView('${catId}','stats')">📊 Statistiche</button>
     <button class="bsm" style="margin-left:auto" onclick="exportPDFCategoria('${catId}')">📄 PDF categoria</button>
   </div>`;
-  if(showStorico){html+=renderStorico(catId);html+=`<div class="card" style="text-align:center;padding:1.5rem"><button class="bp" onclick="openBuilder('${catId}')">+ Fase successiva</button></div>`;return html;}
-  if(collapsed.has('stats_'+catId)){html+=renderStats(catId);html+=`<div class="card" style="text-align:center;padding:1.5rem"><button class="bp" onclick="openBuilder('${catId}')">+ Fase successiva</button></div>`;return html;}
+  if(catView==='storico'){html+=renderStorico(catId);html+=`<div class="card" style="text-align:center;padding:1.5rem"><button class="bp" onclick="openBuilder('${catId}')">+ Fase successiva</button></div>`;return html;}
+  if(catView==='stats'){html+=renderStats(catId);html+=`<div class="card" style="text-align:center;padding:1.5rem"><button class="bp" onclick="openBuilder('${catId}')">+ Fase successiva</button></div>`;return html;}
   for(let fi=0;fi<fasi.length;fi++){
     const fase=fasi[fi];const isElim=fase.tipo==='elim';const isCollapsed=collapsed.has(fase.id);
     const giocate=fase.gironi?.reduce((s,g)=>s+g.partite.filter(p=>p.s1h!==''&&p.s1a!=='').length,0)||0;
@@ -902,7 +922,10 @@ function renderGironeContent(catId,fase,g){
     const pid=g.partite.indexOf(p);const hn=g.squadre[p.h].nome,an=g.squadre[p.a].nome;
     const hs=g.squadre[p.h].soc||'',as=g.squadre[p.a].soc||'';const played=p.s1h!==''&&p.s1a!=='';
     const V=(f,sv2)=>getV(catId,fase.id,g.id,pid,f,sv2);
-    return`<div class="match-card">${p.leg===2?`<div style="font-size:10px;background:#fef9c3;color:#854d0e;border-radius:4px;padding:2px 8px;display:inline-block;margin-bottom:8px;font-weight:600">RITORNO</div>`:''}
+    const campoEff=p.campo||g.campo||'';
+    return`<div class="match-card">
+      ${p.leg===2?`<div style="font-size:10px;background:#fef9c3;color:#854d0e;border-radius:4px;padding:2px 8px;display:inline-block;margin-bottom:4px;font-weight:600">RITORNO</div>`:''}
+      ${campoEff?`<div style="font-size:10px;background:var(--info);color:var(--txt2);border-radius:4px;padding:2px 8px;display:inline-block;margin-bottom:4px;font-weight:600">📍 ${campoEff}</div>`:''}
       <div class="match-teams">${hn}<span class="soc-tag"> (${hs||'—'})</span><br><span style="font-weight:400;color:var(--txt2);font-size:12px">vs</span><br>${an}<span class="soc-tag"> (${as||'—'})</span></div>
       <div class="set-row"><span class="set-lbl">Set 1</span><input type="number" class="score" inputmode="numeric" value="${V('s1h',p.s1h)}" placeholder="0" oninput="onInput('${catId}','${fase.id}','${g.id}',${pid},'s1h',this.value)"><span class="sep">–</span><input type="number" class="score" inputmode="numeric" value="${V('s1a',p.s1a)}" placeholder="0" oninput="onInput('${catId}','${fase.id}','${g.id}',${pid},'s1a',this.value)"></div>
       ${sets===2?`<div class="set-row"><span class="set-lbl">Set 2</span><input type="number" class="score" inputmode="numeric" value="${V('s2h',p.s2h)}" placeholder="0" oninput="onInput('${catId}','${fase.id}','${g.id}',${pid},'s2h',this.value)"><span class="sep">–</span><input type="number" class="score" inputmode="numeric" value="${V('s2a',p.s2a)}" placeholder="0" oninput="onInput('${catId}','${fase.id}','${g.id}',${pid},'s2a',this.value)"></div>`:''}
@@ -912,15 +935,18 @@ function renderGironeContent(catId,fase,g){
         ${played?`<button style="padding:8px 14px;font-size:13px" class="bd" onclick="clearResult('${catId}','${fase.id}','${g.id}',${pid})">✕</button>`:''}
       </div>
       ${played?`<div class="saved">✓ Set1: ${p.s1h}–${p.s1a}${sets===2&&p.s2h!==''?' | Set2: '+p.s2h+'–'+p.s2a:''}</div>`:''}
-      <div style="display:flex;gap:6px;align-items:center;margin-top:4px">
-        <input type="text" value="${p.nota||''}" placeholder="📝 Nota partita (campo, orario...)"
-          style="font-size:11px;padding:4px 8px;color:var(--txt2);background:transparent;border:1px dashed var(--border)"
+      <div style="display:flex;gap:6px;align-items:center;margin-top:4px;flex-wrap:wrap">
+        <input type="text" value="${p.campo||''}" placeholder="📍 Campo (lascia vuoto = girone)"
+          style="font-size:11px;padding:4px 8px;color:var(--txt2);background:transparent;border:1px dashed var(--border);width:160px"
+          onblur="salvaCampoPartita('${catId}','${fase.id}','${g.id}',${pid},this.value)">
+        <input type="text" value="${p.nota||''}" placeholder="📝 Nota partita"
+          style="font-size:11px;padding:4px 8px;color:var(--txt2);background:transparent;border:1px dashed var(--border);flex:1"
           onblur="salvaNotaPartita('${catId}','${fase.id}','${g.id}',${pid},this.value)">
       </div>
     </div>`;}).join('');}
   return`<div class="girone-box"><div class="girone-hdr">
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-      <span style="font-size:13px;padding:3px 10px;border-radius:20px;font-weight:600;${badgeSt}">Girone ${g.label}</span>
+      <span style="font-size:13px;padding:3px 10px;border-radius:20px;font-weight:600;${badgeSt}">Girone ${g.label}${g.campo?' — 📍 '+g.campo:''}</span>
       <span style="font-size:12px;color:var(--txt2)">${giocate}/${g.partite.length} partite · ${sets} set</span>
     </div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">

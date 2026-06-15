@@ -915,13 +915,6 @@ function renderGironeContent(catId,fase,g){
   const andataP=g.partite.filter(p=>!p.leg||p.leg===1);const ritornoP=g.partite.filter(p=>p.leg===2);
   const giocate=g.partite.filter(p=>p.s1h!==''&&p.s1a!=='').length;
   const badgeSt=catBadgeStyle(catId);
-  // Helper logo società
-  const t_curr=currentTorneo();
-  function getSocLogoAdmin(socNome){
-    if(!socNome||!t_curr?.societa)return'';
-    const s=t_curr.societa.find(x=>x.nome===socNome);
-    return(s&&s.logo)||'';
-  }
   let clHtml=`<table><thead><tr><th>#</th><th>Squadra</th><th>Soc</th><th>Pt</th>${sets===2?'<th>Sv</th><th>Sp</th><th>DS</th>':''}<th>DP</th></tr></thead><tbody>`;
   cl.forEach((tt,i)=>{
     const logoSrc=getSocLogoAdmin(tt.soc);

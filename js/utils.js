@@ -217,6 +217,11 @@ function icKey(catId,fid,gv,pid,f){return`${catId}_${fid}_${gv}_${pid}_${f}`;}
 function onInput(catId,fid,gv,pid,f,v){IC[icKey(catId,fid,gv,pid,f)]=v;}
 function getV(catId,fid,gv,pid,f,saved){const k=icKey(catId,fid,gv,pid,f);return IC[k]!==undefined?IC[k]:saved;}
 
+function setCatView(catId,v){
+  if(!window._catView)window._catView={};
+  window._catView[catId]=v;
+  render();
+}
 function setScat(c){
   localCat=c;
   if(builderState&&builderState.cat!==c)builderState=null;

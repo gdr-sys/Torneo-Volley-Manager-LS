@@ -287,13 +287,19 @@ function normalizzaPrezzo(raw){
 }
 function ensurePageConfig(){
   const t=currentTorneo();if(!t)return null;
-  if(!t.pageConfig)t.pageConfig={sponsorEnabled:false,infoEnabled:false,menuEnabled:false,sponsor:{cats:[]},infoBlocks:[],menu:{sezioni:[]}};
-  if(!t.pageConfig.sponsor)t.pageConfig.sponsor={cats:[]};
-  if(!Array.isArray(t.pageConfig.sponsor.cats))t.pageConfig.sponsor.cats=[];
-  if(!Array.isArray(t.pageConfig.infoBlocks))t.pageConfig.infoBlocks=[];
-  if(!t.pageConfig.menu)t.pageConfig.menu={sezioni:[]};
-  if(!Array.isArray(t.pageConfig.menu.sezioni))t.pageConfig.menu.sezioni=[];
-  return t.pageConfig;
+  if(!t.pageConfig)t.pageConfig={};
+  const p=t.pageConfig;
+  // Assicura tutti i campi con default
+  if(p.sponsorEnabled===undefined)p.sponsorEnabled=false;
+  if(p.infoEnabled===undefined)p.infoEnabled=false;
+  if(p.menuEnabled===undefined)p.menuEnabled=false;
+  if(!p.sponsor||typeof p.sponsor!=='object')p.sponsor={cats:[]};
+  if(!Array.isArray(p.sponsor.cats))p.sponsor.cats=[];
+  if(!Array.isArray(p.infoBlocks))p.infoBlocks=[];
+  if(!p.menu||typeof p.menu!=='object')p.menu={sezioni:[],note:''};
+  if(!Array.isArray(p.menu.sezioni))p.menu.sezioni=[];
+  if(p.menu.note===undefined)p.menu.note='';
+  return p;
 }
 function toggleSponsorEnabled(){const cfg=ensurePageConfig();if(!cfg)return;cfg.sponsorEnabled=!cfg.sponsorEnabled;sv();render();}
 function toggleInfoEnabled(){const cfg=ensurePageConfig();if(!cfg)return;cfg.infoEnabled=!cfg.infoEnabled;sv();render();}

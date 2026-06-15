@@ -5,7 +5,19 @@
 // UTILS BASE
 // ============================================================
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
-function toggleTheme(){isDark=!isDark;document.documentElement.setAttribute('data-theme',isDark?'dark':'light');document.getElementById('themeBtn').textContent=isDark?'☀️':'🌙';}
+function toggleTheme(){
+  isDark=!isDark;
+  document.documentElement.setAttribute('data-theme',isDark?'dark':'light');
+  document.getElementById('themeBtn').textContent=isDark?'☀️':'🌙';
+  try{localStorage.setItem('torneo_theme',isDark?'dark':'light');}catch(e){}
+}
+function initTheme(){
+  try{
+    const t=localStorage.getItem('torneo_theme');
+    if(t==='dark'){isDark=true;document.documentElement.setAttribute('data-theme','dark');
+      const btn=document.getElementById('themeBtn');if(btn)btn.textContent='☀️';}
+  }catch(e){}
+}
 function toggleCollapse(fid){if(collapsed.has(fid))collapsed.delete(fid);else collapsed.add(fid);render();}
 function goHome(){view='home';currentTorneoId=null;localCat=null;IC={};builderState=null;socEditState=null;document.getElementById('torneoNomeHdr').textContent='Nessun torneo selezionato';render();}
 function currentTorneo(){return currentTorneoId?DB.tornei[currentTorneoId]:null;}
@@ -165,13 +177,30 @@ function buildElimStruct(teams){
   return e;
 }
 
-function getWinner(m){if(!m||m.s1h===''||m.s1a==='')return null;return(parseInt(m.s1h)||0)>(parseInt(m.s1a)||0)?m.t1:m.t2;}
-function getLoser(m){if(!m||m.s1h===''||m.s1a==='')return null;return(parseInt(m.s1h)||0)<=(parseInt(m.s1a)||0)?m.t1:m.t2;}
+function getWinner(m,sets){
+  if(!m||m.s1h===''||m.s1a==='')return null;
+  if(!sets||sets===1){
+    // modalità 1 set: s1h/s1a sono punteggi diretti, vince chi ha più punti
+    return(parseInt(m.s1h)||0)>(parseInt(m.s1a)||0)?m.t1:m.t2;
+  }
+  // modalità 2 set: conta i set vinti
+  const s1h=parseInt(m.s1h)||0,s1a=parseInt(m.s1a)||0;
+  let sh=(s1h>s1a?1:0),sa=(s1a>s1h?1:0);
+  if(m.s2h!==''&&m.s2a!==''){const s2h=parseInt(m.s2h)||0,s2a=parseInt(m.s2a)||0;sh+=(s2h>s2a?1:0);sa+=(s2a>s2h?1:0);}
+  if(sh===sa)return null; // parità — non determinato
+  return sh>sa?m.t1:m.t2;
+}
+function getLoser(m,sets){
+  if(!m||m.s1h===''||m.s1a==='')return null;
+  const w=getWinner(m,sets);if(!w)return null;
+  return w===m.t1?m.t2:m.t1;
+}
 function propagateElim(fase){
   const e=fase.elim;if(!e)return;
-  if(e.q1&&e.q2&&e.sf1){const w1=getWinner(e.q1),w2=getWinner(e.q2);if(w1)e.sf1.t1=w1;if(w2&&e.sf2)e.sf2.t1=w2;}
-  if(e.q3&&e.q4){const w4=getWinner(e.q4),w3=getWinner(e.q3);if(w4&&e.sf1)e.sf1.t2=w4;if(w3&&e.sf2)e.sf2.t2=w3;}
-  if(e.sf1&&e.sf2){const ws1=getWinner(e.sf1),ws2=getWinner(e.sf2),ls1=getLoser(e.sf1),ls2=getLoser(e.sf2);if(e.fin12){if(ws1)e.fin12.t1=ws1;if(ws2)e.fin12.t2=ws2;}if(e.fin34){if(ls1)e.fin34.t1=ls1;if(ls2)e.fin34.t2=ls2;}}
+  const s=fase.elimSets||1;
+  if(e.q1&&e.q2&&e.sf1){const w1=getWinner(e.q1,s),w2=getWinner(e.q2,s);if(w1)e.sf1.t1=w1;if(w2&&e.sf2)e.sf2.t1=w2;}
+  if(e.q3&&e.q4){const w4=getWinner(e.q4,s),w3=getWinner(e.q3,s);if(w4&&e.sf1)e.sf1.t2=w4;if(w3&&e.sf2)e.sf2.t2=w3;}
+  if(e.sf1&&e.sf2){const ws1=getWinner(e.sf1,s),ws2=getWinner(e.sf2,s),ls1=getLoser(e.sf1,s),ls2=getLoser(e.sf2,s);if(e.fin12){if(ws1)e.fin12.t1=ws1;if(ws2)e.fin12.t2=ws2;}if(e.fin34){if(ls1)e.fin34.t1=ls1;if(ls2)e.fin34.t2=ls2;}}
 }
 
 // ============================================================
@@ -192,6 +221,7 @@ function setScat(c){
   localCat=c;
   if(builderState&&builderState.cat!==c)builderState=null;
   socEditState=null;
+  try{if(currentTorneoId)sessionStorage.setItem('lastTab_'+currentTorneoId,c);}catch(e){}
   render();
 }
 

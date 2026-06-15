@@ -956,10 +956,12 @@ function renderGironeContent(catId,fase,g){
       </div>
       ${played?`<div class="saved">✓ Set1: ${p.s1h}–${p.s1a}${sets===2&&p.s2h!==''?' | Set2: '+p.s2h+'–'+p.s2a:''}</div>`:''}
       <div style="display:flex;gap:6px;align-items:center;margin-top:4px;flex-wrap:wrap">
-        <input type="text" value="${p.campo||''}" placeholder="📍 Campo (lascia vuoto = girone)"
-          style="font-size:11px;padding:4px 8px;color:var(--txt2);background:transparent;border:1px dashed var(--border);width:160px"
+        <input type="text" value="${p.campo||''}" placeholder="📍 Campo"
+          title="Campo partita (sovrascrive quello del girone)"
+          style="font-size:11px;padding:4px 8px;color:var(--txt2);background:transparent;border:1px dashed var(--border);width:90px"
           onblur="salvaCampoPartita('${catId}','${fase.id}','${g.id}',${pid},this.value)">
-        <input type="text" value="${p.nota||''}" placeholder="📝 Nota partita"
+        <input type="text" value="${p.nota||''}" placeholder="📝 Nota"
+          title="Nota partita (campo, orario, arbitro...)"
           style="font-size:11px;padding:4px 8px;color:var(--txt2);background:transparent;border:1px dashed var(--border);flex:1"
           onblur="salvaNotaPartita('${catId}','${fase.id}','${g.id}',${pid},this.value)">
       </div>

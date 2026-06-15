@@ -25,4 +25,5 @@ function render() {
 // AVVIO
 // ============================================================
 lload();
+initTheme(); // ripristina dark mode salvata
 try { render(); } catch(e) { console.error('Avvio fallito:', e); }

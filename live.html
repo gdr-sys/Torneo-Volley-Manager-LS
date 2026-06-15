@@ -183,7 +183,10 @@ function isFav(nome){return FAVS.has(nome);}
 
 // ── Caricamento dati ───────────────────────────────────────
 function loadFromStorage(){
-  try{const raw=localStorage.getItem('torneo_local');if(raw){const d=JSON.parse(raw);if(d&&d.tornei){window._liveDB=d;renderLive();}}}catch(e){}
+  try{
+    const raw=localStorage.getItem('torneo_local');
+    if(raw){const d=JSON.parse(raw);if(d&&d.tornei){window._liveDB=d;renderLive();}}
+  }catch(e){console.error('loadFromStorage:',e);}
 }
 setInterval(loadFromStorage,3000);
 try{new BroadcastChannel('torneo_update').onmessage=()=>loadFromStorage();}catch(e){}
@@ -344,7 +347,10 @@ function renderClassificaLive(g,col){
     const ri=i===0?'r1':i===1?'r2':i===2?'r3':'';
     h+=`<tr style="${isFavTeam?'background:rgba(251,191,36,0.08)':''}">
       <td class="rank ${ri}">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</td>
-      <td><div class="team-name">${t.nome}</div>${t.soc?`<div class="team-soc">${t.soc}</div>`:''}</td>
+      <td><div style="display:flex;align-items:center;gap:6px">
+        ${logoHtml(getSocLogo(DB.tornei[activeTorneoId],t.soc),22)}
+        <div><div class="team-name">${t.nome}</div>${t.soc?`<div class="team-soc">${t.soc}</div>`:''}</div>
+      </div></td>
       <td class="r"><span class="pts" style="color:${col}">${t.pt}</span></td>
       ${sets===2?`<td class="r"><span class="${t.ds>0?'ds-pos':t.ds<0?'ds-neg':''}">${t.ds>0?'+':''}${t.ds}</span></td>`:''}
       <td class="r" style="color:var(--txt2);font-size:12px">${t.dp>0?'+':''}${t.dp}</td>
@@ -370,9 +376,9 @@ function renderPartiteLive(g,col){
       let score='';if(played){score=`${p.s1h}–${p.s1a}`;if(sets===2&&p.s2h!=='')score+=` / ${p.s2h}–${p.s2a}`;}
       return`<div class="match-item${played?' played':''}${isFavMatch?' fav-highlight':''}">
         <div class="match-teams-live">
-          <div>${hn}${hs?` <span class="match-soc-live">(${hs})</span>`:''}</div>
+          <div style="display:flex;align-items:center;gap:5px">${logoHtml(getSocLogo(DB.tornei[activeTorneoId],hs),18)}<span>${hn}${hs?` <span class="match-soc-live">(${hs})</span>`:''}</span></div>
           <div style="color:var(--txt2);font-size:11px;margin:2px 0">vs</div>
-          <div>${an}${as?` <span class="match-soc-live">(${as})</span>`:''}</div>
+          <div style="display:flex;align-items:center;gap:5px">${logoHtml(getSocLogo(DB.tornei[activeTorneoId],as),18)}<span>${an}${as?` <span class="match-soc-live">(${as})</span>`:''}</span></div>
         </div>
         ${p.leg===2?`<span style="font-size:9px;background:rgba(254,249,195,0.15);color:#fde047;padding:1px 5px;border-radius:4px;font-weight:600">RIT</span>`:''}
         ${played?`<div class="match-score-live" style="color:${col}">${score}</div>`:`<div class="match-pending">da giocare</div>`}
@@ -542,8 +548,13 @@ function renderGiornataPage(torneo){
               const pos=cl.indexOf(tt)+1;
               catHtml+=`<div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
                 <div>
-                  <div style="font-size:14px;font-weight:700;color:#fbbf24">${tt.nome}</div>
-                  ${tt.soc?`<div style="font-size:11px;color:var(--txt2)">${tt.soc}</div>`:''}
+                  <div style="display:flex;align-items:center;gap:6px">
+                    ${logoHtml(getSocLogo(torneo,tt.soc),24)}
+                    <div>
+                      <div style="font-size:14px;font-weight:700;color:#fbbf24">${tt.nome}</div>
+                      ${tt.soc?`<div style="font-size:11px;color:var(--txt2)">${tt.soc}</div>`:''}
+                    </div>
+                  </div>
                 </div>
                 <div style="text-align:right">
                   <div style="font-size:20px;font-weight:800;color:${cat.colore}">${pos}°</div>
@@ -586,6 +597,17 @@ function renderGiornataPage(torneo){
 }
 
 function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function getSocLogo(torneo,socNome){
+  if(!socNome||!torneo||!torneo.societa)return'';
+  const s=torneo.societa.find(x=>x.nome===socNome);
+  return(s&&s.logo)||'';
+}
+function logoHtml(logo,size){
+  if(!logo)return'';
+  const sz=size||20;
+  return`<img src="${logo}" style="width:${sz}px;height:${sz}px;object-fit:contain;border-radius:3px;background:#fff;padding:1px;flex-shrink:0" onerror="this.style.display='none'">`;
+}
 function normalizzaPrezzo(raw){
   if(!raw||!raw.toString().trim())return'';
   var s=raw.toString().replace(/€/g,'').trim();

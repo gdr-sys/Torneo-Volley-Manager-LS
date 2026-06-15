@@ -38,13 +38,14 @@ function renderHome(){
       const t=DB.tornei[id];const nSoc=t.societa?.length||0;
       const date=t.createdAt?new Date(t.createdAt).toLocaleDateString('it-IT'):'';
       const isLive=getLiveId()===id;
-      return`<div class="torneo-item${isLive?' active-t':''}" onclick="openTorneo('${id}')">
+      return`<div class="torneo-item${isLive?' active-t':''}" onclick="openTorneo('${id}')"
+        style="${isLive?'color:#166534':''}">
         <div>
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-            <div class="torneo-nome" style="color:var(--txt)">${t.nome}</div>
+            <div class="torneo-nome" style="color:${isLive?'#166534':'var(--txt)'}">${t.nome}</div>
             ${isLive?'<span style="font-size:11px;background:#dcfce7;color:#166534;padding:1px 8px;border-radius:10px;font-weight:600">🔴 LIVE</span>':''}
           </div>
-          <div class="torneo-meta" style="color:var(--txt2)">${(()=>{
+          <div class="torneo-meta" style="color:${isLive?'#166534':'var(--txt2)'}">${(()=>{
             const cats=t.categorie||[];
             const totGironi=cats.reduce((s,cat)=>(cat.fasi||[]).reduce((s2,f)=>s2+(f.gironi||[]).length,s),0);
             const totPart=cats.reduce((s,cat)=>(cat.fasi||[]).reduce((s2,f)=>(f.gironi||[]).reduce((s3,g)=>s3+g.partite.filter(p=>p.s1h!=='').length,s2),s),0);

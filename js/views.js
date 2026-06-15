@@ -2,7 +2,17 @@
 'use strict';
 
 // ============================================================
-// VIEW: HOME — lista tornei
+// HELPERS RENDER
+// ============================================================
+function escV(s){return(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function renderBadgeCat(catId,extra){
+  const st=`font-size:11px;padding:3px 10px;border-radius:20px;font-weight:600;display:inline-block;${catBadgeStyle(catId)}${extra||''}`;
+  return`<span style="${st}">${catEmoji(catId)} ${catLabel(catId)}</span>`;
+}
+
+// ============================================================
+// VIEW: HOME
 // ============================================================
 function renderHome(){
   const ids=Object.keys(DB.tornei||{}).sort((a,b)=>(DB.tornei[b].createdAt||0)-(DB.tornei[a].createdAt||0));
@@ -15,119 +25,153 @@ function renderHome(){
       <button style="padding:12px 18px;font-size:13px" onclick="importTorneo()">⬆ Importa</button>
       <button style="padding:12px 18px;font-size:13px" class="bd" onclick="azzeraDB()">🗑 Azzera tutto</button>
     </div>
-    ${ids.length?`<div class="sec">Tornei salvati</div>`:''} 
-    ${ids.map(id=>{const t=DB.tornei[id];const nSoc=t.societa?.length||0;const date=t.createdAt?new Date(t.createdAt).toLocaleDateString('it-IT'):'';const isLive=getLiveId()===id;
-    return`<div class="torneo-item${isLive?' active-t':''}" onclick="openTorneo('${id}')">
-      <div>
-        <div class="torneo-nome">${t.nome} ${isLive?'<span style=\'font-size:11px;background:#dcfce7;color:#166534;padding:1px 8px;border-radius:10px;font-weight:600\'>🔴 LIVE</span>':''}</div>
-        <div class="torneo-meta">${nSoc} società · ${date}</div>
-      </div>
-      <div style="display:flex;gap:6px;align-items:center">
-        ${isLive
-          ?'<span style=\'font-size:11px;color:#166534;font-weight:500\'>In corso</span>'
-          :`<button class="bsm" style="background:#dcfce7;color:#166534;border-color:#86efac;font-size:11px" onclick="event.stopPropagation();setTorneoLive('${id}')">▶ Live</button>`
-        }
-        <button class="bsm" onclick="event.stopPropagation();duplicaTorneo('${id}')">📋</button>
-        <button class="bsm bd" onclick="event.stopPropagation();eliminaTorneo('${id}')">✕</button>
-      </div>
-    </div>`;}).join('')}
+    ${ids.length?`<div class="sec">Tornei salvati</div>`:''}
+    ${ids.map(id=>{
+      const t=DB.tornei[id];const nSoc=t.societa?.length||0;
+      const date=t.createdAt?new Date(t.createdAt).toLocaleDateString('it-IT'):'';
+      const isLive=getLiveId()===id;
+      return`<div class="torneo-item${isLive?' active-t':''}" onclick="openTorneo('${id}')">
+        <div>
+          <div class="torneo-nome">${t.nome} ${isLive?'<span style="font-size:11px;background:#dcfce7;color:#166534;padding:1px 8px;border-radius:10px;font-weight:600">🔴 LIVE</span>':''}</div>
+          <div class="torneo-meta">${nSoc} società · ${date}</div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+          ${isLive
+            ?'<span style="font-size:11px;color:#166534;font-weight:500">In corso</span>'
+            :`<button class="bsm" style="background:#dcfce7;color:#166534;border-color:#86efac;font-size:11px" onclick="event.stopPropagation();setTorneoLive('${id}')">▶ Live</button>`}
+          <button class="bsm" onclick="event.stopPropagation();duplicaTorneo('${id}')">📋</button>
+          <button class="bsm bd" onclick="event.stopPropagation();eliminaTorneo('${id}')">✕</button>
+        </div>
+      </div>`;
+    }).join('')}
     ${!ids.length?`<p style="text-align:center;color:var(--txt2);font-size:13px;padding:1rem">Nessun torneo. Creane uno!</p>`:''}
   </div>`;
   return html;
 }
+
 function openTorneo(id){
-  currentTorneoId=id;view='torneo';localCat='admin';builderState=null;socEditState=null;IC={};
+  currentTorneoId=id;view='torneo';localCat=null;builderState=null;socEditState=null;IC={};
   const t=DB.tornei[id];
   document.getElementById('torneoNomeHdr').textContent=t.nome;
-  // Init fase1 for all cats on open, save once
-  if(!t.cats)t.cats={white:{fasi:[]},green:{fasi:[]},red:{fasi:[]}};
+  getCats(); // migrazione vecchio formato se necessario
+  // Assicura fase1 per ogni categoria
   let needSave=false;
-  for(const c of['white','green','red']){
-    if(!t.cats[c])t.cats[c]={fasi:[]};
-    if(!Array.isArray(t.cats[c].fasi))t.cats[c].fasi=[];
-    if(!t.cats[c].fasi.length){t.cats[c].fasi.push({id:uid(),label:'Fase 1',gironi:[]});needSave=true;}
+  for(const cat of getCats()){
+    if(!Array.isArray(cat.fasi))cat.fasi=[];
+    if(!cat.fasi.length){cat.fasi.push({id:uid(),label:'Fase 1',gironi:[]});needSave=true;}
   }
+  localCat=getCats()[0]?.id||null;
   if(needSave)sv();
   render();
 }
 function eliminaTorneo(id){if(!confirm('Eliminare questo torneo?'))return;delete DB.tornei[id];sv();render();}
-function setTorneoLive(id){
-  localStorage.setItem('torneo_live_id',id);
-  render();
-}
-function getLiveId(){
-  return localStorage.getItem('torneo_live_id');
-}
+function setTorneoLive(id){localStorage.setItem('torneo_live_id',id);render();}
+function getLiveId(){return localStorage.getItem('torneo_live_id');}
 function duplicaTorneo(id){const t=DB.tornei[id];const newId=uid();DB.tornei[newId]=JSON.parse(JSON.stringify(t));DB.tornei[newId].nome=t.nome+' (copia)';DB.tornei[newId].createdAt=Date.now();sv();render();}
 
 // ============================================================
-// VIEW: NUOVO TORNEO — wizard setup
-// Passo 1: nome torneo
-// Passo 2: inserisci società e squadre per categoria
+// WIZARD NUOVO TORNEO
 // ============================================================
 let wizardState=null;
 
 function startNuovoTorneo(){
-  wizardState={step:1,nome:'',societa:[],nuovaSocNome:''};
+  // Categorie di default clonate per il wizard
+  wizardState={step:1,nome:'',societa:[],nuovaSocNome:'',
+    categorie:CAT_DEFAULT.map(c=>({...c,id:c.id}))};
   view='torneo-setup';render();
 }
 
 function renderTorneoSetup(){
   const w=wizardState;
-  const steps=[w.step>=1,w.step>=2];
+  const steps=[w.step>=1,w.step>=2,w.step>=3];
   let html=`<div class="step-indicator">${steps.map((d,i)=>`<div class="step${d?' done':''} ${w.step===i+1?' current':''}"></div>`).join('')}</div>`;
 
   if(w.step===1){
     html+=`<div class="card">
       <div class="card-title">Nuovo torneo — Nome</div>
       <label style="font-size:13px;color:var(--txt2);display:block;margin-bottom:6px">Nome del torneo</label>
-      <input type="text" id="torneoNomeInput" value="${w.nome}" placeholder="Es: Torneo Primavera 2025" style="margin-bottom:1rem" oninput="wizardState.nome=this.value">
+      <input type="text" id="torneoNomeInput" value="${escV(w.nome)}" placeholder="Es: Torneo Primavera 2025" style="margin-bottom:1rem" oninput="wizardState.nome=this.value">
       <div style="display:flex;gap:8px;justify-content:flex-end">
         <button onclick="goHome()">Annulla</button>
         <button class="bp" onclick="wizardStep2()">Avanti →</button>
       </div>
     </div>`;
+
   } else if(w.step===2){
+    // Step 2: categorie
+    html+=`<div class="card">
+      <div class="card-title">Nuovo torneo — Categorie</div>
+      <p style="font-size:13px;color:var(--txt2);margin-bottom:1rem">
+        Definisci le categorie di gioco. Puoi rinominarle, cambiare colore/emoji, riordinarle o aggiungerne di nuove.
+      </p>
+      ${w.categorie.map((cat,ci)=>`
+      <div style="border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <div style="display:flex;gap:2px">
+          ${ci>0?`<button class="bxsm" onclick="wizardMoveCat(${ci},-1)">↑</button>`:'<span style="width:26px"></span>'}
+          ${ci<w.categorie.length-1?`<button class="bxsm" onclick="wizardMoveCat(${ci},1)">↓</button>`:'<span style="width:26px"></span>'}
+        </div>
+        <select style="width:46px;font-size:18px;padding:4px 2px;text-align:center" onchange="wizardState.categorie[${ci}].emoji=this.value">
+          ${['⬜','🟩','🟥','🟣','🟠','🔵','🟡','⚫','🟤','🔴','⚪'].map(e=>`<option${cat.emoji===e?' selected':''}>${e}</option>`).join('')}
+        </select>
+        <input type="text" value="${escV(cat.nome)}" placeholder="Nome categoria"
+          style="flex:1;font-weight:600;min-width:100px" oninput="wizardState.categorie[${ci}].nome=this.value">
+        <div style="display:flex;gap:4px;flex-wrap:wrap">
+          ${COLORI_DISPONIBILI.map(col=>`<button onclick="wizardState.categorie[${ci}].colore='${col.hex}';render()"
+            style="width:22px;height:22px;border-radius:50%;background:${col.hex};border:3px solid ${cat.colore===col.hex?'var(--txt)':'transparent'};cursor:pointer;padding:0"></button>`).join('')}
+        </div>
+        ${w.categorie.length>1?`<button class="bxsm bd" onclick="wizardDelCat(${ci})">✕</button>`:''}
+      </div>`).join('')}
+      <button class="bsm" onclick="wizardAddCat()" style="margin-bottom:1.5rem">+ Aggiungi categoria</button>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button onclick="wizardState.step=1;render()">← Indietro</button>
+        <button class="bp" onclick="wizardStep3()">Avanti →</button>
+      </div>
+    </div>`;
+
+  } else if(w.step===3){
+    // Step 3: società e squadre
     html+=`<div class="card">
       <div class="card-title">Nuovo torneo — Società e squadre</div>
-      <p style="font-size:13px;color:var(--txt2);margin-bottom:1rem">Inserisci le società partecipanti e il numero di squadre per ogni categoria. Lascia 0 se non partecipano in quella categoria.</p>
-      
+      <p style="font-size:13px;color:var(--txt2);margin-bottom:1rem">Inserisci le società e il numero di squadre per ogni categoria.</p>
       <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap">
-        <input type="text" id="nuovaSocInput" placeholder="Nome società" style="flex:1" value="${w.nuovaSocNome}" oninput="wizardState.nuovaSocNome=this.value" onkeydown="if(event.key==='Enter')aggiungiSoc()">
+        <input type="text" id="nuovaSocInput" placeholder="Nome società" style="flex:1" value="${escV(w.nuovaSocNome)}"
+          oninput="wizardState.nuovaSocNome=this.value" onkeydown="if(event.key==='Enter')aggiungiSoc()">
         <button class="bp bsm" onclick="aggiungiSoc()">+ Aggiungi</button>
       </div>
-
       ${w.societa.length?`
       <div class="sec">Società inserite</div>
       ${w.societa.map((s,si)=>`
       <div style="border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;background:var(--card)">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-          <span style="font-weight:700;font-size:15px">${s.nome}</span>
+          <span style="font-weight:700;font-size:15px">${escV(s.nome)}</span>
           <button class="bd bxsm" onclick="rimuoviSoc(${si})">✕ Rimuovi</button>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">
-          ${['white','green','red'].map(cat=>`
+        <div style="display:grid;grid-template-columns:repeat(${w.categorie.length},1fr);gap:6px">
+          ${w.categorie.map(cat=>`
           <div style="background:var(--info);border-radius:8px;padding:8px;text-align:center">
-            <div style="font-size:10px;font-weight:700;margin-bottom:6px"><span class="gbadge ${badge(cat)}">${catLabel(cat)}</span></div>
+            <div style="font-size:10px;font-weight:700;margin-bottom:6px">${renderBadgeCat(cat.id)}</div>
             <div style="font-size:10px;color:var(--txt2);margin-bottom:3px">🏐 Squadre</div>
-            <input type="number" min="0" max="20" value="${s.sqPerCat[cat]||0}"
+            <input type="number" min="0" max="20" value="${s.sqPerCat[cat.id]||0}"
               style="width:100%;text-align:center;padding:5px 2px;font-size:18px;font-weight:700"
-              oninput="setSocCat(${si},'${cat}',parseInt(this.value)||0)">
+              oninput="setSocCat(${si},'${cat.id}',parseInt(this.value)||0)">
             <div style="font-size:10px;color:var(--txt2);margin:6px 0 3px">🧒 Bambini</div>
-            <input type="number" min="0" max="999" value="${s.bambini?.[cat]||0}"
+            <input type="number" min="0" max="999" value="${s.bambini[cat.id]||0}"
               style="width:100%;text-align:center;padding:5px 2px;font-size:18px;font-weight:700"
-              oninput="setSocBambini(${si},'${cat}',parseInt(this.value)||0)">
+              oninput="setSocBambini(${si},'${cat.id}',parseInt(this.value)||0)">
           </div>`).join('')}
         </div>
       </div>`).join('')}
       <div style="background:var(--info);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--txt2);margin-bottom:1rem">
         <strong>Riepilogo per categoria:</strong><br>
-        ${['white','green','red'].map(cat=>{const tot=w.societa.reduce((s,x)=>s+(x.sqPerCat[cat]||0),0);const totB=w.societa.reduce((s,x)=>s+(x.bambini?.[cat]||0),0);return`<span class="gbadge ${badge(cat)}" style="margin:2px">${catLabel(cat)}: ${tot} sq · 🧒 ${totB}</span>`;}).join(' ')}
+        ${w.categorie.map(cat=>{
+          const tot=w.societa.reduce((s,x)=>s+(x.sqPerCat[cat.id]||0),0);
+          const totB=w.societa.reduce((s,x)=>s+(x.bambini[cat.id]||0),0);
+          return`${renderBadgeCat(cat.id,'margin:2px')} <span style="font-size:11px">${tot} sq · 🧒 ${totB}</span>`;
+        }).join(' ')}
       </div>
       `:`<p style="color:var(--txt2);font-size:13px;text-align:center;padding:1rem">Nessuna società ancora. Aggiungine una.</p>`}
-
       <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
-        <button onclick="wizardState.step=1;render()">← Indietro</button>
+        <button onclick="wizardState.step=2;render()">← Indietro</button>
         <button class="bp" onclick="creaTorneo()">✓ Crea torneo</button>
       </div>
     </div>`;
@@ -135,70 +179,77 @@ function renderTorneoSetup(){
   return html;
 }
 
-function wizardStep2(){
-  if(!wizardState.nome.trim()){alert('Inserisci un nome per il torneo.');document.getElementById('torneoNomeInput')?.focus();return;}
-  wizardState.step=2;render();
+// Wizard helpers categorie
+function wizardStep2(){if(!wizardState.nome.trim()){alert('Inserisci un nome per il torneo.');return;}wizardState.step=2;render();}
+function wizardStep3(){if(!wizardState.categorie.length){alert('Aggiungi almeno una categoria.');return;}wizardState.step=3;render();}
+function wizardAddCat(){
+  const cols=COLORI_DISPONIBILI;const emojis=EMOJI_DISPONIBILI;
+  const ci=wizardState.categorie.length;
+  wizardState.categorie.push({id:uid(),nome:'Nuova',colore:cols[ci%cols.length].hex,emoji:emojis[ci%emojis.length]});
+  render();
 }
+function wizardDelCat(ci){wizardState.categorie.splice(ci,1);render();}
+function wizardMoveCat(ci,dir){const to=ci+dir;if(to<0||to>=wizardState.categorie.length)return;[wizardState.categorie[ci],wizardState.categorie[to]]=[wizardState.categorie[to],wizardState.categorie[ci]];render();}
+
+// Wizard helpers società
 function aggiungiSoc(){
   const nome=(wizardState.nuovaSocNome||document.getElementById('nuovaSocInput')?.value||'').trim();
   if(!nome)return;
   if(wizardState.societa.find(s=>s.nome.toLowerCase()===nome.toLowerCase())){alert('Società già presente.');return;}
-  wizardState.societa.push({nome,sqPerCat:{white:0,green:0,red:0},bambini:{white:0,green:0,red:0}});
+  const sqPerCat={},bambini={};
+  for(const c of wizardState.categorie){sqPerCat[c.id]=0;bambini[c.id]=0;}
+  wizardState.societa.push({nome,sqPerCat,bambini});
   wizardState.nuovaSocNome='';render();
 }
 function rimuoviSoc(i){wizardState.societa.splice(i,1);render();}
-function setSocCat(i,cat,n){wizardState.societa[i].sqPerCat[cat]=n;}
-function setSocBambini(i,cat,n){if(!wizardState.societa[i].bambini)wizardState.societa[i].bambini={white:0,green:0,red:0};wizardState.societa[i].bambini[cat]=n;}
+function setSocCat(i,catId,n){wizardState.societa[i].sqPerCat[catId]=n;}
+function setSocBambini(i,catId,n){if(!wizardState.societa[i].bambini)wizardState.societa[i].bambini={};wizardState.societa[i].bambini[catId]=n;}
 
 function creaTorneo(){
   if(!wizardState.nome.trim()){alert('Nome mancante.');return;}
-  // Costruisce la lista squadre per ogni società e categoria
-  const societa=wizardState.societa.map(s=>{
-    const squadre=[];
-    for(const cat of['white','green','red']){
-      const n=s.sqPerCat[cat]||0;
-      for(let i=0;i<n;i++) squadre.push({cat,nome:'',soc:s.nome}); // nome verrà assegnato alla creazione gironi
-    }
-    return{nome:s.nome,sqPerCat:s.sqPerCat,bambini:s.bambini||{white:0,green:0,red:0},squadre};
-  });
+  const societa=wizardState.societa.map(s=>({nome:s.nome,sqPerCat:{...s.sqPerCat},bambini:{...s.bambini},squadre:[]}));
   const id=uid();
-  DB.tornei[id]={nome:wizardState.nome.trim(),createdAt:Date.now(),societa,cats:{
-    white:{fasi:[{id:uid(),label:'Fase 1',gironi:[]}]},
-    green:{fasi:[{id:uid(),label:'Fase 1',gironi:[]}]},
-    red:  {fasi:[{id:uid(),label:'Fase 1',gironi:[]}]}
-  }};
+  DB.tornei[id]={
+    nome:wizardState.nome.trim(),createdAt:Date.now(),societa,
+    categorie:wizardState.categorie.map(c=>({...c,fasi:[{id:uid(),label:'Fase 1',gironi:[]}]}))
+  };
   wizardState=null;sv();openTorneo(id);
 }
 
 // ============================================================
-// VIEW: TORNEO — gestione completa
+// VIEW: TORNEO
 // ============================================================
 function renderTorneo(){
   const t=currentTorneo();if(!t)return renderHome();
-  const cat=localCat||'white';
-  let tabsHtml=`<div class="tabs">
-    <button class="tab tw${cat==='white'?' active':''}" onclick="setScat('white')">⬜ White</button>
-    <button class="tab tg${cat==='green'?' active':''}" onclick="setScat('green')">🟩 Green</button>
-    <button class="tab tr2${cat==='red'?' active':''}" onclick="setScat('red')">🟥 Red</button>
-    <button class="tab${cat==='admin'?' active':''}" onclick="setScat('admin')">⚙️ Setup gironi</button>
-    <button class="tab${cat==='societa'?' active':''}" onclick="setScat('societa')">🏢 Società</button>
-    <button class="tab${cat==='paginaLive'?' active':''}" onclick="setScat('paginaLive')">📄 Pagina Live</button>
-  </div>`;
+  const cats=getCats();
+  const cat=localCat||cats[0]?.id||'admin';
+
+  // Tab: una per ogni categoria + 3 fisse
+  let tabsHtml=`<div class="tabs" style="flex-wrap:wrap">`;
+  for(const c of cats){
+    const col=c.colore;
+    const isAct=cat===c.id;
+    tabsHtml+=`<button class="tab${isAct?' active':''}" style="${isAct?`background:${col}22;color:${col};`:''}font-weight:600"
+      onclick="setScat('${c.id}')">${c.emoji} ${c.nome}</button>`;
+  }
+  tabsHtml+=`<button class="tab${cat==='admin'?' active':''}" onclick="setScat('admin')">⚙️ Setup</button>`;
+  tabsHtml+=`<button class="tab${cat==='societa'?' active':''}" onclick="setScat('societa')">🏢 Società</button>`;
+  tabsHtml+=`<button class="tab${cat==='paginaLive'?' active':''}" onclick="setScat('paginaLive')">📄 Live</button>`;
+  tabsHtml+=`</div>`;
+
   let html='';
-  if(cat==='admin') html=renderSetupGironi();
-  else if(cat==='societa') html=renderSocieta();
+  if(cat==='admin')      html=renderSetupGironi();
+  else if(cat==='societa')    html=renderSocieta();
   else if(cat==='paginaLive') html=renderPaginaLive();
-  else html=renderCategoria(cat);
+  else                        html=renderCategoria(cat);
   return tabsHtml+html;
 }
 
 // ============================================================
-// SCHEDA SOCIETÀ — modifica + export/import
+// SCHEDA SOCIETÀ
 // ============================================================
-let socEditState=null;
-
 function renderSocieta(){
-  const t=currentTorneo();
+  const t=currentTorneo();const cats=getCats();
   const soc=t.societa||(t.societa=[]);
   let html=`<div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
@@ -206,55 +257,66 @@ function renderSocieta(){
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="bsm" onclick="importTorneo()">⬆ Importa torneo</button>
         <button class="bsm" onclick="exportTorneo()">⬇ Esporta torneo</button>
-        <button class="bsm bp" onclick="socEditState={si:-1,nome:'',sqPerCat:{white:0,green:0,red:0},bambini:{white:0,green:0,red:0}};render()">+ Società</button>
+        <button class="bsm bp" onclick="socEditState={si:-1,nome:'',sqPerCat:{},bambini:{}};render()">+ Società</button>
       </div>
     </div>
     ${socEditState&&socEditState.si===-1?renderSocForm(-1):''}
-    ${soc.length?renderSocTable(soc):`<p style="color:var(--txt2);font-size:13px;text-align:center;padding:1rem">Nessuna società. Aggiungine una.</p>`}
+    ${soc.length?renderSocTable(soc,cats):`<p style="color:var(--txt2);font-size:13px;text-align:center;padding:1rem">Nessuna società.</p>`}
   </div>`;
   return html;
 }
 
-function renderSocTable(soc){
-  return`<div style="background:var(--info);border-radius:8px;padding:8px;margin-bottom:1rem">
-    <div style="display:grid;grid-template-columns:1fr repeat(3,48px) repeat(3,52px) 76px;gap:6px;align-items:center;padding:4px 8px;font-size:11px;font-weight:600;color:var(--txt2)">
-      <div>SOCIETÀ</div><div style="text-align:center;color:#1e40af">SQ W</div><div style="text-align:center;color:#166534">SQ G</div><div style="text-align:center;color:#991b1b">SQ R</div><div style="text-align:center;color:#1e40af">🧒W</div><div style="text-align:center;color:#166534">🧒G</div><div style="text-align:center;color:#991b1b">🧒R</div><div></div>
-    </div>
-    ${soc.map((s,si)=>socEditState&&socEditState.si===si?renderSocForm(si):
-      `<div class="soc-row">
-        <div class="soc-nome">${s.nome}</div>
-        ${['white','green','red'].map(cat=>`<div style="text-align:center;font-size:14px;font-weight:700;color:${(s.sqPerCat?.[cat]||0)>0?'var(--txt)':'var(--txt2)'}">${s.sqPerCat?.[cat]||0}</div>`).join('')}
-        ${['white','green','red'].map(cat=>`<div style="text-align:center;font-size:13px;color:${(s.bambini?.[cat]||0)>0?'var(--txt)':'var(--txt2)'}">${s.bambini?.[cat]||0}</div>`).join('')}
-        <div style="display:flex;gap:4px">
-          <button class="bxsm" onclick="socEditState={si:${si},nome:'${s.nome.replace(/'/g,"\\'")}',sqPerCat:{white:${s.sqPerCat?.white||0},green:${s.sqPerCat?.green||0},red:${s.sqPerCat?.red||0}},bambini:{white:${s.bambini?.white||0},green:${s.bambini?.green||0},red:${s.bambini?.red||0}}};render()">✏️</button>
-          <button class="bxsm bd" onclick="rimuoviSocTorneo(${si})">✕</button>
-        </div>
-      </div>`
-    ).join('')}
-  </div>
-  <div style="background:var(--info);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--txt2)">
-    <strong>Totale:</strong>
-    ${['white','green','red'].map(cat=>{const tot=soc.reduce((s,x)=>s+(x.sqPerCat?.[cat]||0),0);const totB=soc.reduce((s,x)=>s+(x.bambini?.[cat]||0),0);return`<span class="gbadge ${badge(cat)}" style="margin:2px">${catLabel(cat)}: ${tot} sq · 🧒 ${totB}</span>`;}).join(' ')}
+function renderSocTable(soc,cats){
+  const colW=`1fr repeat(${cats.length},56px) repeat(${cats.length},56px) 76px`;
+  let hdr=`<div style="display:grid;grid-template-columns:${colW};gap:6px;align-items:center;padding:4px 8px;font-size:11px;font-weight:600;color:var(--txt2)">
+    <div>SOCIETÀ</div>
+    ${cats.map(c=>`<div style="text-align:center;color:${c.colore}">SQ ${c.nome.substring(0,1).toUpperCase()}</div>`).join('')}
+    ${cats.map(c=>`<div style="text-align:center;color:${c.colore}">🧒${c.nome.substring(0,1).toUpperCase()}</div>`).join('')}
+    <div></div>
   </div>`;
+  let rows=soc.map((s,si)=>{
+    if(socEditState&&socEditState.si===si)return renderSocForm(si);
+    return`<div class="soc-row">
+      <div class="soc-nome">${escV(s.nome)}</div>
+      ${cats.map(c=>`<div style="text-align:center;font-size:14px;font-weight:700;color:${(s.sqPerCat?.[c.id]||0)>0?'var(--txt)':'var(--txt2)'}">${s.sqPerCat?.[c.id]||0}</div>`).join('')}
+      ${cats.map(c=>`<div style="text-align:center;font-size:13px;color:${(s.bambini?.[c.id]||0)>0?'var(--txt)':'var(--txt2)'}">${s.bambini?.[c.id]||0}</div>`).join('')}
+      <div style="display:flex;gap:4px">
+        <button class="bxsm" onclick="socEditState={si:${si},nome:'${s.nome.replace(/'/g,"\\'")}',sqPerCat:{${cats.map(c=>`'${c.id}':${s.sqPerCat?.[c.id]||0}`).join(',')}},bambini:{${cats.map(c=>`'${c.id}':${s.bambini?.[c.id]||0}`).join(',')}}};render()">✏️</button>
+        <button class="bxsm bd" onclick="rimuoviSocTorneo(${si})">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+  const totali=`<div style="background:var(--info);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--txt2);margin-top:8px">
+    <strong>Totale:</strong>
+    ${cats.map(c=>{
+      const tot=soc.reduce((s,x)=>s+(x.sqPerCat?.[c.id]||0),0);
+      const totB=soc.reduce((s,x)=>s+(x.bambini?.[c.id]||0),0);
+      return`${renderBadgeCat(c.id,'margin:2px')} <span style="font-size:11px">${tot} sq · 🧒 ${totB}</span>`;
+    }).join(' ')}
+  </div>`;
+  return`<div style="background:var(--info);border-radius:8px;padding:8px;margin-bottom:1rem">${hdr}${rows}</div>${totali}`;
 }
 
 function renderSocForm(si){
-  const isNew=si===-1;const st=socEditState;
+  const isNew=si===-1;const st=socEditState;const cats=getCats();
   return`<div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px">
     <div class="sec">${isNew?'Nuova società':'Modifica società'}</div>
-    <input type="text" placeholder="Nome società" value="${st.nome}" style="margin-bottom:10px" oninput="socEditState.nome=this.value" onkeydown="if(event.key==='Enter')saveSoc()">
-    <div style="font-size:12px;font-weight:600;color:var(--txt2);margin-bottom:6px">Squadre per categoria</div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px">
-      ${['white','green','red'].map(cat=>`<div>
-        <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:4px"><span class="gbadge ${badge(cat)}">${catLabel(cat)}</span></label>
-        <input type="number" min="0" max="30" value="${st.sqPerCat[cat]||0}" style="text-align:center" oninput="socEditState.sqPerCat['${cat}']=parseInt(this.value)||0">
+    <input type="text" placeholder="Nome società" value="${escV(st.nome)}" style="margin-bottom:10px"
+      oninput="socEditState.nome=this.value" onkeydown="if(event.key==='Enter')saveSoc()">
+    <div style="font-size:12px;font-weight:600;color:var(--txt2);margin-bottom:6px">🏐 Squadre per categoria</div>
+    <div style="display:grid;grid-template-columns:repeat(${Math.min(cats.length,3)},1fr);gap:10px;margin-bottom:12px">
+      ${cats.map(c=>`<div>
+        <label style="font-size:12px;display:block;margin-bottom:4px">${renderBadgeCat(c.id)}</label>
+        <input type="number" min="0" max="30" value="${st.sqPerCat[c.id]||0}" style="text-align:center"
+          oninput="socEditState.sqPerCat['${c.id}']=parseInt(this.value)||0">
       </div>`).join('')}
     </div>
     <div style="font-size:12px;font-weight:600;color:var(--txt2);margin-bottom:6px">🧒 Bambini iscritti per categoria</div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px">
-      ${['white','green','red'].map(cat=>`<div>
-        <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:4px"><span class="gbadge ${badge(cat)}">${catLabel(cat)}</span></label>
-        <input type="number" min="0" max="9999" value="${st.bambini?.[cat]||0}" style="text-align:center" oninput="if(!socEditState.bambini)socEditState.bambini={white:0,green:0,red:0};socEditState.bambini['${cat}']=parseInt(this.value)||0">
+    <div style="display:grid;grid-template-columns:repeat(${Math.min(cats.length,3)},1fr);gap:10px;margin-bottom:10px">
+      ${cats.map(c=>`<div>
+        <label style="font-size:12px;display:block;margin-bottom:4px">${renderBadgeCat(c.id)}</label>
+        <input type="number" min="0" max="9999" value="${st.bambini[c.id]||0}" style="text-align:center"
+          oninput="if(!socEditState.bambini)socEditState.bambini={};socEditState.bambini['${c.id}']=parseInt(this.value)||0">
       </div>`).join('')}
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end">
@@ -268,8 +330,8 @@ function saveSoc(){
   const t=currentTorneo();if(!t)return;if(!t.societa)t.societa=[];
   const st=socEditState;if(!st)return;
   const nome=st.nome.trim();if(!nome){alert('Inserisci il nome.');return;}
-  if(st.si===-1){t.societa.push({nome,sqPerCat:{...st.sqPerCat},bambini:{...(st.bambini||{white:0,green:0,red:0})},squadre:[]});}
-  else{t.societa[st.si].nome=nome;t.societa[st.si].sqPerCat={...st.sqPerCat};t.societa[st.si].bambini={...(st.bambini||{white:0,green:0,red:0})};}
+  if(st.si===-1)t.societa.push({nome,sqPerCat:{...st.sqPerCat},bambini:{...st.bambini},squadre:[]});
+  else{t.societa[st.si].nome=nome;t.societa[st.si].sqPerCat={...st.sqPerCat};t.societa[st.si].bambini={...st.bambini};}
   socEditState=null;sv();render();
 }
 function rimuoviSocTorneo(si){
@@ -279,13 +341,12 @@ function rimuoviSocTorneo(si){
 }
 
 // ============================================================
-// EXPORT / IMPORT TORNEO
+// EXPORT / IMPORT
 // ============================================================
 function exportTorneo(){
   const t=currentTorneo();if(!t)return;
-  const data=JSON.stringify({torneo:JSON.parse(JSON.stringify(t))},null,2);
   const a=document.createElement('a');
-  a.href='data:application/json;charset=utf-8,'+encodeURIComponent(data);
+  a.href='data:application/json;charset=utf-8,'+encodeURIComponent(JSON.stringify({torneo:JSON.parse(JSON.stringify(t))},null,2));
   a.download=`torneo_${(t.nome||'export').replace(/[^a-z0-9]/gi,'_')}.json`;
   document.body.appendChild(a);a.click();document.body.removeChild(a);
 }
@@ -296,267 +357,347 @@ function importTorneo(){
     const reader=new FileReader();
     reader.onload=ev=>{
       try{
-        const data=JSON.parse(ev.target.result);
-        const t=data.torneo||data;
+        const data=JSON.parse(ev.target.result);const t=data.torneo||data;
         if(!t.nome)throw new Error('File non valido');
-        const id=uid();
-        DB.tornei[id]={...t,nome:t.nome+' (importato)',createdAt:Date.now()};
+        const id=uid();DB.tornei[id]={...t,nome:t.nome+' (importato)',createdAt:Date.now()};
         sv();openTorneo(id);
-      }catch(err){alert('File non valido o corrotto: '+err.message);}
+      }catch(err){alert('File non valido: '+err.message);}
     };reader.readAsText(file);
   };input.click();
 }
 
 // ============================================================
-// SETUP GIRONI — crea gironi con assegnazione società
+// SETUP GIRONI
 // ============================================================
 function renderSetupGironi(){
-  const t=currentTorneo();
-  // Assicura che fase1 esista in memoria (NO sv() qui — mai salvare dentro render)
-  for(const c of['white','green','red']){const fa=getFasi(c);if(!fa.length)fa.push({id:uid(),label:'Fase 1',gironi:[]});}
-  let html=`<div style="background:var(--info);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--txt2);margin-bottom:1rem;line-height:1.7">
-    Crea i gironi iniziali (Fase 1). Imposta il numero di campi disponibili per ottenere un suggerimento gironi, poi clicca <strong>+ Girone</strong> o <strong>Crea suggeriti</strong>.
+  const t=currentTorneo();const cats=getCats();
+  // Assicura fase1 per tutte le categorie (solo in memoria)
+  for(const cat of cats){if(!cat.fasi?.length)cat.fasi=[{id:uid(),label:'Fase 1',gironi:[]}];}
+
+  let html=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
+    <div class="card-title" style="margin-bottom:0">⚙️ Setup gironi</div>
+    <button class="bsm bp" onclick="showAddCatModal()">+ Nuova categoria</button>
+  </div>
+  <div style="background:var(--info);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--txt2);margin-bottom:1rem;line-height:1.7">
+    Imposta i campi disponibili per ogni categoria e crea i gironi. Puoi anche aggiungere nuove categorie personalizzate.
   </div>`;
-  for(const cat of['white','green','red']){
-    const fasi=getFasi(cat);
-    const fase1=fasi[0];const gs=fase1.gironi;
-    const pref=PREFS[cat];
-    const b=badge(cat);const lbl=cat==='white'?'⬜ White':cat==='green'?'🟩 Green':'🟥 Red';
-    const totSq=(t.societa||[]).reduce((s,x)=>s+(x.sqPerCat?.[cat]||0),0);
-    const nCampi=pref.campi||0;
-    // Calcola suggerimento gironi
+
+  for(const cat of cats){
+    const fasi=cat.fasi||[];
+    const fase1=fasi[0];const gs=fase1?.gironi||[];
+    const sz=getPref(cat.id,'sz',4);const sets=getPref(cat.id,'sets',2);const nCampi=getPref(cat.id,'campi',0);
+    const totSq=(t.societa||[]).reduce((s,x)=>s+(x.sqPerCat?.[cat.id]||0),0);
     const sug=nCampi>0&&totSq>0?suggerisciGironi(totSq,nCampi):null;
-    const sugTxt=sug?sug.map(n=>`${n} sq`).join(' + '):'—';
-    const sugLabel=sug?`${sug.length} giron${sug.length===1?'e':'i'} da ${sugTxt}`:'Imposta i campi per il suggerimento';
-    html+=`<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-      <span style="font-size:15px;font-weight:600;color:var(--txt)">${lbl} — ${gs.length} giron${gs.length===1?'e':'i'} — ${totSq} squadre totali</span>
-    </div>
-    <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;padding:12px;background:var(--info);border-radius:8px">
-      <div>
-        <div style="font-size:11px;font-weight:600;color:var(--txt2);margin-bottom:4px">CAMPI DISPONIBILI</div>
-        <input type="number" min="1" max="20" value="${nCampi||''}" placeholder="es. 3"
-          style="width:80px;text-align:center;font-size:15px;font-weight:700"
-          oninput="PREFS['${cat}'].campi=parseInt(this.value)||0;render()">
-      </div>
-      <div style="flex:1;min-width:160px">
-        <div style="font-size:11px;font-weight:600;color:var(--txt2);margin-bottom:4px">SUGGERIMENTO</div>
-        <div style="font-size:13px;color:${sug?'var(--txt)':'var(--txt2)'};font-weight:${sug?'600':'400'}">${sugLabel}</div>
-        ${sug?`<div style="font-size:11px;color:var(--txt2);margin-top:2px">max ${nCampi} giron${nCampi===1?'e':'i'} · ${totSq} squadre distribuite</div>`:''}
-      </div>
-      ${sug&&!gs.length?`<button class="bg bsm" onclick="creaSuggeriti('${cat}')">✓ Crea suggeriti</button>`:''}
-      ${sug&&gs.length?`<button class="bsm" onclick="if(confirm('Elimina i gironi esistenti e crea quelli suggeriti?'))creaSuggeriti('${cat}')">↺ Ricrea suggeriti</button>`:''}
-    </div>
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
-      <select id="sz_${cat}" style="width:auto;padding:5px 8px;font-size:13px" onchange="PREFS['${cat}'].sz=parseInt(this.value)">
-        ${[3,4,5,6,7,8].map(n=>`<option value="${n}"${pref.sz===n?' selected':''}>${n} sq/girone</option>`).join('')}
-      </select>
-      <select id="sets_${cat}" style="width:auto;padding:5px 8px;font-size:13px" onchange="PREFS['${cat}'].sets=parseInt(this.value)">
-        <option value="1"${pref.sets===1?' selected':''}>1 set</option><option value="2"${pref.sets===2?' selected':''}>2 set</option>
-      </select>
-      <button class="bp bsm" onclick="addGirone('${cat}')">+ Girone manuale</button>
-    </div>`;
-    for(const g of gs){
-      html+=`<div style="border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:6px">
-          <div style="display:flex;align-items:center;gap:8px"><span class="gbadge ${b}">Girone ${g.label}</span><span style="font-size:12px;color:var(--txt2)">${g.squadre.length} sq · ${g.sets||2} set</span></div>
-          <button class="bsm bd" onclick="delGirone('${cat}','${fase1.id}','${g.id}')">✕</button>
+    const sugLabel=sug?`${sug.length} giron${sug.length===1?'e':'i'} da ${sug.map(n=>n+' sq').join(' + ')}`:'Imposta i campi per il suggerimento';
+    const col=cat.colore;
+
+    html+=`<div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          ${renderBadgeCat(cat.id)}
+          <span style="font-size:13px;color:var(--txt2)">${gs.length} giron${gs.length===1?'e':'i'} · ${totSq} sq totali</span>
+          <button class="bxsm" onclick="showEditCatModal('${cat.id}')" title="Modifica categoria">✏️</button>
+          <button class="bxsm bd" onclick="delCategoria('${cat.id}')" title="Elimina categoria">✕</button>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
-        ${g.squadre.map((s,i)=>`<div style="display:flex;gap:6px;align-items:center">
-          <span style="font-size:12px;color:var(--txt2);min-width:18px;text-align:right">${i+1}.</span>
-          <input type="text" value="${s.nome}" placeholder="Squadra" style="flex:1.5" onchange="updSq('${cat}','${fase1.id}','${g.id}',${i},'nome',this.value)">
-          <input type="text" value="${s.soc||''}" placeholder="Società" style="flex:1" onchange="updSq('${cat}','${fase1.id}','${g.id}',${i},'soc',this.value)">
-        </div>`).join('')}
+        <div style="display:flex;gap:4px">
+          ${cats.indexOf(cat)>0?`<button class="bxsm" onclick="moveCategoria('${cat.id}',-1)">↑</button>`:''}
+          ${cats.indexOf(cat)<cats.length-1?`<button class="bxsm" onclick="moveCategoria('${cat.id}',1)">↓</button>`:''}
         </div>
-        <button class="bp bsm" onclick="saveSquadre('${cat}','${fase1.id}','${g.id}')">✓ Rigenera partite</button>
+      </div>
+      <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;padding:12px;background:var(--info);border-radius:8px">
+        <div>
+          <div style="font-size:11px;font-weight:600;color:var(--txt2);margin-bottom:4px">CAMPI DISPONIBILI</div>
+          <input type="number" min="1" max="20" value="${nCampi||''}" placeholder="es. 3"
+            style="width:80px;text-align:center;font-size:15px;font-weight:700"
+            oninput="setPref('${cat.id}','campi',parseInt(this.value)||0);render()">
+        </div>
+        <div style="flex:1;min-width:160px">
+          <div style="font-size:11px;font-weight:600;color:var(--txt2);margin-bottom:4px">SUGGERIMENTO</div>
+          <div style="font-size:13px;color:${sug?'var(--txt)':'var(--txt2)'};font-weight:${sug?'600':'400'}">${sugLabel}</div>
+          ${sug?`<div style="font-size:11px;color:var(--txt2);margin-top:2px">max ${nCampi} giron${nCampi===1?'e':'i'} · ${totSq} sq distribuite</div>`:''}
+        </div>
+        ${sug&&!gs.length?`<button class="bsm" style="background:${col};color:#fff;border-color:transparent" onclick="creaSuggeriti('${cat.id}')">✓ Crea suggeriti</button>`:''}
+        ${sug&&gs.length?`<button class="bsm" onclick="if(confirm('Ricrea i gironi suggeriti?'))creaSuggeriti('${cat.id}')">↺ Ricrea suggeriti</button>`:''}
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+        <select style="width:auto;padding:5px 8px;font-size:13px" onchange="setPref('${cat.id}','sz',parseInt(this.value))">
+          ${[3,4,5,6,7,8].map(n=>`<option value="${n}"${sz===n?' selected':''}>${n} sq/girone</option>`).join('')}
+        </select>
+        <select style="width:auto;padding:5px 8px;font-size:13px" onchange="setPref('${cat.id}','sets',parseInt(this.value))">
+          <option value="1"${sets===1?' selected':''}>1 set</option>
+          <option value="2"${sets===2?' selected':''}>2 set</option>
+        </select>
+        <button class="bp bsm" onclick="addGirone('${cat.id}')">+ Girone manuale</button>
       </div>`;
+
+    if(fase1){
+      for(const g of gs){
+        html+=`<div style="border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:6px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:13px;padding:3px 10px;border-radius:20px;font-weight:600;${catBadgeStyle(cat.id)}">Girone ${g.label}</span>
+              <span style="font-size:12px;color:var(--txt2)">${g.squadre.length} sq · ${g.sets||2} set</span>
+            </div>
+            <button class="bsm bd" onclick="delGirone('${cat.id}','${fase1.id}','${g.id}')">✕</button>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
+            ${g.squadre.map((s,i)=>`<div style="display:flex;gap:6px;align-items:center">
+              <span style="font-size:12px;color:var(--txt2);min-width:18px;text-align:right">${i+1}.</span>
+              <input type="text" value="${escV(s.nome)}" placeholder="Squadra" style="flex:1.5"
+                onchange="updSq('${cat.id}','${fase1.id}','${g.id}',${i},'nome',this.value)">
+              <input type="text" value="${escV(s.soc||'')}" placeholder="Società" style="flex:1"
+                onchange="updSq('${cat.id}','${fase1.id}','${g.id}',${i},'soc',this.value)">
+            </div>`).join('')}
+          </div>
+          <button class="bp bsm" onclick="saveSquadre('${cat.id}','${fase1.id}','${g.id}')">✓ Rigenera partite</button>
+        </div>`;
+      }
     }
     if(!gs.length)html+=`<div style="text-align:center;padding:1.5rem;color:var(--txt2);background:var(--info);border-radius:8px;font-size:13px">
-        Nessun girone ancora. Scegli il numero di squadre e clicca <strong>+ Girone</strong>.
-      </div>`;
+      Nessun girone. Scegli il numero di squadre e clicca <strong>+ Girone</strong>.</div>`;
     html+=`</div>`;
   }
+
+  if(!cats.length)html+=`<div class="card" style="text-align:center;padding:2rem;color:var(--txt2)">
+    Nessuna categoria. <button class="bp bsm" onclick="showAddCatModal()">+ Aggiungi categoria</button></div>`;
+
+  // Modal aggiunta/modifica categoria (hidden, mostrato via JS)
+  html+=`<div id="catModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center">
+    <div style="background:var(--card);border-radius:14px;padding:20px;width:min(380px,90vw);max-height:90vh;overflow-y:auto">
+      <div style="font-size:16px;font-weight:700;margin-bottom:14px" id="catModalTitle">Nuova categoria</div>
+      <div style="margin-bottom:10px">
+        <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:4px">Nome</label>
+        <input type="text" id="catModalNome" placeholder="Es: Under 12" style="width:100%">
+      </div>
+      <div style="margin-bottom:10px">
+        <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:4px">Emoji</label>
+        <select id="catModalEmoji" style="width:100%;font-size:18px">
+          ${['⬜','🟩','🟥','🟣','🟠','🔵','🟡','⚫','🟤','🔴','⚪','🩵','🩶','💜','🧡'].map(e=>`<option>${e}</option>`).join('')}
+        </select>
+      </div>
+      <div style="margin-bottom:16px">
+        <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:6px">Colore</label>
+        <div style="display:flex;flex-wrap:wrap;gap:8px" id="catModalColori">
+          ${COLORI_DISPONIBILI.map(col=>`<button id="colBtn_${col.hex.slice(1)}" onclick="selectModalColor('${col.hex}')"
+            style="width:28px;height:28px;border-radius:50%;background:${col.hex};border:3px solid transparent;cursor:pointer;padding:0;transition:border .15s" title="${col.label}"></button>`).join('')}
+        </div>
+        <input type="text" id="catModalColoreHex" placeholder="#7c3aed" style="margin-top:8px;width:100%;font-size:12px">
+      </div>
+      <input type="hidden" id="catModalEditId">
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button onclick="closeModal()">Annulla</button>
+        <button class="bp bsm" onclick="saveModalCat()">✓ Salva</button>
+      </div>
+    </div>
+  </div>`;
+
   return html;
 }
 
-// Aggiunge girone con assegnazione automatica squadre+società
-function addGirone(cat){
-  const t=currentTorneo();
-  if(!t){alert('Nessun torneo aperto.');return;}
-  // Ensure cats structure exists
-  if(!t.cats)t.cats={white:{fasi:[]},green:{fasi:[]},red:{fasi:[]}};
-  if(!t.cats[cat])t.cats[cat]={fasi:[]};
-  if(!t.cats[cat].fasi)t.cats[cat].fasi=[];
-  // Ensure fase1 exists
-  if(!t.cats[cat].fasi.length)t.cats[cat].fasi.push({id:uid(),label:'Fase 1',gironi:[]});
-  const f1=t.cats[cat].fasi[0];
-  if(!f1.gironi)f1.gironi=[];
-  // Read from select if available, else use PREFS
-  const szEl=document.getElementById('sz_'+cat);const setsEl=document.getElementById('sets_'+cat);
-  if(szEl)PREFS[cat].sz=parseInt(szEl.value)||PREFS[cat].sz;
-  if(setsEl)PREFS[cat].sets=parseInt(setsEl.value)||PREFS[cat].sets;
-  const sz=PREFS[cat].sz;const sets=PREFS[cat].sets;
-  const fasi=t.cats[cat].fasi;
+function showAddCatModal(){
+  const m=document.getElementById('catModal');if(!m)return;
+  document.getElementById('catModalTitle').textContent='Nuova categoria';
+  document.getElementById('catModalNome').value='';
+  document.getElementById('catModalEmoji').value='🟣';
+  document.getElementById('catModalEditId').value='';
+  selectModalColor(COLORI_DISPONIBILI[0].hex);
+  m.style.display='flex';
+}
+function showEditCatModal(catId){
+  const cat=getCat(catId);if(!cat)return;
+  const m=document.getElementById('catModal');if(!m)return;
+  document.getElementById('catModalTitle').textContent='Modifica categoria';
+  document.getElementById('catModalNome').value=cat.nome;
+  document.getElementById('catModalEmoji').value=cat.emoji||'🟣';
+  document.getElementById('catModalEditId').value=catId;
+  selectModalColor(cat.colore);
+  m.style.display='flex';
+}
+function selectModalColor(hex){
+  document.getElementById('catModalColoreHex').value=hex;
+  document.querySelectorAll('[id^="colBtn_"]').forEach(b=>{b.style.border='3px solid transparent';});
+  const btn=document.getElementById('colBtn_'+hex.slice(1));if(btn)btn.style.border='3px solid var(--txt)';
+}
+function closeModal(){const m=document.getElementById('catModal');if(m)m.style.display='none';}
+function saveModalCat(){
+  const nome=document.getElementById('catModalNome').value.trim();
+  if(!nome){alert('Inserisci un nome.');return;}
+  const emoji=document.getElementById('catModalEmoji').value;
+  const colore=document.getElementById('catModalColoreHex').value||COLORI_DISPONIBILI[0].hex;
+  const editId=document.getElementById('catModalEditId').value;
+  if(editId){
+    const cat=getCat(editId);if(cat){cat.nome=nome;cat.emoji=emoji;cat.colore=colore;}sv();
+  } else {
+    addCategoria(nome,colore,emoji);
+  }
+  closeModal();render();
+}
 
-  // Nomi già usati nei gironi esistenti
+// GIRONE CRUD
+function addGirone(catId){
+  const t=currentTorneo();if(!t)return;
+  getCats();
+  const cat=getCat(catId);if(!cat)return;
+  if(!cat.fasi||!cat.fasi.length)cat.fasi=[{id:uid(),label:'Fase 1',gironi:[]}];
+  const f1=cat.fasi[0];if(!f1.gironi)f1.gironi=[];
+  const sz=getPref(catId,'sz',4);const sets=getPref(catId,'sets',2);
+  const fasi=cat.fasi;
   const usedNomi=fasi.flatMap(f=>f.gironi?.flatMap(g=>g.squadre.map(s=>s.nome))||[]);
-  const availNomi=NAMES[cat].filter(n=>!usedNomi.includes(n));
-
-  // Quante squadre per società in questa categoria e girone
+  const nomiDisp=getNomiCat(catId).filter(n=>!usedNomi.includes(n));
   const label=String.fromCharCode(65+f1.gironi.length);
-
-  // Costruisce la squadra con la società
-  // Prima determina quante squadre ogni società ha ancora da assegnare
   const socSquadre=[];
   for(const soc of(t.societa||[])){
-    const nCat=soc.sqPerCat?.[cat]||0;
-    if(!nCat)continue;
-    // Quante ne ha già in gironi esistenti
-    const giaAssegnate=fasi.flatMap(f=>f.gironi?.flatMap(g=>g.squadre.filter(s=>s.soc===soc.nome))||[]).length;
-    const rimanenti=nCat-giaAssegnate;
-    for(let i=0;i<rimanenti;i++) socSquadre.push({soc:soc.nome});
+    const nCat=soc.sqPerCat?.[catId]||0;if(!nCat)continue;
+    const giaAss=fasi.flatMap(f=>f.gironi?.flatMap(g=>g.squadre.filter(s=>s.soc===soc.nome))||[]).length;
+    const rim=nCat-giaAss;for(let i=0;i<rim;i++)socSquadre.push({soc:soc.nome});
   }
-
-  // Distribuisce in modo da massimizzare diversità
   let squadre=[];
   if(socSquadre.length>0){
-    // Shuffle
     for(let i=socSquadre.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[socSquadre[i],socSquadre[j]]=[socSquadre[j],socSquadre[i]];}
-    // Greedy: riempi il girone con max diversità
     const socInGirone=new Set();const remaining=[...socSquadre];
     for(let slot=0;slot<sz&&remaining.length>0;slot++){
       const diverse=remaining.filter(s=>!socInGirone.has(s.soc));
-      const pick=(diverse.length>0?diverse:remaining)[0];
-      socInGirone.add(pick.soc);
-      remaining.splice(remaining.indexOf(pick),1);
-      squadre.push({nome:availNomi[squadre.length]||`Sq${squadre.length+1}`,soc:pick.soc});
+      const pick=(diverse.length?diverse:remaining)[0];
+      socInGirone.add(pick.soc);remaining.splice(remaining.indexOf(pick),1);
+      squadre.push({nome:nomiDisp[squadre.length]||`Sq${squadre.length+1}`,soc:pick.soc});
     }
-    // Se non abbastanza squadre da società, riempi con vuote
-    while(squadre.length<sz)squadre.push({nome:availNomi[squadre.length]||`Sq${squadre.length+1}`,soc:''});
+    while(squadre.length<sz)squadre.push({nome:nomiDisp[squadre.length]||`Sq${squadre.length+1}`,soc:''});
   } else {
-    // Nessuna info società: usa solo nomi
-    squadre=Array.from({length:sz},(_,i)=>({nome:availNomi[i]||`Sq${i+1}`,soc:''}));
+    squadre=Array.from({length:sz},(_,i)=>({nome:nomiDisp[i]||`Sq${i+1}`,soc:''}));
   }
-
   f1.gironi.push({id:uid(),label,squadre,sets,ritorno:false,partite:genPartite(sz,false,sets)});
   sv();render();
 }
-
-function delGirone(cat,fid,gv){const f=getFase(cat,fid);if(f)f.gironi=f.gironi.filter(g=>g.id!==gv);sv();render();}
-function updSq(cat,fid,gv,idx,field,val){const g=getGirone(cat,fid,gv);if(g)g.squadre[idx][field]=val;}
-function saveSquadre(cat,fid,gv){const g=getGirone(cat,fid,gv);if(!g)return;g.partite=genPartite(g.squadre.length,g.ritorno||false,g.sets||2);sv();render();}
-function toggleRitorno(cat,fid,gv){const g=getGirone(cat,fid,gv);if(!g)return;g.ritorno=!g.ritorno;const old={};g.partite.filter(p=>p.leg===1||!p.leg).forEach(p=>{old[`${p.h}_${p.a}`]=p});const np=genPartite(g.squadre.length,g.ritorno,g.sets||2);np.forEach(p=>{if(p.leg===1){const o=old[`${p.h}_${p.a}`];if(o){p.s1h=o.s1h;p.s1a=o.s1a;p.s2h=o.s2h;p.s2a=o.s2a;}}});g.partite=np;sv();render();}
-function saveResult(cat,fid,gv,pid){const g=getGirone(cat,fid,gv);if(!g)return;const p=g.partite[pid];['s1h','s1a','s2h','s2a'].forEach(f=>{const k=icKey(cat,fid,gv,pid,f);if(IC[k]!==undefined)p[f]=IC[k]});sv();render();}
-function clearResult(cat,fid,gv,pid){const g=getGirone(cat,fid,gv);if(!g)return;const p=g.partite[pid];p.s1h='';p.s1a='';p.s2h='';p.s2a='';['s1h','s1a','s2h','s2a'].forEach(f=>delete IC[icKey(cat,fid,gv,pid,f)]);sv();render();}
-function delFase(cat,fid){if(!confirm('Eliminare questa fase?'))return;getFasi(cat);const t=currentTorneo();t.cats[cat].fasi=t.cats[cat].fasi.filter(f=>f.id!==fid);sv();render();}
-function saveElim(cat,fid,mk){const f=getFase(cat,fid);if(!f||!f.elim)return;const m=f.elim[mk];if(!m)return;['s1h','s1a'].forEach(field=>{const k=`elim_${fid}_${mk}_${field}`;if(IC[k]!==undefined)m[field]=IC[k];});propagateElim(f);sv();render();}
+function delGirone(catId,fid,gv){const f=getFase(catId,fid);if(f)f.gironi=f.gironi.filter(g=>g.id!==gv);sv();render();}
+function updSq(catId,fid,gv,idx,field,val){const g=getGirone(catId,fid,gv);if(g)g.squadre[idx][field]=val;}
+function saveSquadre(catId,fid,gv){const g=getGirone(catId,fid,gv);if(!g)return;g.partite=genPartite(g.squadre.length,g.ritorno||false,g.sets||2);sv();render();}
+function toggleRitorno(catId,fid,gv){const g=getGirone(catId,fid,gv);if(!g)return;g.ritorno=!g.ritorno;const old={};g.partite.filter(p=>p.leg===1||!p.leg).forEach(p=>{old[`${p.h}_${p.a}`]=p});const np=genPartite(g.squadre.length,g.ritorno,g.sets||2);np.forEach(p=>{if(p.leg===1){const o=old[`${p.h}_${p.a}`];if(o){p.s1h=o.s1h;p.s1a=o.s1a;p.s2h=o.s2h;p.s2a=o.s2a;}}});g.partite=np;sv();render();}
+function saveResult(catId,fid,gv,pid){const g=getGirone(catId,fid,gv);if(!g)return;const p=g.partite[pid];['s1h','s1a','s2h','s2a'].forEach(f=>{const k=icKey(catId,fid,gv,pid,f);if(IC[k]!==undefined)p[f]=IC[k]});sv();render();}
+function clearResult(catId,fid,gv,pid){const g=getGirone(catId,fid,gv);if(!g)return;const p=g.partite[pid];p.s1h='';p.s1a='';p.s2h='';p.s2a='';['s1h','s1a','s2h','s2a'].forEach(f=>delete IC[icKey(catId,fid,gv,pid,f)]);sv();render();}
+function delFase(catId,fid){if(!confirm('Eliminare questa fase?'))return;const cat=getCat(catId);if(cat)cat.fasi=cat.fasi.filter(f=>f.id!==fid);sv();render();}
+function saveElim(catId,fid,mk){const f=getFase(catId,fid);if(!f||!f.elim)return;const m=f.elim[mk];if(!m)return;['s1h','s1a'].forEach(field=>{const k=`elim_${fid}_${mk}_${field}`;if(IC[k]!==undefined)m[field]=IC[k];});propagateElim(f);sv();render();}
 function onInputElim(fid,mk,field,val){IC[`elim_${fid}_${mk}_${field}`]=val;}
 function getVElim(fid,mk,field,saved){const k=`elim_${fid}_${mk}_${field}`;return IC[k]!==undefined?IC[k]:saved;}
 
 // ============================================================
 // RENDER CATEGORIA
 // ============================================================
-function renderCategoria(cat){
-  const fasi=getFasi(cat);const b=badge(cat);
-  if(builderState&&builderState.cat===cat)return renderBuilder(b);
-  if(!fasi.length||!fasi[0]?.gironi?.length)return`<div style="text-align:center;padding:3rem;color:var(--txt2)"><p>Nessun girone per questa categoria.<br>Vai in ⚙️ Setup gironi e clicca + Girone.</p></div>`;
+function renderCategoria(catId){
+  const cat=getCat(catId);if(!cat)return`<div style="text-align:center;padding:3rem;color:var(--txt2)">Categoria non trovata.</div>`;
+  const fasi=cat.fasi||[];const col=cat.colore;
+  if(builderState&&builderState.cat===catId)return renderBuilder(catId);
+  if(!fasi.length||!fasi[0]?.gironi?.length)return`<div style="text-align:center;padding:3rem;color:var(--txt2)">
+    <p>Nessun girone per ${cat.emoji} ${cat.nome}.<br>Vai in ⚙️ Setup e clicca + Girone.</p></div>`;
   let html='';
   for(let fi=0;fi<fasi.length;fi++){
     const fase=fasi[fi];const isElim=fase.tipo==='elim';const isCollapsed=collapsed.has(fase.id);
     const giocate=fase.gironi?.reduce((s,g)=>s+g.partite.filter(p=>p.s1h!==''&&p.s1a!=='').length,0)||0;
     const totP=fase.gironi?.reduce((s,g)=>s+g.partite.length,0)||0;
-    html+=`<div class="card"><div class="fase-hdr" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
+    html+=`<div class="card"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;cursor:pointer" onclick="toggleCollapse('${fase.id}')">
         <span style="font-size:18px;color:var(--txt2)">${isCollapsed?'▶':'▼'}</span>
-        <span style="font-size:16px;font-weight:600;color:var(--txt)">${fase.label}</span>
+        <span style="font-size:16px;font-weight:600">${fase.label}</span>
         <span style="font-size:11px;padding:3px 10px;border-radius:20px;background:#fef9c3;color:#854d0e;font-weight:500">${isElim?'⚡ Eliminazione':isCollapsed?`${giocate}/${totP} partite`:`${fase.gironi?.length||0} giron${(fase.gironi?.length||0)===1?'e':'i'}`}</span>
-        ${isCollapsed?`<span style="font-size:11px;color:var(--txt2)">(tocca per espandere)</span>`:''}
       </div>
-      ${fi>0?`<button class="bsm bd" onclick="delFase('${cat}','${fase.id}')">✕ Elimina</button>`:''}
+      ${fi>0?`<button class="bsm bd" onclick="delFase('${catId}','${fase.id}')">✕ Elimina</button>`:''}
     </div>`;
     if(!isCollapsed){
-      if(isElim)html+=renderElimBlock(cat,fase);
+      if(isElim)html+=renderElimBlock(catId,fase);
       else{
-        for(const g of fase.gironi)html+=renderGironeContent(cat,fase,g,b);
-        // avulsa
+        for(const g of fase.gironi)html+=renderGironeContent(catId,fase,g);
         const sizes=[...new Set(fase.gironi.map(g=>g.squadre.length))];
         if(fase.gironi.length>1&&sizes.length>1){
           html+=`<div style="background:var(--info);border-radius:8px;padding:12px;margin-top:4px"><div class="sec">Classifica avulsa passaggio turno</div>
-          ${[0,1].map(pos=>{const cands=fase.gironi.map(g=>{const cl=calcCl(g);const tt=cl[pos];return tt?{...tt,girone:g.label,qs:tt.sp>0?tt.sv/tt.sp:tt.sv,qp:tt.pp>0?tt.pv/tt.pp:tt.pv}:null}).filter(Boolean);cands.sort((a,bb)=>Math.abs(bb.qs-a.qs)>0.001?bb.qs-a.qs:bb.qp-a.qp);return cands.length?`<div style="margin-bottom:10px"><div style="font-size:12px;font-weight:500;margin-bottom:6px">${pos+1}° per girone</div><table><thead><tr><th>#</th><th>Squadra</th><th>Soc</th><th>Girone</th><th>Q.Set</th><th>Q.Pt</th></tr></thead><tbody>${cands.map((tt,i)=>`<tr><td style="font-weight:700">${i+1}</td><td style="font-weight:500">${tt.nome}</td><td style="font-size:11px;color:var(--txt2)">${tt.soc||''}</td><td><span class="gbadge ${b}" style="font-size:10px">${tt.girone}</span></td><td>${tt.sp>0?(tt.sv/tt.sp).toFixed(2):tt.sv}</td><td>${tt.pp>0?(tt.pv/tt.pp).toFixed(2):tt.pv}</td></tr>`).join('')}</tbody></table></div>`:'';}).join('')}</div>`;
+          ${[0,1].map(pos=>{
+            const cands=fase.gironi.map(g=>{const cl=calcCl(g);const tt=cl[pos];return tt?{...tt,girone:g.label,qs:tt.sp>0?tt.sv/tt.sp:tt.sv,qp:tt.pp>0?tt.pv/tt.pp:tt.pv}:null}).filter(Boolean);
+            cands.sort((a,b)=>Math.abs(b.qs-a.qs)>0.001?b.qs-a.qs:b.qp-a.qp);
+            return cands.length?`<div style="margin-bottom:10px"><div style="font-size:12px;font-weight:500;margin-bottom:6px">${pos+1}° per girone</div>
+            <table><thead><tr><th>#</th><th>Squadra</th><th>Soc</th><th>Girone</th><th>Q.Set</th><th>Q.Pt</th></tr></thead><tbody>
+            ${cands.map((tt,i)=>`<tr><td style="font-weight:700">${i+1}</td><td style="font-weight:500">${tt.nome}</td><td style="font-size:11px;color:var(--txt2)">${tt.soc||''}</td><td>${tt.girone}</td><td>${tt.sp>0?(tt.sv/tt.sp).toFixed(2):tt.sv}</td><td>${tt.pp>0?(tt.pv/tt.pp).toFixed(2):tt.pv}</td></tr>`).join('')}
+            </tbody></table></div>`:'';
+          }).join('')}</div>`;
         }
       }
     }
     html+=`</div>`;
   }
-  html+=`<div class="card" style="text-align:center;padding:1.5rem"><p style="font-size:13px;color:var(--txt2);margin-bottom:12px">Creare una fase successiva?</p><button class="bp" onclick="openBuilder('${cat}')">+ Fase successiva</button></div>`;
+  html+=`<div class="card" style="text-align:center;padding:1.5rem"><p style="font-size:13px;color:var(--txt2);margin-bottom:12px">Creare una fase successiva?</p><button class="bp" onclick="openBuilder('${catId}')">+ Fase successiva</button></div>`;
   return html;
 }
 
-function renderGironeContent(cat,fase,g,b){
-  const cl=calcCl(g);const sets=g.sets||2;const andataP=g.partite.filter(p=>!p.leg||p.leg===1);const ritornoP=g.partite.filter(p=>p.leg===2);const giocate=g.partite.filter(p=>p.s1h!==''&&p.s1a!=='').length;
+function renderGironeContent(catId,fase,g){
+  const cl=calcCl(g);const sets=g.sets||2;
+  const andataP=g.partite.filter(p=>!p.leg||p.leg===1);const ritornoP=g.partite.filter(p=>p.leg===2);
+  const giocate=g.partite.filter(p=>p.s1h!==''&&p.s1a!=='').length;
+  const badgeSt=catBadgeStyle(catId);
   let clHtml=`<table><thead><tr><th>#</th><th>Squadra</th><th>Soc</th><th>Pt</th>${sets===2?'<th>Sv</th><th>Sp</th><th>DS</th>':''}<th>DP</th></tr></thead><tbody>`;
   cl.forEach((tt,i)=>{clHtml+=`<tr><td class="${i===0?'pos1':i===1?'pos2':i===2?'pos3':''}" style="font-weight:700">${i+1}</td><td style="font-weight:500">${tt.nome}</td><td style="font-size:11px;color:var(--txt2)">${tt.soc||''}</td><td style="font-weight:700;font-size:15px">${tt.pt}</td>${sets===2?`<td>${tt.sv}</td><td>${tt.sp}</td><td class="${tt.ds>0?'dsp':tt.ds<0?'dsn':''}">${tt.ds>0?'+':''}${tt.ds}</td>`:''}<td class="${tt.dp>0?'dsp':tt.dp<0?'dsn':''}">${tt.dp>0?'+':''}${tt.dp}</td></tr>`;});
   clHtml+=`</tbody></table><p style="font-size:11px;color:var(--txt2);margin-top:6px">Pt=set vinti${sets===2?' · DS=diff set':''} · DP=diff punti</p>`;
   function rPL(pList){return pList.map(p=>{
-    const pid=g.partite.indexOf(p);const hn=g.squadre[p.h].nome,an=g.squadre[p.a].nome;const hs=g.squadre[p.h].soc||'',as=g.squadre[p.a].soc||'';const played=p.s1h!==''&&p.s1a!=='';const V=(f,sv2)=>getV(cat,fase.id,g.id,pid,f,sv2);
+    const pid=g.partite.indexOf(p);const hn=g.squadre[p.h].nome,an=g.squadre[p.a].nome;
+    const hs=g.squadre[p.h].soc||'',as=g.squadre[p.a].soc||'';const played=p.s1h!==''&&p.s1a!=='';
+    const V=(f,sv2)=>getV(catId,fase.id,g.id,pid,f,sv2);
     return`<div class="match-card">${p.leg===2?`<div style="font-size:10px;background:#fef9c3;color:#854d0e;border-radius:4px;padding:2px 8px;display:inline-block;margin-bottom:8px;font-weight:600">RITORNO</div>`:''}
       <div class="match-teams">${hn}<span class="soc-tag"> (${hs||'—'})</span><br><span style="font-weight:400;color:var(--txt2);font-size:12px">vs</span><br>${an}<span class="soc-tag"> (${as||'—'})</span></div>
-      <div class="set-row"><span class="set-lbl">Set 1</span><input type="number" class="score" inputmode="numeric" value="${V('s1h',p.s1h)}" placeholder="0" oninput="onInput('${cat}','${fase.id}','${g.id}',${pid},'s1h',this.value)"><span class="sep">–</span><input type="number" class="score" inputmode="numeric" value="${V('s1a',p.s1a)}" placeholder="0" oninput="onInput('${cat}','${fase.id}','${g.id}',${pid},'s1a',this.value)"></div>
-      ${sets===2?`<div class="set-row"><span class="set-lbl">Set 2</span><input type="number" class="score" inputmode="numeric" value="${V('s2h',p.s2h)}" placeholder="0" oninput="onInput('${cat}','${fase.id}','${g.id}',${pid},'s2h',this.value)"><span class="sep">–</span><input type="number" class="score" inputmode="numeric" value="${V('s2a',p.s2a)}" placeholder="0" oninput="onInput('${cat}','${fase.id}','${g.id}',${pid},'s2a',this.value)"></div>`:''}
-      <div class="save-row"><button class="bp" style="flex:1;padding:8px;font-size:13px;font-weight:600" onclick="saveResult('${cat}','${fase.id}','${g.id}',${pid})">✓ Salva</button>${played?`<button style="padding:8px 14px;font-size:13px" class="bd" onclick="clearResult('${cat}','${fase.id}','${g.id}',${pid})">✕</button>`:''}</div>
+      <div class="set-row"><span class="set-lbl">Set 1</span><input type="number" class="score" inputmode="numeric" value="${V('s1h',p.s1h)}" placeholder="0" oninput="onInput('${catId}','${fase.id}','${g.id}',${pid},'s1h',this.value)"><span class="sep">–</span><input type="number" class="score" inputmode="numeric" value="${V('s1a',p.s1a)}" placeholder="0" oninput="onInput('${catId}','${fase.id}','${g.id}',${pid},'s1a',this.value)"></div>
+      ${sets===2?`<div class="set-row"><span class="set-lbl">Set 2</span><input type="number" class="score" inputmode="numeric" value="${V('s2h',p.s2h)}" placeholder="0" oninput="onInput('${catId}','${fase.id}','${g.id}',${pid},'s2h',this.value)"><span class="sep">–</span><input type="number" class="score" inputmode="numeric" value="${V('s2a',p.s2a)}" placeholder="0" oninput="onInput('${catId}','${fase.id}','${g.id}',${pid},'s2a',this.value)"></div>`:''}
+      <div class="save-row"><button class="bp" style="flex:1;padding:8px;font-size:13px;font-weight:600" onclick="saveResult('${catId}','${fase.id}','${g.id}',${pid})">✓ Salva</button>${played?`<button style="padding:8px 14px;font-size:13px" class="bd" onclick="clearResult('${catId}','${fase.id}','${g.id}',${pid})">✕</button>`:''}</div>
       ${played?`<div class="saved">✓ Set1: ${p.s1h}–${p.s1a}${sets===2&&p.s2h!==''?' | Set2: '+p.s2h+'–'+p.s2a:''}</div>`:''}
     </div>`;}).join('');}
   return`<div class="girone-box"><div class="girone-hdr">
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span class="gbadge ${b}">Girone ${g.label}</span><span style="font-size:12px;color:var(--txt2)">${giocate}/${g.partite.length} partite · ${sets} set</span></div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span style="font-size:13px;padding:3px 10px;border-radius:20px;font-weight:600;${badgeSt}">Girone ${g.label}</span>
+      <span style="font-size:12px;color:var(--txt2)">${giocate}/${g.partite.length} partite · ${sets} set</span>
+    </div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-      <div style="display:flex;align-items:center;gap:8px"><label class="toggle"><input type="checkbox" ${g.ritorno?'checked':''} onchange="toggleRitorno('${cat}','${fase.id}','${g.id}')"><span class="slider"></span></label><span style="font-size:13px;color:var(--txt2)">A/R</span></div>
-      <button class="bg bsm" onclick="exportPDF('${cat}','${fase.id}','${g.id}')">📄 PDF</button>
+      <div style="display:flex;align-items:center;gap:8px"><label class="toggle"><input type="checkbox" ${g.ritorno?'checked':''} onchange="toggleRitorno('${catId}','${fase.id}','${g.id}')"><span class="slider"></span></label><span style="font-size:13px;color:var(--txt2)">A/R</span></div>
+      <button class="bg bsm" onclick="exportPDF('${catId}','${fase.id}','${g.id}')">📄 PDF</button>
     </div></div>
     <div class="g2"><div><div class="sec">Classifica</div>${clHtml}</div><div><div class="sec">Partite${g.ritorno?' — Andata':''}</div>${rPL(andataP)}${ritornoP.length?`<div class="sec" style="margin-top:14px">Ritorno</div>${rPL(ritornoP)}`:''}</div></div>
   </div>`;
 }
 
-function renderElimMatch(cat,fid,mk,m,title){
+function renderElimMatch(catId,fid,mk,m,title){
   if(!m)return'';const w=getWinner(m);const played=m.s1h!==''&&m.s1a!=='';
   return`<div class="elim-card"><div class="elim-lbl">${title}</div>
     <div class="elim-team${w===m.t1?' win':played?' lose':''}"><div><div>${m.t1||'—'}</div>${m.da1?`<div class="org">${m.da1}</div>`:''}</div>${w===m.t1?'🏆':''}</div>
     <div class="elim-team${w===m.t2?' win':played?' lose':''}"><div><div>${m.t2||'—'}</div>${m.da2?`<div class="org">${m.da2}</div>`:''}</div>${w===m.t2?'🏆':''}</div>
-    <div class="set-row" style="margin-top:10px"><span class="set-lbl">Set 1</span><input type="number" class="score" inputmode="numeric" value="${getVElim(fid,mk,'s1h',m.s1h||'')}" placeholder="0" oninput="onInputElim('${fid}','${mk}','s1h',this.value)"><span class="sep">–</span><input type="number" class="score" inputmode="numeric" value="${getVElim(fid,mk,'s1a',m.s1a||'')}" placeholder="0" oninput="onInputElim('${fid}','${mk}','s1a',this.value)"></div>
-    <button class="bp bsm" style="width:100%;margin-top:6px" onclick="saveElim('${cat}','${fid}','${mk}')">✓ Salva</button>
+    <div class="set-row" style="margin-top:10px"><span class="set-lbl">Set 1</span>
+      <input type="number" class="score" inputmode="numeric" value="${getVElim(fid,mk,'s1h',m.s1h||'')}" placeholder="0" oninput="onInputElim('${fid}','${mk}','s1h',this.value)">
+      <span class="sep">–</span>
+      <input type="number" class="score" inputmode="numeric" value="${getVElim(fid,mk,'s1a',m.s1a||'')}" placeholder="0" oninput="onInputElim('${fid}','${mk}','s1a',this.value)">
+    </div>
+    <button class="bp bsm" style="width:100%;margin-top:6px" onclick="saveElim('${catId}','${fid}','${mk}')">✓ Salva</button>
     ${played?`<div class="saved" style="margin-top:6px">✓ Vince ${w}</div>`:''}
   </div>`;
 }
-function renderElimBlock(cat,fase){
-  const e=fase.elim||{};propagateElim(fase);const hasQ=e.q1||e.q2||e.q3||e.q4;const wF=getWinner(e.fin12),lF=getLoser(e.fin12),wF34=getWinner(e.fin34);
+
+function renderElimBlock(catId,fase){
+  const e=fase.elim||{};propagateElim(fase);const hasQ=e.q1||e.q2||e.q3||e.q4;
+  const wF=getWinner(e.fin12),lF=getLoser(e.fin12),wF34=getWinner(e.fin34);
   let html='';
   if(wF){html+=`<div class="podium-grid"><div class="podium p2" style="margin-top:20px"><div style="font-size:28px">🥈</div><div class="podium-name">${lF||'—'}</div><div class="podium-lbl">2° posto</div></div><div class="podium p1"><div style="font-size:28px">🥇</div><div class="podium-name">${wF}</div><div class="podium-lbl">1° posto</div></div><div class="podium p3" style="margin-top:30px"><div style="font-size:28px">🥉</div><div class="podium-name">${wF34||'—'}</div><div class="podium-lbl">3° posto</div></div></div>`;}
-  if(hasQ){html+=`<div class="bracket-round"><div class="bracket-title">⚡ Quarti di Finale</div><div class="bracket-grid">${['q1','q2','q3','q4'].filter(k=>e[k]).map((k,i)=>renderElimMatch(cat,fase.id,k,e[k],`Quarto ${i+1}: ${['1°vs8°','2°vs7°','3°vs6°','4°vs5°'][i]}`)).join('')}</div></div>`;}
-  html+=`<div class="bracket-round"><div class="bracket-title">🏅 Semifinali</div><div class="bracket-grid">${renderElimMatch(cat,fase.id,'sf1',e.sf1,'Semifinale 1')}${renderElimMatch(cat,fase.id,'sf2',e.sf2,'Semifinale 2')}</div></div>`;
-  html+=`<div class="bracket-round"><div class="bracket-title">🏆 Finali</div><div class="bracket-grid">${renderElimMatch(cat,fase.id,'fin12',e.fin12,'Finale 1° - 2° posto')}${renderElimMatch(cat,fase.id,'fin34',e.fin34,'Finale 3° - 4° posto')}</div></div>`;
+  if(hasQ){html+=`<div class="bracket-round"><div class="bracket-title">⚡ Quarti di Finale</div><div class="bracket-grid">${['q1','q2','q3','q4'].filter(k=>e[k]).map((k,i)=>renderElimMatch(catId,fase.id,k,e[k],`Quarto ${i+1}: ${['1°vs8°','2°vs7°','3°vs6°','4°vs5°'][i]}`)).join('')}</div></div>`;}
+  html+=`<div class="bracket-round"><div class="bracket-title">🏅 Semifinali</div><div class="bracket-grid">${renderElimMatch(catId,fase.id,'sf1',e.sf1,'Semifinale 1')}${renderElimMatch(catId,fase.id,'sf2',e.sf2,'Semifinale 2')}</div></div>`;
+  html+=`<div class="bracket-round"><div class="bracket-title">🏆 Finali</div><div class="bracket-grid">${renderElimMatch(catId,fase.id,'fin12',e.fin12,'Finale 1° - 2° posto')}${renderElimMatch(catId,fase.id,'fin34',e.fin34,'Finale 3° - 4° posto')}</div></div>`;
   return html;
 }
 
 // ============================================================
 // BUILDER FASE SUCCESSIVA
 // ============================================================
-function openBuilder(cat){
-  const fasi=getFasi(cat);const last=fasi[fasi.length-1];
+function openBuilder(catId){
+  const cat=getCat(catId);if(!cat)return;
+  const fasi=cat.fasi||[];const last=fasi[fasi.length-1];
   if(!last||!last.gironi?.length){alert('Prima crea almeno un girone.');return;}
-  const generale=classificaGenerale(last.gironi);const top8=generale.slice(0,8);const dal9=generale.slice(8);
+  const generale=classificaGenerale(last.gironi);
   const defaultElim=Math.min(8,generale.length);
   const topN=generale.slice(0,defaultElim);const dalN=generale.slice(defaultElim);
-  builderState={cat,gironi:last.gironi,generale,top8:topN,dal9:dalN,numElim:defaultElim,mode:'entrambi',gironiSets:PREFS[cat].sets,maxGironi:2,draft:buildDraftGironi(dalN,2)};render();
+  builderState={cat:catId,gironi:last.gironi,generale,top8:topN,dal9:dalN,numElim:defaultElim,mode:'entrambi',gironiSets:getPref(catId,'sets',2),maxGironi:2,draft:buildDraftGironi(dalN,2)};render();
 }
 function buildDraftGironi(squadre,maxG){if(!squadre.length)return[];const nG=Math.min(maxG,Math.max(1,Math.floor(squadre.length/2)));const draft=Array.from({length:nG},(_,i)=>({label:String.fromCharCode(65+i),squadre:[]}));squadre.forEach((tt,i)=>draft[i%nG].squadre.push({nome:tt.nome,soc:tt.soc||'',posLabel:tt.posLabel}));return draft.filter(g=>g.squadre.length>=2);}
 function setBuilderMode(m){if(!builderState)return;builderState.mode=m;if(m==='gironi')builderState.draft=buildDraftGironi(builderState.generale,builderState.maxGironi);else builderState.draft=buildDraftGironi(builderState.dal9,builderState.maxGironi);render();}
-function setNumElim(n){
-  if(!builderState)return;
-  builderState.numElim=n;
-  builderState.top8=builderState.generale.slice(0,n);
-  builderState.dal9=builderState.generale.slice(n);
-  builderState.draft=buildDraftGironi(builderState.dal9,builderState.maxGironi);
-  render();
-}
+function setNumElim(n){if(!builderState)return;builderState.numElim=n;builderState.top8=builderState.generale.slice(0,n);builderState.dal9=builderState.generale.slice(n);builderState.draft=buildDraftGironi(builderState.dal9,builderState.maxGironi);render();}
 function setMaxGironi(n){if(!builderState)return;builderState.maxGironi=n;builderState.draft=buildDraftGironi(builderState.mode==='gironi'?builderState.generale:builderState.dal9,n);render();}
 function builderAddTeam(nome,soc,posLabel,gi){if(!builderState)return;builderState.draft.forEach(g=>{g.squadre=g.squadre.filter(s=>s.nome!==nome)});if(gi>=0&&gi<builderState.draft.length)builderState.draft[gi].squadre.push({nome,soc,posLabel});render();}
 function builderAddGirone2(){if(!builderState)return;builderState.draft.push({label:String.fromCharCode(65+builderState.draft.length),squadre:[]});render();}
@@ -564,57 +705,53 @@ function builderRemoveGirone2(i){if(!builderState)return;builderState.draft.spli
 function builderRemoveTeam2(gi,nome){if(!builderState)return;builderState.draft[gi].squadre=builderState.draft[gi].squadre.filter(s=>s.nome!==nome);render();}
 function builderCancel(){builderState=null;render();}
 function builderConfirm(){
-  if(!builderState)return;const cat=builderState.cat;const fasi=getFasi(cat);const{mode,top8,dal9,draft,gironiSets,generale,maxGironi,numElim}=builderState;
+  if(!builderState)return;
+  const catId=builderState.cat;const cat=getCat(catId);if(!cat)return;
+  const fasi=cat.fasi||[];
+  const{mode,top8,dal9,draft,gironiSets,generale,maxGironi,numElim}=builderState;
   const prevFase=fasi[fasi.length-1];if(prevFase)collapsed.add(prevFase.id);
   if(mode==='gironi'){const allDraft=buildDraftGironi(generale,maxGironi);const valid=allDraft.filter(g=>g.squadre.length>=2);if(!valid.length){alert('Nessun girone valido.');return;}fasi.push({id:uid(),label:`Fase ${fasi.length+1}`,tipo:'gironi',gironi:valid.map((d,i)=>({id:uid(),label:String.fromCharCode(65+i),squadre:d.squadre.map(s=>({nome:s.nome,soc:s.soc})),sets:gironiSets,ritorno:false,partite:genPartite(d.squadre.length,false,gironiSets)}))});}
   else if(mode==='quarti'){fasi.push({id:uid(),label:'Fase eliminazione',tipo:'elim',gironi:[],elim:buildElimStruct(generale.slice(0,numElim))});}
-  else{if(dal9.length>=2){const valid=draft.filter(g=>g.squadre.length>=2);if(valid.length)fasi.push({id:uid(),label:`Fase ${fasi.length+1} — Gironi (dal 9°)`,tipo:'gironi',gironi:valid.map((d,i)=>({id:uid(),label:String.fromCharCode(65+i),squadre:d.squadre.map(s=>({nome:s.nome,soc:s.soc})),sets:gironiSets,ritorno:false,partite:genPartite(d.squadre.length,false,gironiSets)}))});}fasi.push({id:uid(),label:`Fase eliminazione (Top ${numElim})`,tipo:'elim',gironi:[],elim:buildElimStruct(top8)});}
+  else{if(dal9.length>=2){const valid=draft.filter(g=>g.squadre.length>=2);if(valid.length)fasi.push({id:uid(),label:`Fase ${fasi.length+1} — Gironi (dal ${numElim+1}°)`,tipo:'gironi',gironi:valid.map((d,i)=>({id:uid(),label:String.fromCharCode(65+i),squadre:d.squadre.map(s=>({nome:s.nome,soc:s.soc})),sets:gironiSets,ritorno:false,partite:genPartite(d.squadre.length,false,gironiSets)}))});}fasi.push({id:uid(),label:`Fase eliminazione (Top ${numElim})`,tipo:'elim',gironi:[],elim:buildElimStruct(top8)});}
   builderState=null;sv();render();
 }
 
-function renderNumElimSelector(numElim, totSq){
-  const options=[
-    {n:2,  label:'2 — Finale diretta'},
-    {n:4,  label:'4 — Semifinali'},
-    {n:8,  label:'8 — Quarti di finale'},
-    {n:16, label:'16 — Ottavi di finale'},
-    {n:32, label:'32 — Sedicesimi di finale'},
-  ];
-  const opts=options.filter(x=>x.n<=totSq)
-    .map(x=>'<option value="'+x.n+'"'+(numElim===x.n?' selected':'')+'>'+x.label+'</option>')
-    .join('');
+function renderNumElimSelector(numElim,totSq){
+  const options=[{n:2,label:'2 — Finale diretta'},{n:4,label:'4 — Semifinali'},{n:8,label:'8 — Quarti di finale'},{n:16,label:'16 — Ottavi'},{n:32,label:'32 — Sedicesimi'}];
+  const opts=options.filter(x=>x.n<=totSq).map(x=>`<option value="${x.n}"${numElim===x.n?' selected':''}>${x.label}</option>`).join('');
   const resto=totSq-numElim>0?'Le restanti '+(totSq-numElim)+' vanno ai gironi':'';
-  return '<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap">'
-    +'<div class="sec" style="margin:0">Squadre alle eliminatorie:</div>'
-    +'<select class="set-sel" onchange="setNumElim(parseInt(this.value))">'+opts+'</select>'
-    +(resto?'<span style="font-size:12px;color:var(--txt2)">'+resto+'</span>':'')
-    +'</div>';
+  return`<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap"><div class="sec" style="margin:0">Squadre alle eliminatorie:</div><select class="set-sel" onchange="setNumElim(parseInt(this.value))">${opts}</select>${resto?`<span style="font-size:12px;color:var(--txt2)">${resto}</span>`:''}</div>`;
 }
 
-function renderBuilder(b){
-  if(!builderState)return'';const{mode,top8,dal9,draft,gironiSets,maxGironi,numElim,generale}=builderState;const totSq=generale.length;const pool=mode==='gironi'?generale:dal9;
-  let html=`<div class="card"><div class="card-title">Nuova fase</div><p style="font-size:13px;color:var(--txt2);margin-bottom:1rem">Squadre totali: <strong>${totSq}</strong></p>
+function renderBuilder(catId){
+  if(!builderState)return'';const cat=getCat(catId);
+  const col=cat?.colore||'#166534';
+  const{mode,top8,dal9,draft,gironiSets,maxGironi,numElim,generale}=builderState;const totSq=generale.length;const pool=mode==='gironi'?generale:dal9;
+  let html=`<div class="card"><div class="card-title">Nuova fase — ${cat?.emoji||''} ${cat?.nome||''}</div>
+    <p style="font-size:13px;color:var(--txt2);margin-bottom:1rem">Squadre totali: <strong>${totSq}</strong></p>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.2rem">
       <div class="type-btn${mode==='gironi'?' sel':''}" onclick="setBuilderMode('gironi')"><h3>🏆 Solo gironi</h3><p>Tutte le ${totSq} squadre in gironi</p></div>
       <div class="type-btn${mode==='quarti'?' sel':''}" onclick="setBuilderMode('quarti')"><h3>⚡ Solo eliminazione</h3><p>Top ${numElim} → elim diretta</p></div>
-      <div class="type-btn${mode==='entrambi'?' sel':''}" onclick="setBuilderMode('entrambi')"><h3>🔀 Entrambi</h3><p>Top 8 → elim · Dal 9° → gironi</p></div>
+      <div class="type-btn${mode==='entrambi'?' sel':''}" onclick="setBuilderMode('entrambi')"><h3>🔀 Entrambi</h3><p>Top ${numElim} → elim · Dal ${numElim+1}° → gironi</p></div>
     </div>
     ${mode!=='gironi'?renderNumElimSelector(numElim,totSq):''}
     <div style="background:var(--info);border-radius:8px;padding:12px;margin-bottom:12px">
-      <div class="sec">Classifica generale — ordine selezione</div>
-      <div style="font-size:11px;color:var(--txt2);margin-bottom:8px">Tutti i 1° (per Q.Set) → migliori 2° → migliori 3°, ecc.</div>
+      <div class="sec">Classifica generale</div>
       <table><thead><tr><th>#</th><th>Squadra</th><th>Soc</th><th>Da</th><th>Q.Set</th><th>Destino</th></tr></thead><tbody>
       ${generale.map((tt,i)=>`<tr style="${i<numElim?'background:rgba(254,249,195,0.3)':''}"><td style="font-weight:700;color:${i<numElim?'#854d0e':'#166534'}">${i+1}</td><td style="font-weight:600">${tt.nome}</td><td style="font-size:11px;color:var(--txt2)">${tt.soc||''}</td><td style="font-size:11px;color:var(--txt2)">${tt.posLabel}</td><td>${tt.sp>0?(tt.sv/tt.sp).toFixed(2):tt.sv}</td><td style="font-size:11px;font-weight:700;color:${i<numElim?'#854d0e':'#166534'}">${i<numElim?(mode==='gironi'?'🏆':'⚡ Elim'):(mode==='quarti'?'—':'🏆 Girone')}</td></tr>`).join('')}
       </tbody></table>
     </div>`;
   if((mode==='entrambi'&&dal9.length>=2)||mode==='gironi'){
+    const b=`font-size:13px;padding:3px 10px;border-radius:20px;font-weight:600;${catBadgeStyle(catId)}`;
     html+=`<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap">
-      <div class="sec" style="margin:0">Gironi${mode==='entrambi'?' (dal 9°)':''}:</div>
+      <div class="sec" style="margin:0">Gironi${mode==='entrambi'?' (dal '+numElim+'°)':''}:</div>
       <select class="set-sel" onchange="setMaxGironi(parseInt(this.value))">${[1,2,3,4,5,6].map(n=>`<option value="${n}"${maxGironi===n?' selected':''}>${n} giron${n===1?'e':'i'}</option>`).join('')}</select>
       <div class="sec" style="margin:0">Set:</div>
       <select class="set-sel" onchange="builderState.gironiSets=parseInt(this.value)"><option value="1"${gironiSets===1?' selected':''}>1 set</option><option value="2"${gironiSets===2?' selected':''}>2 set</option></select>
     </div>
-    ${draft.map((g,gi)=>`<div class="fase2-box"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px"><span class="gbadge ${b}">Girone ${g.label} — ${g.squadre.length} sq</span><button class="bxsm bd" onclick="builderRemoveGirone2(${gi})">✕</button></div>
+    ${draft.map((g,gi)=>`<div class="fase2-box"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px">
+      <span style="${b}">Girone ${g.label} — ${g.squadre.length} sq</span>
+      <button class="bxsm bd" onclick="builderRemoveGirone2(${gi})">✕</button></div>
       <div style="min-height:28px;margin-bottom:8px;display:flex;flex-wrap:wrap;gap:4px">${g.squadre.length?g.squadre.map(s=>`<span class="team-chip">${s.nome}${s.soc?` <span style="opacity:.6;font-size:10px">(${s.soc})</span>`:''} <span style="font-size:10px;opacity:.5">${s.posLabel||''}</span><button onclick="builderRemoveTeam2(${gi},'${s.nome.replace(/'/g,"\\'")}')">×</button></span>`).join(''):'<span style="font-size:12px;color:var(--txt2)">Nessuna squadra</span>'}</div>
       <div style="display:flex;flex-wrap:wrap;gap:4px">${pool.filter(tt=>!g.squadre.find(s=>s.nome===tt.nome)).map(tt=>`<button class="bxsm" onclick="builderAddTeam('${tt.nome.replace(/'/g,"\\'")}','${(tt.soc||'').replace(/'/g,"\\'")}','${(tt.posLabel||'').replace(/'/g,"\\'")}',${gi})">${tt.nome}${tt.soc?` <span style="opacity:.5">(${tt.soc})</span>`:''}</button>`).join('')}</div>
     </div>`).join('')}
@@ -625,29 +762,28 @@ function renderBuilder(b){
 }
 
 // ============================================================
-// PAGINA LIVE — configurazione sponsor e info
+// PAGINA LIVE — configurazione
 // ============================================================
 function renderPaginaLive(){
   const t=currentTorneo();if(!t)return'';
   const cfg=t.pageConfig||{};
   const sponsorEnabled=!!cfg.sponsorEnabled;
   const infoEnabled=!!cfg.infoEnabled;
+  const menuEnabled=!!cfg.menuEnabled;
   const sponsorCats=cfg.sponsor?.cats||[];
   const infoBlocks=cfg.infoBlocks||[];
+  const menuSezioni=cfg.menu?.sezioni||[];
 
   const toggleStyle='display:flex;align-items:center;gap:10px;margin-bottom:1.5rem';
   const toggleEl=(enabled,fn)=>`<label class="toggle"><input type="checkbox" ${enabled?'checked':''} onchange="${fn}()"><span class="slider"></span></label>`;
 
-  // SEZIONE SPONSOR
+  // ── SPONSOR ──
   let sponsorHtml=`<div class="card" style="margin-bottom:1rem">
     <div style="${toggleStyle}">
       ${toggleEl(sponsorEnabled,'toggleSponsorEnabled')}
-      <div>
-        <div style="font-size:15px;font-weight:600">🤝 Tab Sponsor</div>
-        <div style="font-size:12px;color:var(--txt2)">Mostra una pagina sponsor nella schermata live pubblica</div>
-      </div>
+      <div><div style="font-size:15px;font-weight:600">🤝 Tab Sponsor</div>
+      <div style="font-size:12px;color:var(--txt2)">Mostra sponsor nella pagina live pubblica</div></div>
     </div>`;
-
   if(sponsorEnabled){
     sponsorHtml+=`<div style="margin-top:.5rem">`;
     sponsorCats.forEach((cat,ci)=>{
@@ -655,95 +791,123 @@ function renderPaginaLive(){
       sponsorHtml+=`<div style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:12px">
         <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
           <div style="display:flex;gap:2px">
-            ${ci>0?`<button class="bxsm" onclick="moveSponsorCat(${ci},-1)" title="Sposta su">&#8593;</button>`:'<span style="width:28px"></span>'}
-            ${ci<nCats-1?`<button class="bxsm" onclick="moveSponsorCat(${ci},1)" title="Sposta giu">&#8595;</button>`:'<span style="width:28px"></span>'}
+            ${ci>0?`<button class="bxsm" onclick="moveSponsorCat(${ci},-1)">↑</button>`:'<span style="width:28px"></span>'}
+            ${ci<nCats-1?`<button class="bxsm" onclick="moveSponsorCat(${ci},1)">↓</button>`:'<span style="width:28px"></span>'}
           </div>
-          <input type="text" value="${escV(cat.nome)}" placeholder="Nome categoria (es: Main Sponsor)"
-            style="flex:1;font-weight:600;font-size:14px"
-            oninput="updateSponsorCatNome(${ci},this.value)">
-          <button class="bsm bd" onclick="delSponsorCat(${ci})">&#10005; Elimina</button>
+          <input type="text" value="${escV(cat.nome)}" placeholder="Nome categoria" style="flex:1;font-weight:600;font-size:14px" oninput="updateSponsorCatNome(${ci},this.value)">
+          <button class="bsm bd" onclick="delSponsorCat(${ci})">✕ Elimina</button>
         </div>`;
-
       const nItems=(cat.items||[]).length;
       (cat.items||[]).forEach((sp,ii)=>{
         const sizeOpts=['grande','medio','piccolo'].map(s=>`<option value="${s}"${sp.size===s?' selected':''}>${s.charAt(0).toUpperCase()+s.slice(1)}</option>`).join('');
         sponsorHtml+=`<div style="background:var(--info);border-radius:8px;padding:12px;margin-bottom:8px">
           <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
             <div style="display:flex;gap:2px">
-              ${ii>0?`<button class="bxsm" onclick="moveSponsorItem(${ci},${ii},-1)">&#8593;</button>`:'<span style="width:28px"></span>'}
-              ${ii<nItems-1?`<button class="bxsm" onclick="moveSponsorItem(${ci},${ii},1)">&#8595;</button>`:'<span style="width:28px"></span>'}
+              ${ii>0?`<button class="bxsm" onclick="moveSponsorItem(${ci},${ii},-1)">↑</button>`:'<span style="width:28px"></span>'}
+              ${ii<nItems-1?`<button class="bxsm" onclick="moveSponsorItem(${ci},${ii},1)">↓</button>`:'<span style="width:28px"></span>'}
             </div>
             <select style="width:auto;padding:5px 8px;font-size:12px" onchange="updateSponsorItem(${ci},${ii},'size',this.value)">${sizeOpts}</select>
-            <input type="text" value="${escV(sp.nome)}" placeholder="Nome sponsor"
-              style="flex:1" oninput="updateSponsorItem(${ci},${ii},'nome',this.value)">
-            <button class="bxsm bd" onclick="delSponsorItem(${ci},${ii})">&#10005;</button>
+            <input type="text" value="${escV(sp.nome)}" placeholder="Nome sponsor" style="flex:1" oninput="updateSponsorItem(${ci},${ii},'nome',this.value)">
+            <button class="bxsm bd" onclick="delSponsorItem(${ci},${ii})">✕</button>
           </div>
-          <input type="text" value="${escV(sp.frase)}" placeholder="Frase o slogan (opzionale)"
-            style="margin-bottom:8px" oninput="updateSponsorItem(${ci},${ii},'frase',this.value)">
+          <input type="text" value="${escV(sp.frase)}" placeholder="Frase o slogan (opzionale)" style="margin-bottom:8px" oninput="updateSponsorItem(${ci},${ii},'frase',this.value)">
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-            ${sp.immagine
-              ?`<img src="${sp.immagine}" style="height:48px;border-radius:6px;object-fit:contain;background:#fff;padding:4px">`
-              :'<span style="font-size:12px;color:var(--txt2)">Nessuna immagine</span>'}
-            <label style="cursor:pointer">
-              <span class="bp bxsm" style="display:inline-block;cursor:pointer">&#128206; ${sp.immagine?'Cambia':'Carica'} immagine</span>
-              <input type="file" accept="image/*" style="display:none" onchange="uploadSponsorImg(${ci},${ii},this)">
-            </label>
-            <input type="text" value="${sp.immagine&&!sp.immagine.startsWith('data:')?escV(sp.immagine):''}"
-              placeholder="...oppure incolla URL immagine"
-              style="flex:1;min-width:160px;font-size:12px"
-              oninput="updateSponsorItem(${ci},${ii},'immagine',this.value)">
+            ${sp.immagine?`<img src="${sp.immagine}" style="height:48px;border-radius:6px;object-fit:contain;background:#fff;padding:4px">`:'<span style="font-size:12px;color:var(--txt2)">Nessuna immagine</span>'}
+            <label style="cursor:pointer"><span class="bp bxsm" style="display:inline-block">📎 ${sp.immagine?'Cambia':'Carica'}</span><input type="file" accept="image/*" style="display:none" onchange="uploadSponsorImg(${ci},${ii},this)"></label>
+            <input type="text" value="${sp.immagine&&!sp.immagine.startsWith('data:')?escV(sp.immagine):''}" placeholder="...oppure URL immagine" style="flex:1;min-width:160px;font-size:12px" oninput="updateSponsorItem(${ci},${ii},'immagine',this.value)">
           </div>
         </div>`;
       });
-
-      sponsorHtml+=`<button class="bsm" onclick="addSponsorItem(${ci})" style="margin-top:4px">+ Aggiungi sponsor</button>
-      </div>`;
+      sponsorHtml+=`<button class="bsm" onclick="addSponsorItem(${ci})" style="margin-top:4px">+ Aggiungi sponsor</button></div>`;
     });
-
-    sponsorHtml+=`<button class="bp bsm" onclick="addSponsorCat()">+ Nuova categoria</button>
-    </div>`;
+    sponsorHtml+=`<button class="bp bsm" onclick="addSponsorCat()">+ Nuova categoria</button></div>`;
   }
   sponsorHtml+=`</div>`;
 
-  // SEZIONE INFO
-  let infoHtml=`<div class="card">
+  // ── INFO ──
+  let infoHtml=`<div class="card" style="margin-bottom:1rem">
     <div style="${toggleStyle}">
       ${toggleEl(infoEnabled,'toggleInfoEnabled')}
-      <div>
-        <div style="font-size:15px;font-weight:600">&#8505;&#65039; Tab Info</div>
-        <div style="font-size:12px;color:var(--txt2)">Mostra una pagina informazioni nella schermata live pubblica</div>
-      </div>
+      <div><div style="font-size:15px;font-weight:600">ℹ️ Tab Info</div>
+      <div style="font-size:12px;color:var(--txt2)">Informazioni sull'evento nella pagina live</div></div>
     </div>`;
-
   if(infoEnabled){
     infoHtml+=`<div style="margin-top:.5rem">`;
     infoBlocks.forEach((bl,bi)=>{
       infoHtml+=`<div style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px">
         <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
-          <input type="text" value="${escV(bl.titolo)}" placeholder="Titolo blocco"
-            style="flex:1;font-weight:600" oninput="updateInfoBlock(${bi},'titolo',this.value)">
+          <input type="text" value="${escV(bl.titolo)}" placeholder="Titolo blocco" style="flex:1;font-weight:600" oninput="updateInfoBlock(${bi},'titolo',this.value)">
           <div style="display:flex;gap:4px">
-            ${bi>0?`<button class="bxsm" onclick="moveInfoBlock(${bi},-1)">&#8593;</button>`:''}
-            ${bi<infoBlocks.length-1?`<button class="bxsm" onclick="moveInfoBlock(${bi},1)">&#8595;</button>`:''}
-            <button class="bxsm bd" onclick="delInfoBlock(${bi})">&#10005;</button>
+            ${bi>0?`<button class="bxsm" onclick="moveInfoBlock(${bi},-1)">↑</button>`:''}
+            ${bi<infoBlocks.length-1?`<button class="bxsm" onclick="moveInfoBlock(${bi},1)">↓</button>`:''}
+            <button class="bxsm bd" onclick="delInfoBlock(${bi})">✕</button>
           </div>
         </div>
-        <textarea rows="4" placeholder="Testo informativo..."
-          style="width:100%;padding:8px;border:1px solid var(--border2);border-radius:8px;font-size:13px;background:var(--inp);color:var(--txt);resize:vertical;font-family:inherit"
-          oninput="updateInfoBlock(${bi},'testo',this.value)">${escV(bl.testo)}</textarea>
+        <textarea rows="4" placeholder="Testo informativo..." style="width:100%;padding:8px;border:1px solid var(--border2);border-radius:8px;font-size:13px;background:var(--inp);color:var(--txt);resize:vertical;font-family:inherit" oninput="updateInfoBlock(${bi},'testo',this.value)">${escV(bl.testo)}</textarea>
       </div>`;
     });
-    infoHtml+=`<button class="bp bsm" onclick="addInfoBlock()">+ Nuovo blocco</button>
-    </div>`;
+    infoHtml+=`<button class="bp bsm" onclick="addInfoBlock()">+ Nuovo blocco</button></div>`;
   }
   infoHtml+=`</div>`;
 
+  // ── MENU ──
+  let menuHtml=`<div class="card">
+    <div style="${toggleStyle}">
+      ${toggleEl(menuEnabled,'toggleMenuEnabled')}
+      <div><div style="font-size:15px;font-weight:600">🍽️ Tab Menu</div>
+      <div style="font-size:12px;color:var(--txt2)">Mostra il menu dell'evento con prezzi nella pagina live</div></div>
+    </div>`;
+  if(menuEnabled){
+    menuHtml+=`<div style="margin-top:.5rem">`;
+    menuSezioni.forEach((sez,si)=>{
+      const nSez=menuSezioni.length;
+      menuHtml+=`<div style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:12px">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+          <div style="display:flex;gap:2px">
+            ${si>0?`<button class="bxsm" onclick="moveMenuSezione(${si},-1)">↑</button>`:'<span style="width:28px"></span>'}
+            ${si<nSez-1?`<button class="bxsm" onclick="moveMenuSezione(${si},1)">↓</button>`:'<span style="width:28px"></span>'}
+          </div>
+          <input type="text" value="${escV(sez.nome)}" placeholder="Nome sezione (es: Pizze, Bevande…)" style="flex:1;font-weight:600;font-size:14px" oninput="updateMenuSezione(${si},this.value)">
+          <button class="bsm bd" onclick="delMenuSezione(${si})">✕ Sezione</button>
+        </div>
+        <div style="background:var(--info);border-radius:8px;padding:8px;margin-bottom:8px">
+          <div style="display:grid;grid-template-columns:1fr 80px auto;gap:6px;align-items:center;padding:4px 6px;font-size:11px;font-weight:600;color:var(--txt2)">
+            <div>VOCE</div><div style="text-align:center">PREZZO</div><div></div>
+          </div>
+          ${(sez.voci||[]).map((v,vi)=>{
+            const nVoci=sez.voci.length;
+            return`<div style="display:grid;grid-template-columns:1fr 80px auto;gap:6px;align-items:center;padding:4px 0;border-bottom:1px solid var(--border)">
+              <div>
+                <input type="text" value="${escV(v.nome)}" placeholder="Nome voce" style="margin-bottom:4px" oninput="updateMenuVoce(${si},${vi},'nome',this.value)">
+                <input type="text" value="${escV(v.desc||'')}" placeholder="Descrizione (opz.)" style="font-size:12px" oninput="updateMenuVoce(${si},${vi},'desc',this.value)">
+              </div>
+              <input type="text" value="${escV(v.prezzo)}" placeholder="€ 0,00" style="text-align:center;font-weight:700" oninput="updateMenuVoce(${si},${vi},'prezzo',this.value)">
+              <div style="display:flex;flex-direction:column;gap:2px">
+                ${vi>0?`<button class="bxsm" onclick="moveMenuVoce(${si},${vi},-1)">↑</button>`:''}
+                ${vi<nVoci-1?`<button class="bxsm" onclick="moveMenuVoce(${si},${vi},1)">↓</button>`:''}
+                <button class="bxsm bd" onclick="delMenuVoce(${si},${vi})">✕</button>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+        <button class="bsm" onclick="addMenuVoce(${si})">+ Aggiungi voce</button>
+      </div>`;
+    });
+    // Note generali menu
+    const noteMenu=(t.pageConfig?.menu?.note)||'';
+    menuHtml+=`<button class="bp bsm" onclick="addMenuSezione()" style="margin-bottom:14px">+ Nuova sezione</button>
+    <div style="border:1px solid var(--border);border-radius:10px;padding:14px">
+      <div style="font-size:13px;font-weight:600;margin-bottom:6px">📝 Note generali (es: dove pagare, orari…)</div>
+      <textarea rows="3" placeholder="Es: Passare prima in cassa · Cassa aperta dalle 10:00" style="width:100%;padding:8px;border:1px solid var(--border2);border-radius:8px;font-size:13px;background:var(--inp);color:var(--txt);resize:vertical;font-family:inherit"
+        oninput="ensurePageConfig().menu.note=this.value;sv()">${escV(noteMenu)}</textarea>
+    </div>`;
+    menuHtml+=`</div>`;
+  }
+  menuHtml+=`</div>`;
+
   return`<div class="card" style="background:var(--info);border-color:transparent;margin-bottom:1rem">
     <p style="font-size:13px;color:var(--txt2);line-height:1.6">
-      Configura le tab opzionali che appariranno nella pagina <strong>live.html</strong> pubblica.
-      Attivale con il toggle e compilale — le modifiche vengono salvate automaticamente.
+      Configura le tab opzionali nella pagina <strong>live.html</strong> pubblica. Attivale con il toggle.
     </p>
-  </div>`+sponsorHtml+infoHtml;
+  </div>`+sponsorHtml+infoHtml+menuHtml;
 }
-
-function escV(s){return(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}

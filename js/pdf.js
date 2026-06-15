@@ -76,3 +76,110 @@ function exportPDF(catId,fid,gv){
   if(ritornoP.length)partiteSection('Partite — Ritorno',ritornoP);
   doc.save(`${t.nome}_${catName}_${fase.label.replace(/ /g,'')}_${g.label}.pdf`);
 }
+
+
+// ============================================================
+// PDF TABELLONE ELIMINAZIONE
+// ============================================================
+function exportPDFElim(catId,fid){
+  const t=currentTorneo();const fase=getFase(catId,fid);if(!fase||!fase.elim)return;
+  if(!window.jspdf){alert('Libreria PDF non caricata.');return;}
+  const{jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const W=210,M=15;
+  const cat=getCat(catId);
+  const colHex=cat?.colore||'#166534';
+  function hexRgb(hex){const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return[r,g,b];}
+  const CR=hexRgb(colHex);
+  const CL=CR.map(v=>Math.round(v+(255-v)*0.85));
+  const es=fase.elimSets||1;
+  const e=fase.elim;
+  propagateElim(fase);
+
+  // Header
+  doc.setFillColor(...CR);doc.rect(0,0,W,28,'F');
+  doc.setTextColor(255,255,255);doc.setFontSize(16);doc.setFont('helvetica','bold');
+  doc.text(`${t.nome} — ${cat?.nome||catId}`,M,11);
+  doc.setFontSize(10);doc.setFont('helvetica','normal');
+  doc.text(`${fase.label} · Tabellone eliminazione · ${es} set · ${new Date().toLocaleDateString('it-IT')}`,M,20);
+  let y=34;
+
+  function hexRgbDoc(hex){return hexRgb(hex);}
+  function matchBox(m,title,x,bw,yy){
+    if(!m)return yy;
+    const w=getWinner(m,es);const played=m.s1h!==''&&m.s1a!=='';
+    doc.setFillColor(...CL);doc.rect(x,yy,bw,6,'F');
+    doc.setTextColor(...CR);doc.setFont('helvetica','bold');doc.setFontSize(8);
+    doc.text(title.toUpperCase(),x+2,yy+4.5);yy+=7;
+    // T1
+    if(w===m.t1){doc.setFillColor(220,252,231);}else{doc.setFillColor(250,250,250);}
+    doc.rect(x,yy,bw,8,'F');
+    doc.setTextColor(30,30,30);doc.setFont('helvetica','bold');doc.setFontSize(9);
+    doc.text(m.t1||'—',x+2,yy+5.5);
+    if(played){doc.setTextColor(...CR);doc.text(m.s1h,x+bw-8,yy+5.5,{align:'right'});}
+    yy+=9;
+    // T2
+    if(w===m.t2){doc.setFillColor(220,252,231);}else{doc.setFillColor(250,250,250);}
+    doc.rect(x,yy,bw,8,'F');
+    doc.setTextColor(30,30,30);doc.setFont('helvetica','bold');doc.setFontSize(9);
+    doc.text(m.t2||'—',x+2,yy+5.5);
+    if(played){doc.setTextColor(...CR);doc.text(m.s1a,x+bw-8,yy+5.5,{align:'right'});}
+    yy+=9;
+    if(played&&es===2&&m.s2h!==''){
+      doc.setFillColor(245,245,245);doc.rect(x,yy,bw,5,'F');
+      doc.setTextColor(100,100,100);doc.setFontSize(7.5);doc.setFont('helvetica','normal');
+      doc.text(`Set 2: ${m.s2h}–${m.s2a}`,x+2,yy+3.5);yy+=5;
+    }
+    if(w){doc.setTextColor(22,101,52);doc.setFont('helvetica','bold');doc.setFontSize(8);doc.text(`✓ Vince: ${w}`,x+2,yy+3);yy+=5;}
+    return yy+3;
+  }
+
+  const hasQ=e.q1||e.q2||e.q3||e.q4;
+  const bw=(W-2*M-6)/2;
+
+  // Podio se completato
+  const wFin=getWinner(e.fin12,es),lFin=getLoser(e.fin12,es),wF34=getWinner(e.fin34,es);
+  if(wFin){
+    doc.setFillColor(...CL);doc.rect(M,y,W-2*M,14,'F');
+    doc.setTextColor(...CR);doc.setFont('helvetica','bold');doc.setFontSize(11);
+    doc.text(`🥇 ${wFin}`,M+4,y+6);
+    doc.setFontSize(9);doc.setFont('helvetica','normal');doc.setTextColor(80,80,80);
+    doc.text(`🥈 ${lFin||'—'}   🥉 ${wF34||'—'}`,M+4,y+11);
+    y+=18;
+  }
+
+  if(hasQ){
+    doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(...CR);
+    doc.text('QUARTI DI FINALE',M,y);y+=4;
+    const qs=['q1','q2','q3','q4'].filter(k=>e[k]);
+    const labels=['1°vs8°','2°vs7°','3°vs6°','4°vs5°'];
+    let maxY=y;
+    qs.forEach((k,i)=>{
+      const col=i%2===0?M:M+bw+6;
+      if(i%2===0&&i>0)y=maxY+4;
+      const ny=matchBox(e[k],`Quarto: ${labels[i]}`,col,bw,y);
+      if(i%2===1){maxY=Math.max(maxY,ny);y=maxY;}
+      else{maxY=ny;}
+    });
+    y=maxY+4;
+  }
+
+  if(e.sf1||e.sf2){
+    doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(...CR);
+    doc.text('SEMIFINALI',M,y);y+=4;
+    let y1=y,y2=y;
+    if(e.sf1)y1=matchBox(e.sf1,'Semifinale 1',M,bw,y);
+    if(e.sf2)y2=matchBox(e.sf2,'Semifinale 2',M+bw+6,bw,y);
+    y=Math.max(y1,y2)+4;
+  }
+
+  if(e.fin12||e.fin34){
+    doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(...CR);
+    doc.text('FINALI',M,y);y+=4;
+    let y1=y,y2=y;
+    if(e.fin12)y1=matchBox(e.fin12,'Finale 1°-2° posto',M,bw,y);
+    if(e.fin34&&e.fin34.t1&&e.fin34.t2)y2=matchBox(e.fin34,'Finale 3°-4° posto',M+bw+6,bw,y);
+    y=Math.max(y1,y2);
+  }
+
+  doc.save(`${t.nome}_${cat?.nome||catId}_${fase.label.replace(/ /g,'')}_tabellone.pdf`);
+}

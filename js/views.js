@@ -16,7 +16,12 @@ function renderBadgeCat(catId,extra){
 // VIEW: HOME
 // ============================================================
 function renderHome(){
-  const ids=Object.keys(DB.tornei||{}).sort((a,b)=>(DB.tornei[b].createdAt||0)-(DB.tornei[a].createdAt||0));
+  const ids=Object.keys(DB.tornei||{}).sort((a,b)=>{
+    const ta=DB.tornei[a],tb=DB.tornei[b];
+    // Prima attivi, poi archiviati; dentro ogni gruppo per data decrescente
+    if(!!ta.archiviato!==!!tb.archiviato)return ta.archiviato?1:-1;
+    return(tb.createdAt||0)-(ta.createdAt||0);
+  });
   let html=`<div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
       <div class="card-title" style="margin-bottom:0">🏐 Gestione Tornei</div>
@@ -30,20 +35,27 @@ function renderHome(){
       <input type="text" id="cercaTorneo" placeholder="🔍 Cerca torneo..." style="font-size:13px"
         oninput="render()" value="">
     </div>`:''}
-    ${ids.length?`<div class="sec">Tornei salvati (${ids.length})</div>`:''}
+    ${(()=>{
+      const attivi=ids.filter(id=>!DB.tornei[id].archiviato);
+      const archiviati=ids.filter(id=>DB.tornei[id].archiviato);
+      return attivi.length+archiviati.length > 0 ? `<div class="sec">Tornei attivi (${attivi.length})</div>` : '';
+    })()}
     ${ids.filter(id=>{
       const cerca=document.getElementById('cercaTorneo')?.value?.toLowerCase()||'';
-      return !cerca||DB.tornei[id].nome.toLowerCase().includes(cerca);
+      const t=DB.tornei[id];
+      return !t.archiviato&&(!cerca||t.nome.toLowerCase().includes(cerca));
     }).map(id=>{
       const t=DB.tornei[id];const nSoc=t.societa?.length||0;
       const date=t.createdAt?new Date(t.createdAt).toLocaleDateString('it-IT'):'';
       const isLive=getLiveId()===id;
+      const isArch=!!t.archiviato;
       return`<div class="torneo-item${isLive?' active-t':''}" onclick="openTorneo('${id}')"
-        style="${isLive?'color:#166534':''}">
+        style="${isLive?'color:#166534':isArch?'opacity:.6':''}">
         <div>
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
             <div class="torneo-nome" style="color:${isLive?'#166534':'var(--txt)'}">${t.nome}</div>
             ${isLive?'<span style="font-size:11px;background:#dcfce7;color:#166534;padding:1px 8px;border-radius:10px;font-weight:600">🔴 LIVE</span>':''}
+            ${isArch?'<span style="font-size:11px;background:var(--info);color:var(--txt2);padding:1px 8px;border-radius:10px;font-weight:600">📁 Archiviato</span>':''}
           </div>
           <div class="torneo-meta" style="color:${isLive?'#166534':'var(--txt2)'}">${(()=>{
             const cats=t.categorie||[];
@@ -57,12 +69,42 @@ function renderHome(){
             ?'<span style="font-size:11px;color:#166534;font-weight:500">In corso</span>'
             :`<button class="bsm" style="background:#dcfce7;color:#166534;border-color:#86efac;font-size:11px" onclick="event.stopPropagation();setTorneoLive('${id}')">▶ Live</button>`}
           <button class="bsm" onclick="event.stopPropagation();rinominaTorneo('${id}')" title="Rinomina">✏️</button>
+          <button class="bsm" onclick="event.stopPropagation();archiviaToggle('${id}')" title="${t.archiviato?'Riattiva':'Archivia'}">${t.archiviato?'📂':'📁'}</button>
           <button class="bsm" onclick="event.stopPropagation();duplicaTorneo('${id}')">📋</button>
           <button class="bsm bd" onclick="event.stopPropagation();eliminaTorneo('${id}')">✕</button>
         </div>
       </div>`;
     }).join('')}
     ${!ids.length?`<p style="text-align:center;color:var(--txt2);font-size:13px;padding:1rem">Nessun torneo. Creane uno!</p>`:''}
+    ${(()=>{
+      const archiviati=ids.filter(id=>DB.tornei[id].archiviato);
+      if(!archiviati.length)return'';
+      const cerca=document.getElementById('cercaTorneo')?.value?.toLowerCase()||'';
+      const filtrati=archiviati.filter(id=>!cerca||DB.tornei[id].nome.toLowerCase().includes(cerca));
+      if(!filtrati.length)return'';
+      return`<div style="margin-top:1rem">
+        <div class="sec" style="display:flex;align-items:center;gap:8px;cursor:pointer" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+          📁 Tornei archiviati (${filtrati.length}) <span style="font-size:11px">▼</span>
+        </div>
+        <div style="display:none">
+          ${filtrati.map(id=>{
+            const t=DB.tornei[id];
+            const date=t.createdAt?new Date(t.createdAt).toLocaleDateString('it-IT'):'';
+            return`<div class="torneo-item" style="opacity:.6" onclick="openTorneo('${id}')">
+              <div>
+                <div class="torneo-nome" style="color:var(--txt)">${t.nome} <span style="font-size:11px;background:var(--info);color:var(--txt2);padding:1px 8px;border-radius:10px">📁 Archiviato</span></div>
+                <div class="torneo-meta" style="color:var(--txt2)">${date}</div>
+              </div>
+              <div style="display:flex;gap:6px;align-items:center">
+                <button class="bsm" onclick="event.stopPropagation();archiviaToggle('${id}')" title="Riattiva">📂 Riattiva</button>
+                <button class="bsm" onclick="event.stopPropagation();duplicaTorneo('${id}')">📋</button>
+                <button class="bsm bd" onclick="event.stopPropagation();eliminaTorneo('${id}')">✕</button>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`;
+    })()}
   </div>`;
   return html;
 }
@@ -78,22 +120,21 @@ function openTorneo(id){
     if(!Array.isArray(cat.fasi))cat.fasi=[];
     if(!cat.fasi.length){cat.fasi.push({id:uid(),label:'Fase 1',gironi:[]});needSave=true;}
   }
-  const savedTab=localStorage.getItem('torneo_tab_'+id);
-  const catIds=getCats().map(cc=>cc.id);
-  if(savedTab&&(catIds.includes(savedTab)||['admin','societa','paginaLive'].includes(savedTab)))
-    localCat=savedTab;
-  else
-    // Ripristina ultima tab visitata per questo torneo
+  // Ripristina ultima tab per questo torneo (sessionStorage = per sessione)
   try{
     const last=sessionStorage.getItem('lastTab_'+id);
     const cats=getCats();
-    localCat=(last&&cats.find(c=>c.id===last))?last:cats[0]?.id||null;
+    const valide=[...cats.map(cc=>cc.id),'admin','societa','paginaLive'];
+    localCat=(last&&valide.includes(last))?last:cats[0]?.id||null;
   }catch(e){localCat=getCats()[0]?.id||null;}
   if(needSave)sv();
   render();
 }
 function eliminaTorneo(id){if(!confirm('Eliminare questo torneo?'))return;delete DB.tornei[id];sv();render();}
-function setTorneoLive(id){localStorage.setItem('torneo_live_id',id);render();}
+function setTorneoLive(id){
+  if(DB.tornei[id]?.archiviato){alert('Riattiva il torneo prima di metterlo live.');return;}
+  localStorage.setItem('torneo_live_id',id);render();
+}
 function getLiveId(){return localStorage.getItem('torneo_live_id');}
 function rinominaTorneo(id){
   const t=DB.tornei[id];if(!t)return;
@@ -101,6 +142,12 @@ function rinominaTorneo(id){
   if(!nome||!nome.trim())return;
   t.nome=nome.trim();
   if(currentTorneoId===id)document.getElementById('torneoNomeHdr').textContent=t.nome;
+  sv();render();
+}
+function archiviaToggle(id){
+  const t=DB.tornei[id];if(!t)return;
+  t.archiviato=!t.archiviato;
+  if(t.archiviato&&getLiveId()===id){localStorage.removeItem('torneo_live_id');}
   sv();render();
 }
 function duplicaTorneo(id){const t=DB.tornei[id];const newId=uid();DB.tornei[newId]=JSON.parse(JSON.stringify(t));DB.tornei[newId].nome=t.nome+' (copia)';DB.tornei[newId].createdAt=Date.now();sv();render();}
@@ -170,7 +217,11 @@ function renderTorneoSetup(){
     // Step 3: società e squadre
     html+=`<div class="card">
       <div class="card-title">Nuovo torneo — Società e squadre</div>
-      <p style="font-size:13px;color:var(--txt2);margin-bottom:1rem">Inserisci le società e il numero di squadre per ogni categoria.</p>
+      <p style="font-size:13px;color:var(--txt2);margin-bottom:1rem">Inserisci le società e il numero di squadre per ogni categoria. Lascia 0 se la società non partecipa in quella categoria.</p>
+      <div style="background:var(--info);border-radius:8px;padding:8px 12px;margin-bottom:1rem;font-size:12px;color:var(--txt2)">
+        📌 Categorie: ${w.categorie.map(c=>`<span style="font-size:11px;padding:2px 8px;border-radius:10px;margin:2px;display:inline-block;background:${c.colore}22;color:${c.colore};border:1px solid ${c.colore}44">${c.emoji?c.emoji+' ':''}${c.nome}</span>`).join('')}
+        <button class="bxsm" style="margin-left:8px" onclick="wizardState.step=2;render()">✏️ Modifica</button>
+      </div>
       <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap">
         <input type="text" id="nuovaSocInput" placeholder="Nome società" style="flex:1" value="${escV(w.nuovaSocNome)}"
           oninput="wizardState.nuovaSocNome=this.value" onkeydown="if(event.key==='Enter')aggiungiSoc()">
@@ -253,6 +304,10 @@ function setSocBambini(i,catId,n){if(!wizardState.societa[i].bambini)wizardState
 
 function creaTorneo(){
   if(!wizardState.nome.trim()){alert('Nome mancante.');return;}
+  const totSq=wizardState.societa.reduce((s,soc)=>s+Object.values(soc.sqPerCat).reduce((a,b)=>a+b,0),0);
+  if(wizardState.societa.length>0&&totSq===0){
+    if(!confirm('Nessuna squadra inserita per nessuna categoria. Vuoi creare il torneo comunque?'))return;
+  }
   const societa=wizardState.societa.map(s=>({nome:s.nome,sqPerCat:{...s.sqPerCat},bambini:{...s.bambini},squadre:[]}));
   const id=uid();
   DB.tornei[id]={
@@ -271,7 +326,13 @@ function renderTorneo(){
   const cat=localCat||cats[0]?.id||'admin';
 
   // Tab: una per ogni categoria + 3 fisse
-  let tabsHtml=`<div class="tabs" style="flex-wrap:wrap">`;
+  // Banner archiviato se il torneo è archiviato
+  const isArch2=!!t.archiviato;
+  let extraBanner=isArch2?`<div style="background:#fef9c3;color:#854d0e;border-radius:8px;padding:8px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;font-size:13px">
+    <span>📁 Questo torneo è archiviato — sola lettura</span>
+    <button class="bsm" onclick="archiviaToggle('${currentTorneoId}')">📂 Riattiva</button>
+  </div>`:'';
+  let tabsHtml=extraBanner+`<div class="tabs" style="flex-wrap:wrap">`;
   for(const c of cats){
     const col=c.colore;
     const isAct=cat===c.id;
@@ -712,7 +773,15 @@ function renameFase(evt,catId,fid){
   if(!nome||!nome.trim())return;
   fase.label=nome.trim();sv();render();
 }
-function delFase(catId,fid){if(!confirm('Eliminare questa fase?'))return;const cat=getCat(catId);if(cat)cat.fasi=cat.fasi.filter(f=>f.id!==fid);sv();render();}
+function delFase(catId,fid){
+  const fase=getFase(catId,fid);
+  const hasDati=(fase?.gironi||[]).some(g=>g.partite.some(p=>p.s1h!==''||p.s1a!==''));
+  const msg=hasDati
+    ?`Eliminare "${fase?.label||'questa fase'}"? Contiene risultati già inseriti che andranno persi.`
+    :`Eliminare "${fase?.label||'questa fase'}"?`;
+  if(!confirm(msg))return;
+  const cat=getCat(catId);if(cat)cat.fasi=cat.fasi.filter(f=>f.id!==fid);sv();render();
+}
 function saveElim(catId,fid,mk){const f=getFase(catId,fid);if(!f||!f.elim)return;const m=f.elim[mk];if(!m)return;['s1h','s1a','s2h','s2a'].forEach(field=>{const k=`elim_${fid}_${mk}_${field}`;if(IC[k]!==undefined)m[field]=IC[k];});propagateElim(f);sv();render();}
 function onInputElim(fid,mk,field,val){IC[`elim_${fid}_${mk}_${field}`]=val;}
 function getVElim(fid,mk,field,saved){const k=`elim_${fid}_${mk}_${field}`;return IC[k]!==undefined?IC[k]:saved;}

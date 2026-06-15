@@ -26,20 +26,36 @@ function renderHome(){
       <button style="padding:12px 18px;font-size:13px" onclick="importTorneo()">⬆ Importa</button>
       <button style="padding:12px 18px;font-size:13px" class="bd" onclick="azzeraDB()">🗑 Azzera tutto</button>
     </div>
-    ${ids.length?`<div class="sec">Tornei salvati</div>`:''}
-    ${ids.map(id=>{
+    ${ids.length>3?`<div style="margin-bottom:10px">
+      <input type="text" id="cercaTorneo" placeholder="🔍 Cerca torneo..." style="font-size:13px"
+        oninput="render()" value="">
+    </div>`:''}
+    ${ids.length?`<div class="sec">Tornei salvati (${ids.length})</div>`:''}
+    ${ids.filter(id=>{
+      const cerca=document.getElementById('cercaTorneo')?.value?.toLowerCase()||'';
+      return !cerca||DB.tornei[id].nome.toLowerCase().includes(cerca);
+    }).map(id=>{
       const t=DB.tornei[id];const nSoc=t.societa?.length||0;
       const date=t.createdAt?new Date(t.createdAt).toLocaleDateString('it-IT'):'';
       const isLive=getLiveId()===id;
       return`<div class="torneo-item${isLive?' active-t':''}" onclick="openTorneo('${id}')">
         <div>
-          <div class="torneo-nome">${t.nome} ${isLive?'<span style="font-size:11px;background:#dcfce7;color:#166534;padding:1px 8px;border-radius:10px;font-weight:600">🔴 LIVE</span>':''}</div>
-          <div class="torneo-meta">${nSoc} società · ${date}</div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <div class="torneo-nome">${t.nome}</div>
+            ${isLive?'<span style="font-size:11px;background:#dcfce7;color:#166534;padding:1px 8px;border-radius:10px;font-weight:600">🔴 LIVE</span>':''}
+          </div>
+          <div class="torneo-meta">${(()=>{
+            const cats=t.categorie||[];
+            const totGironi=cats.reduce((s,cat)=>(cat.fasi||[]).reduce((s2,f)=>s2+(f.gironi||[]).length,s),0);
+            const totPart=cats.reduce((s,cat)=>(cat.fasi||[]).reduce((s2,f)=>(f.gironi||[]).reduce((s3,g)=>s3+g.partite.filter(p=>p.s1h!=='').length,s2),s),0);
+            return nSoc+' società · '+cats.length+' categorie'+(totGironi?' · '+totGironi+' giron'+(totGironi===1?'e':'i'):'')+(totPart?' · '+totPart+' risultati':'');
+          })()} · ${date}</div>
         </div>
         <div style="display:flex;gap:6px;align-items:center">
           ${isLive
             ?'<span style="font-size:11px;color:#166534;font-weight:500">In corso</span>'
             :`<button class="bsm" style="background:#dcfce7;color:#166534;border-color:#86efac;font-size:11px" onclick="event.stopPropagation();setTorneoLive('${id}')">▶ Live</button>`}
+          <button class="bsm" onclick="event.stopPropagation();rinominaTorneo('${id}')" title="Rinomina">✏️</button>
           <button class="bsm" onclick="event.stopPropagation();duplicaTorneo('${id}')">📋</button>
           <button class="bsm bd" onclick="event.stopPropagation();eliminaTorneo('${id}')">✕</button>
         </div>
@@ -61,13 +77,31 @@ function openTorneo(id){
     if(!Array.isArray(cat.fasi))cat.fasi=[];
     if(!cat.fasi.length){cat.fasi.push({id:uid(),label:'Fase 1',gironi:[]});needSave=true;}
   }
-  localCat=getCats()[0]?.id||null;
+  const savedTab=localStorage.getItem('torneo_tab_'+id);
+  const catIds=getCats().map(cc=>cc.id);
+  if(savedTab&&(catIds.includes(savedTab)||['admin','societa','paginaLive'].includes(savedTab)))
+    localCat=savedTab;
+  else
+    // Ripristina ultima tab visitata per questo torneo
+  try{
+    const last=sessionStorage.getItem('lastTab_'+id);
+    const cats=getCats();
+    localCat=(last&&cats.find(c=>c.id===last))?last:cats[0]?.id||null;
+  }catch(e){localCat=getCats()[0]?.id||null;}
   if(needSave)sv();
   render();
 }
 function eliminaTorneo(id){if(!confirm('Eliminare questo torneo?'))return;delete DB.tornei[id];sv();render();}
 function setTorneoLive(id){localStorage.setItem('torneo_live_id',id);render();}
 function getLiveId(){return localStorage.getItem('torneo_live_id');}
+function rinominaTorneo(id){
+  const t=DB.tornei[id];if(!t)return;
+  const nome=prompt('Nuovo nome per il torneo:',t.nome);
+  if(!nome||!nome.trim())return;
+  t.nome=nome.trim();
+  if(currentTorneoId===id)document.getElementById('torneoNomeHdr').textContent=t.nome;
+  sv();render();
+}
 function duplicaTorneo(id){const t=DB.tornei[id];const newId=uid();DB.tornei[newId]=JSON.parse(JSON.stringify(t));DB.tornei[newId].nome=t.nome+' (copia)';DB.tornei[newId].createdAt=Date.now();sv();render();}
 
 // ============================================================
@@ -456,6 +490,7 @@ function renderSetupGironi(){
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           ${renderBadgeCat(cat.id)}
           <span style="font-size:13px;color:var(--txt2)">${gs.length} giron${gs.length===1?'e':'i'} · ${totSq} sq totali</span>
+          ${(()=>{const tot=gs.reduce((s,g)=>s+g.partite.length,0);const play=gs.reduce((s,g)=>s+g.partite.filter(p=>p.s1h!==''||p.s1a!=='').length,0);return tot>0?`<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:${play===tot?'var(--saved-bg)':'var(--info)'};color:${play===tot?'var(--saved-txt)':'var(--txt2)'}">${play}/${tot} partite${play===tot?' ✓':''}</span>`:'';})()}
           <button class="bxsm" onclick="showEditCatModal('${cat.id}')" title="Modifica categoria">✏️</button>
           <button class="bxsm bd" onclick="delCategoria('${cat.id}')" title="Elimina categoria">✕</button>
         </div>
@@ -498,7 +533,8 @@ function renderSetupGironi(){
               <span style="font-size:13px;padding:3px 10px;border-radius:20px;font-weight:600;${catBadgeStyle(cat.id)}">Girone ${g.label}</span>
               <span style="font-size:12px;color:var(--txt2)">${g.squadre.length} sq · ${g.sets||2} set</span>
             </div>
-            <button class="bsm bd" onclick="delGirone('${cat.id}','${fase1.id}','${g.id}')">✕</button>
+            <button class="bsm" onclick="azzeraRisultati('${cat.id}','${fase1.id}','${g.id}')" title="Azzera tutti i risultati">🔄 Azzera</button>
+              <button class="bsm bd" onclick="delGirone('${cat.id}','${fase1.id}','${g.id}')">✕ Elimina</button>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
             ${g.squadre.map((s,i)=>`<div style="display:flex;gap:6px;align-items:center">
@@ -629,14 +665,42 @@ function addGirone(catId){
   f1.gironi.push({id:uid(),label,squadre,sets,ritorno:false,partite:genPartite(sz,false,sets)});
   sv();render();
 }
+function azzeraRisultati(catId,fid,gv){
+  const g=getGirone(catId,fid,gv);if(!g)return;
+  const giocate=g.partite.filter(p=>p.s1h!==''||p.s1a!=='').length;
+  if(!giocate){alert('Nessun risultato da azzerare.');return;}
+  if(!confirm(`Azzerare tutti i ${giocate} risultati del Girone ${g.label}? Questa operazione non è reversibile.`))return;
+  g.partite.forEach(p=>{p.s1h='';p.s1a='';p.s2h='';p.s2a='';});
+  // Pulisci anche la cache input
+  Object.keys(IC).forEach(k=>{if(k.startsWith(`${catId}_${fid}_${gv}_`))delete IC[k];});
+  sv();render();
+}
 function delGirone(catId,fid,gv){const f=getFase(catId,fid);if(f)f.gironi=f.gironi.filter(g=>g.id!==gv);sv();render();}
 function updSq(catId,fid,gv,idx,field,val){const g=getGirone(catId,fid,gv);if(g)g.squadre[idx][field]=val;}
-function saveSquadre(catId,fid,gv){const g=getGirone(catId,fid,gv);if(!g)return;g.partite=genPartite(g.squadre.length,g.ritorno||false,g.sets||2);sv();render();}
+function saveSquadre(catId,fid,gv){
+  const g=getGirone(catId,fid,gv);if(!g)return;
+  const giocate=g.partite.filter(p=>p.s1h!==''||p.s1a!=='').length;
+  if(giocate>0&&!confirm(`Attenzione: ci sono ${giocate} risultat${giocate===1?'o':'i'} già inserit${giocate===1?'o':'i'}. Rigenerare le partite li cancellerà. Continuare?`))return;
+  g.partite=genPartite(g.squadre.length,g.ritorno||false,g.sets||2);sv();render();
+}
 function toggleRitorno(catId,fid,gv){const g=getGirone(catId,fid,gv);if(!g)return;g.ritorno=!g.ritorno;const old={};g.partite.filter(p=>p.leg===1||!p.leg).forEach(p=>{old[`${p.h}_${p.a}`]=p});const np=genPartite(g.squadre.length,g.ritorno,g.sets||2);np.forEach(p=>{if(p.leg===1){const o=old[`${p.h}_${p.a}`];if(o){p.s1h=o.s1h;p.s1a=o.s1a;p.s2h=o.s2h;p.s2a=o.s2a;}}});g.partite=np;sv();render();}
-function saveResult(catId,fid,gv,pid){const g=getGirone(catId,fid,gv);if(!g)return;const p=g.partite[pid];['s1h','s1a','s2h','s2a'].forEach(f=>{const k=icKey(catId,fid,gv,pid,f);if(IC[k]!==undefined)p[f]=IC[k]});sv();render();}
+function saveResult(catId,fid,gv,pid){
+  const g=getGirone(catId,fid,gv);if(!g)return;
+  const p=g.partite[pid];
+  // Leggi valori dalla cache
+  ['s1h','s1a','s2h','s2a'].forEach(f=>{const k=icKey(catId,fid,gv,pid,f);if(IC[k]!==undefined)p[f]=IC[k];});
+  // Validazione: set 1 obbligatorio
+  const s1h=parseInt(p.s1h),s1a=parseInt(p.s1a);
+  if(p.s1h===''||p.s1a===''||isNaN(s1h)||isNaN(s1a)){
+    alert('Inserisci il punteggio del Set 1 per entrambe le squadre.');return;
+  }
+  if(s1h<0||s1a<0){alert('I punteggi non possono essere negativi.');return;}
+  if(s1h===s1a){alert('Il Set 1 non può finire in parità (stesso punteggio).');return;}
+  sv();render();
+}
 function clearResult(catId,fid,gv,pid){const g=getGirone(catId,fid,gv);if(!g)return;const p=g.partite[pid];p.s1h='';p.s1a='';p.s2h='';p.s2a='';['s1h','s1a','s2h','s2a'].forEach(f=>delete IC[icKey(catId,fid,gv,pid,f)]);sv();render();}
 function delFase(catId,fid){if(!confirm('Eliminare questa fase?'))return;const cat=getCat(catId);if(cat)cat.fasi=cat.fasi.filter(f=>f.id!==fid);sv();render();}
-function saveElim(catId,fid,mk){const f=getFase(catId,fid);if(!f||!f.elim)return;const m=f.elim[mk];if(!m)return;['s1h','s1a'].forEach(field=>{const k=`elim_${fid}_${mk}_${field}`;if(IC[k]!==undefined)m[field]=IC[k];});propagateElim(f);sv();render();}
+function saveElim(catId,fid,mk){const f=getFase(catId,fid);if(!f||!f.elim)return;const m=f.elim[mk];if(!m)return;['s1h','s1a','s2h','s2a'].forEach(field=>{const k=`elim_${fid}_${mk}_${field}`;if(IC[k]!==undefined)m[field]=IC[k];});propagateElim(f);sv();render();}
 function onInputElim(fid,mk,field,val){IC[`elim_${fid}_${mk}_${field}`]=val;}
 function getVElim(fid,mk,field,saved){const k=`elim_${fid}_${mk}_${field}`;return IC[k]!==undefined?IC[k]:saved;}
 
@@ -718,8 +782,9 @@ function renderGironeContent(catId,fase,g){
   </div>`;
 }
 
-function renderElimMatch(catId,fid,mk,m,title){
-  if(!m)return'';const w=getWinner(m);const played=m.s1h!==''&&m.s1a!=='';
+function renderElimMatch(catId,fid,mk,m,title,sets){
+  if(!m)return'';const w=getWinner(m,sets);const played=m.s1h!==''&&m.s1a!=='';
+  const es=fase.elimSets||1;
   return`<div class="elim-card"><div class="elim-lbl">${title}</div>
     <div class="elim-team${w===m.t1?' win':played?' lose':''}"><div><div>${m.t1||'—'}</div>${m.da1?`<div class="org">${m.da1}</div>`:''}</div>${w===m.t1?'🏆':''}</div>
     <div class="elim-team${w===m.t2?' win':played?' lose':''}"><div><div>${m.t2||'—'}</div>${m.da2?`<div class="org">${m.da2}</div>`:''}</div>${w===m.t2?'🏆':''}</div>
@@ -728,6 +793,11 @@ function renderElimMatch(catId,fid,mk,m,title){
       <span class="sep">–</span>
       <input type="number" class="score" inputmode="numeric" value="${getVElim(fid,mk,'s1a',m.s1a||'')}" placeholder="0" oninput="onInputElim('${fid}','${mk}','s1a',this.value)">
     </div>
+    ${es===2?`<div class="set-row"><span class="set-lbl">Set 2</span>
+      <input type="number" class="score" inputmode="numeric" value="${getVElim(fid,mk,'s2h',m.s2h||'')}" placeholder="0" oninput="onInputElim('${fid}','${mk}','s2h',this.value)">
+      <span class="sep">–</span>
+      <input type="number" class="score" inputmode="numeric" value="${getVElim(fid,mk,'s2a',m.s2a||'')}" placeholder="0" oninput="onInputElim('${fid}','${mk}','s2a',this.value)">
+    </div>`:''}
     <button class="bp bsm" style="width:100%;margin-top:6px" onclick="saveElim('${catId}','${fid}','${mk}')">✓ Salva</button>
     ${played?`<div class="saved" style="margin-top:6px">✓ Vince ${w}</div>`:''}
   </div>`;
@@ -735,12 +805,13 @@ function renderElimMatch(catId,fid,mk,m,title){
 
 function renderElimBlock(catId,fase){
   const e=fase.elim||{};propagateElim(fase);const hasQ=e.q1||e.q2||e.q3||e.q4;
-  const wF=getWinner(e.fin12),lF=getLoser(e.fin12),wF34=getWinner(e.fin34);
+  const wF=getWinner(e.fin12,es),lF=getLoser(e.fin12,es),wF34=getWinner(e.fin34,es);
   let html='';
   if(wF){html+=`<div class="podium-grid"><div class="podium p2" style="margin-top:20px"><div style="font-size:28px">🥈</div><div class="podium-name">${lF||'—'}</div><div class="podium-lbl">2° posto</div></div><div class="podium p1"><div style="font-size:28px">🥇</div><div class="podium-name">${wF}</div><div class="podium-lbl">1° posto</div></div><div class="podium p3" style="margin-top:30px"><div style="font-size:28px">🥉</div><div class="podium-name">${wF34||'—'}</div><div class="podium-lbl">3° posto</div></div></div>`;}
-  if(hasQ){html+=`<div class="bracket-round"><div class="bracket-title">⚡ Quarti di Finale</div><div class="bracket-grid">${['q1','q2','q3','q4'].filter(k=>e[k]).map((k,i)=>renderElimMatch(catId,fase.id,k,e[k],`Quarto ${i+1}: ${['1°vs8°','2°vs7°','3°vs6°','4°vs5°'][i]}`)).join('')}</div></div>`;}
-  html+=`<div class="bracket-round"><div class="bracket-title">🏅 Semifinali</div><div class="bracket-grid">${renderElimMatch(catId,fase.id,'sf1',e.sf1,'Semifinale 1')}${renderElimMatch(catId,fase.id,'sf2',e.sf2,'Semifinale 2')}</div></div>`;
-  html+=`<div class="bracket-round"><div class="bracket-title">🏆 Finali</div><div class="bracket-grid">${renderElimMatch(catId,fase.id,'fin12',e.fin12,'Finale 1° - 2° posto')}${renderElimMatch(catId,fase.id,'fin34',e.fin34,'Finale 3° - 4° posto')}</div></div>`;
+  const es=fase.elimSets||1;
+  if(hasQ){html+=`<div class="bracket-round"><div class="bracket-title">⚡ Quarti di Finale</div><div class="bracket-grid">${['q1','q2','q3','q4'].filter(k=>e[k]).map((k,i)=>renderElimMatch(catId,fase.id,k,e[k],`Quarto ${i+1}: ${['1°vs8°','2°vs7°','3°vs6°','4°vs5°'][i]}`,es)).join('')}</div></div>`;}
+  html+=`<div class="bracket-round"><div class="bracket-title">🏅 Semifinali</div><div class="bracket-grid">${renderElimMatch(catId,fase.id,'sf1',e.sf1,'Semifinale 1',es)}${renderElimMatch(catId,fase.id,'sf2',e.sf2,'Semifinale 2',es)}</div></div>`;
+  html+=`<div class="bracket-round"><div class="bracket-title">🏆 Finali</div><div class="bracket-grid">${renderElimMatch(catId,fase.id,'fin12',e.fin12,'Finale 1° - 2° posto',es)}${renderElimMatch(catId,fase.id,'fin34',e.fin34,'Finale 3° - 4° posto',es)}</div></div>`;
   return html;
 }
 
@@ -757,7 +828,14 @@ function openBuilder(catId){
   builderState={cat:catId,gironi:last.gironi,generale,top8:topN,dal9:dalN,numElim:defaultElim,mode:'entrambi',gironiSets:getPref(catId,'sets',2),maxGironi:2,draft:buildDraftGironi(dalN,2)};render();
 }
 function buildDraftGironi(squadre,maxG){if(!squadre.length)return[];const nG=Math.min(maxG,Math.max(1,Math.floor(squadre.length/2)));const draft=Array.from({length:nG},(_,i)=>({label:String.fromCharCode(65+i),squadre:[]}));squadre.forEach((tt,i)=>draft[i%nG].squadre.push({nome:tt.nome,soc:tt.soc||'',posLabel:tt.posLabel}));return draft.filter(g=>g.squadre.length>=2);}
-function setBuilderMode(m){if(!builderState)return;builderState.mode=m;if(m==='gironi')builderState.draft=buildDraftGironi(builderState.generale,builderState.maxGironi);else builderState.draft=buildDraftGironi(builderState.dal9,builderState.maxGironi);render();}
+function setBuilderMode(m){
+  if(!builderState)return;
+  builderState.mode=m;
+  if(m==='gironi')builderState.draft=buildDraftGironi(builderState.generale,builderState.maxGironi);
+  else if(m==='quarti')builderState.draft=[];
+  else builderState.draft=buildDraftGironi(builderState.dal9,builderState.maxGironi);
+  render();
+}
 function setNumElim(n){if(!builderState)return;builderState.numElim=n;builderState.top8=builderState.generale.slice(0,n);builderState.dal9=builderState.generale.slice(n);builderState.draft=buildDraftGironi(builderState.dal9,builderState.maxGironi);render();}
 function setMaxGironi(n){if(!builderState)return;builderState.maxGironi=n;builderState.draft=buildDraftGironi(builderState.mode==='gironi'?builderState.generale:builderState.dal9,n);render();}
 function builderAddTeam(nome,soc,posLabel,gi){if(!builderState)return;builderState.draft.forEach(g=>{g.squadre=g.squadre.filter(s=>s.nome!==nome)});if(gi>=0&&gi<builderState.draft.length)builderState.draft[gi].squadre.push({nome,soc,posLabel});render();}
@@ -771,9 +849,10 @@ function builderConfirm(){
   const fasi=cat.fasi||[];
   const{mode,top8,dal9,draft,gironiSets,generale,maxGironi,numElim}=builderState;
   const prevFase=fasi[fasi.length-1];if(prevFase)collapsed.add(prevFase.id);
+  const elimSets=builderState.elimSets||1;
   if(mode==='gironi'){const allDraft=buildDraftGironi(generale,maxGironi);const valid=allDraft.filter(g=>g.squadre.length>=2);if(!valid.length){alert('Nessun girone valido.');return;}fasi.push({id:uid(),label:`Fase ${fasi.length+1}`,tipo:'gironi',gironi:valid.map((d,i)=>({id:uid(),label:String.fromCharCode(65+i),squadre:d.squadre.map(s=>({nome:s.nome,soc:s.soc})),sets:gironiSets,ritorno:false,partite:genPartite(d.squadre.length,false,gironiSets)}))});}
-  else if(mode==='quarti'){fasi.push({id:uid(),label:'Fase eliminazione',tipo:'elim',gironi:[],elim:buildElimStruct(generale.slice(0,numElim))});}
-  else{if(dal9.length>=2){const valid=draft.filter(g=>g.squadre.length>=2);if(valid.length)fasi.push({id:uid(),label:`Fase ${fasi.length+1} — Gironi (dal ${numElim+1}°)`,tipo:'gironi',gironi:valid.map((d,i)=>({id:uid(),label:String.fromCharCode(65+i),squadre:d.squadre.map(s=>({nome:s.nome,soc:s.soc})),sets:gironiSets,ritorno:false,partite:genPartite(d.squadre.length,false,gironiSets)}))});}fasi.push({id:uid(),label:`Fase eliminazione (Top ${numElim})`,tipo:'elim',gironi:[],elim:buildElimStruct(top8)});}
+  else if(mode==='quarti'){fasi.push({id:uid(),label:'Fase eliminazione',tipo:'elim',gironi:[],elimSets,elim:buildElimStruct(generale.slice(0,numElim))});}
+  else{if(dal9.length>=2){const valid=draft.filter(g=>g.squadre.length>=2);if(valid.length)fasi.push({id:uid(),label:`Fase ${fasi.length+1} — Gironi (dal ${numElim+1}°)`,tipo:'gironi',gironi:valid.map((d,i)=>({id:uid(),label:String.fromCharCode(65+i),squadre:d.squadre.map(s=>({nome:s.nome,soc:s.soc})),sets:gironiSets,ritorno:false,partite:genPartite(d.squadre.length,false,gironiSets)}))});}fasi.push({id:uid(),label:`Fase eliminazione (Top ${numElim})`,tipo:'elim',gironi:[],elimSets,elim:buildElimStruct(top8)});}
   builderState=null;sv();render();
 }
 
@@ -802,6 +881,16 @@ function renderBuilder(catId){
       ${generale.map((tt,i)=>`<tr style="${i<numElim?'background:rgba(254,249,195,0.3)':''}"><td style="font-weight:700;color:${i<numElim?'#854d0e':'#166534'}">${i+1}</td><td style="font-weight:600">${tt.nome}</td><td style="font-size:11px;color:var(--txt2)">${tt.soc||''}</td><td style="font-size:11px;color:var(--txt2)">${tt.posLabel}</td><td>${tt.sp>0?(tt.sv/tt.sp).toFixed(2):tt.sv}</td><td style="font-size:11px;font-weight:700;color:${i<numElim?'#854d0e':'#166534'}">${i<numElim?(mode==='gironi'?'🏆':'⚡ Elim'):(mode==='quarti'?'—':'🏆 Girone')}</td></tr>`).join('')}
       </tbody></table>
     </div>`;
+  // Selector set per eliminazione (sempre visibile se non solo gironi)
+  if(mode!=='gironi'){
+    html+=`<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap">
+      <div class="sec" style="margin:0">Set per eliminazione:</div>
+      <select class="set-sel" onchange="builderState.elimSets=parseInt(this.value)">
+        <option value="1"${(builderState.elimSets||1)===1?' selected':''}>1 set</option>
+        <option value="2"${(builderState.elimSets||1)===2?' selected':''}>2 set</option>
+      </select>
+    </div>`;
+  }
   if((mode==='entrambi'&&dal9.length>=2)||mode==='gironi'){
     const b=`font-size:13px;padding:3px 10px;border-radius:20px;font-weight:600;${catBadgeStyle(catId)}`;
     html+=`<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap">

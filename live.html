@@ -358,7 +358,7 @@ function renderContent(){
     for(const g of gironiDaMostrare){
       html+=`<div class="girone-card">
         <div class="girone-card-hdr" style="background:${col}18;border-bottom-color:${col}33">
-          <span style="font-size:13px;font-weight:700;color:${col}">${fase.label} — Girone ${g.label}</span>
+          <span style="font-size:13px;font-weight:700;color:${col}">${fase.label} — Girone ${g.label}${g.campo?' <span style="font-size:10px;font-weight:400;color:var(--txt2)">📍 '+g.campo+'</span>':''}</span>
           <span style="font-size:11px;color:var(--txt2)">${g.partite.filter(p=>p.s1h!=='').length}/${g.partite.length} partite</span>
         </div>`;
       if(activeSub==='classifiche')html+=renderClassificaLive(g,col);
@@ -412,6 +412,7 @@ function renderPartiteLive(g,col){
       let score='';if(played){score=`${p.s1h}–${p.s1a}`;if(sets===2&&p.s2h!=='')score+=` / ${p.s2h}–${p.s2a}`;}
       return`<div class="match-item${played?' played':''}${isFavMatch?' fav-highlight':''}">
         <div class="match-teams-live">
+          ${(p.campo||g.campo)?`<div style="font-size:9px;color:var(--txt2);margin-bottom:3px">📍 ${p.campo||g.campo}</div>`:''}
           <div style="display:flex;align-items:center;gap:5px">${logoHtml(getSocLogo(DB.tornei[activeTorneoId],hs),18)}<span>${hn}${hs?` <span class="match-soc-live">(${hs})</span>`:''}</span></div>
           <div style="color:var(--txt2);font-size:11px;margin:2px 0">vs</div>
           <div style="display:flex;align-items:center;gap:5px">${logoHtml(getSocLogo(DB.tornei[activeTorneoId],as),18)}<span>${an}${as?` <span class="match-soc-live">(${as})</span>`:''}</span></div>

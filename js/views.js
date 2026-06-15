@@ -745,6 +745,17 @@ function saveSquadre(catId,fid,gv){
   if(giocate>0&&!confirm(`Attenzione: ci sono ${giocate} risultat${giocate===1?'o':'i'} già inserit${giocate===1?'o':'i'}. Rigenerare le partite li cancellerà. Continuare?`))return;
   g.partite=genPartite(g.squadre.length,g.ritorno||false,g.sets||2);sv();render();
 }
+function toggleInCorso(catId,fid,gv,pid){
+  const g=getGirone(catId,fid,gv);if(!g)return;
+  const p=g.partite[pid];if(!p)return;
+  // Se attivo, disattiva tutti gli altri "in corso" in tutti i gironi della stessa categoria
+  if(!p.inCorso){
+    const cat=getCat(catId);
+    (cat?.fasi||[]).forEach(f=>(f.gironi||[]).forEach(gg=>gg.partite.forEach(pp=>{pp.inCorso=false;})));
+  }
+  p.inCorso=!p.inCorso;
+  sv();render();
+}
 function toggleRitorno(catId,fid,gv){const g=getGirone(catId,fid,gv);if(!g)return;g.ritorno=!g.ritorno;const old={};g.partite.filter(p=>p.leg===1||!p.leg).forEach(p=>{old[`${p.h}_${p.a}`]=p});const np=genPartite(g.squadre.length,g.ritorno,g.sets||2);np.forEach(p=>{if(p.leg===1){const o=old[`${p.h}_${p.a}`];if(o){p.s1h=o.s1h;p.s1a=o.s1a;p.s2h=o.s2h;p.s2a=o.s2a;}}});g.partite=np;sv();render();}
 function saveResult(catId,fid,gv,pid){
   const g=getGirone(catId,fid,gv);if(!g)return;
@@ -758,6 +769,8 @@ function saveResult(catId,fid,gv,pid){
   }
   if(s1h<0||s1a<0){alert('I punteggi non possono essere negativi.');return;}
   if(s1h===s1a){alert('Il Set 1 non può finire in parità (stesso punteggio).');return;}
+  // Salva timestamp inserimento
+  if(!p.ts)p.ts=Date.now();
   sv();render();
 }
 function salvaNotaPartita(catId,fid,gv,pid,val){
@@ -796,6 +809,15 @@ function renderCategoria(catId){
   if(!fasi.length||!fasi[0]?.gironi?.length)return`<div style="text-align:center;padding:3rem;color:var(--txt2)">
     <p>Nessun girone per ${cat.emoji} ${cat.nome}.<br>Vai in ⚙️ Setup e clicca + Girone.</p></div>`;
   let html='';
+  // Sub-tab vista storico
+  const showStorico=collapsed.has('storico_'+catId);
+  html+=`<div style="display:flex;gap:4px;margin-bottom:12px">
+    <button class="bsm${!showStorico?' bp':''}" onclick="${!showStorico?'':'collapsed.delete(\'storico_'+catId+'\');render()'}">🏐 Gironi</button>
+    <button class="bsm${showStorico?' bp':''}" onclick="collapsed.add('storico_'+catId);render()">📋 Storico partite</button>
+    <button class="bsm${collapsed.has('stats_'+catId)?' bp':''}" onclick="${collapsed.has('stats_'+catId)?'collapsed.delete(\'stats_'+catId+'\')':'collapsed.add(\'stats_'+catId+'\')'}render()">📊 Statistiche</button>
+  </div>`;
+  if(showStorico){html+=renderStorico(catId);html+=`<div class="card" style="text-align:center;padding:1.5rem"><button class="bp" onclick="openBuilder('${catId}')">+ Fase successiva</button></div>`;return html;}
+  if(collapsed.has('stats_'+catId)){html+=renderStats(catId);html+=`<div class="card" style="text-align:center;padding:1.5rem"><button class="bp" onclick="openBuilder('${catId}')">+ Fase successiva</button></div>`;return html;}
   for(let fi=0;fi<fasi.length;fi++){
     const fase=fasi[fi];const isElim=fase.tipo==='elim';const isCollapsed=collapsed.has(fase.id);
     const giocate=fase.gironi?.reduce((s,g)=>s+g.partite.filter(p=>p.s1h!==''&&p.s1a!=='').length,0)||0;
@@ -862,7 +884,11 @@ function renderGironeContent(catId,fase,g){
       <div class="match-teams">${hn}<span class="soc-tag"> (${hs||'—'})</span><br><span style="font-weight:400;color:var(--txt2);font-size:12px">vs</span><br>${an}<span class="soc-tag"> (${as||'—'})</span></div>
       <div class="set-row"><span class="set-lbl">Set 1</span><input type="number" class="score" inputmode="numeric" value="${V('s1h',p.s1h)}" placeholder="0" oninput="onInput('${catId}','${fase.id}','${g.id}',${pid},'s1h',this.value)"><span class="sep">–</span><input type="number" class="score" inputmode="numeric" value="${V('s1a',p.s1a)}" placeholder="0" oninput="onInput('${catId}','${fase.id}','${g.id}',${pid},'s1a',this.value)"></div>
       ${sets===2?`<div class="set-row"><span class="set-lbl">Set 2</span><input type="number" class="score" inputmode="numeric" value="${V('s2h',p.s2h)}" placeholder="0" oninput="onInput('${catId}','${fase.id}','${g.id}',${pid},'s2h',this.value)"><span class="sep">–</span><input type="number" class="score" inputmode="numeric" value="${V('s2a',p.s2a)}" placeholder="0" oninput="onInput('${catId}','${fase.id}','${g.id}',${pid},'s2a',this.value)"></div>`:''}
-      <div class="save-row"><button class="bp" style="flex:1;padding:8px;font-size:13px;font-weight:600" onclick="saveResult('${catId}','${fase.id}','${g.id}',${pid})">✓ Salva</button>${played?`<button style="padding:8px 14px;font-size:13px" class="bd" onclick="clearResult('${catId}','${fase.id}','${g.id}',${pid})">✕</button>`:''}</div>
+      <div class="save-row">
+        <button class="${p.inCorso?'bg':'bsm'}" style="padding:8px;font-size:11px" onclick="toggleInCorso('${catId}','${fase.id}','${g.id}',${pid})" title="Segna come partita in corso nella live">${p.inCorso?'🔴 In corso':'▶ Live'}</button>
+        <button class="bp" style="flex:1;padding:8px;font-size:13px;font-weight:600" onclick="saveResult('${catId}','${fase.id}','${g.id}',${pid})">✓ Salva</button>
+        ${played?`<button style="padding:8px 14px;font-size:13px" class="bd" onclick="clearResult('${catId}','${fase.id}','${g.id}',${pid})">✕</button>`:''}
+      </div>
       ${played?`<div class="saved">✓ Set1: ${p.s1h}–${p.s1a}${sets===2&&p.s2h!==''?' | Set2: '+p.s2h+'–'+p.s2a:''}</div>`:''}
       <div style="display:flex;gap:6px;align-items:center;margin-top:4px">
         <input type="text" value="${p.nota||''}" placeholder="📝 Nota partita (campo, orario...)"
@@ -880,6 +906,136 @@ function renderGironeContent(catId,fase,g){
       <button class="bg bsm" onclick="exportPDF('${catId}','${fase.id}','${g.id}')">📄 PDF</button>
     </div></div>
     <div class="g2"><div><div class="sec">Classifica</div>${clHtml}</div><div><div class="sec">Partite${g.ritorno?' — Andata':''}</div>${rPL(andataP)}${ritornoP.length?`<div class="sec" style="margin-top:14px">Ritorno</div>${rPL(ritornoP)}`:''}</div></div>
+  </div>`;
+}
+
+// ============================================================
+// STORICO PARTITE
+// ============================================================
+function renderStorico(catId){
+  const cat=getCat(catId);if(!cat)return'';
+  const col=cat.colore;
+  // Raccoglie tutte le partite giocate con info girone/fase
+  const partiteGiocate=[];
+  for(const fase of(cat.fasi||[])){
+    if(fase.tipo==='elim')continue;
+    for(const g of(fase.gironi||[])){
+      for(let i=0;i<g.partite.length;i++){
+        const p=g.partite[i];
+        if(p.s1h===''||p.s1a==='')continue;
+        partiteGiocate.push({p,g,fase,idx:i});
+      }
+    }
+  }
+  // Ordina per timestamp (più recente prima), poi per indice
+  partiteGiocate.sort((a,b)=>(b.p.ts||0)-(a.p.ts||0)||(b.idx-a.idx));
+  if(!partiteGiocate.length)return`<div class="card" style="text-align:center;padding:2rem;color:var(--txt2)">
+    <p>Nessuna partita ancora giocata.</p></div>`;
+  let html=`<div class="card"><div class="card-title" style="margin-bottom:1rem">📋 Storico partite — ${partiteGiocate.length} risultati</div>`;
+  let lastDate='';
+  for(const{p,g,fase,idx}of partiteGiocate){
+    const hn=g.squadre[p.h].nome,an=g.squadre[p.a].nome;
+    const hs=g.squadre[p.h].soc||'',as=g.squadre[p.a].soc||'';
+    const sets=g.sets||2;
+    const s1w=parseInt(p.s1h)>parseInt(p.s1a),s2w=sets===2&&p.s2h!==''?(parseInt(p.s2h)>parseInt(p.s2a)):null;
+    const svH=(s1w?1:0)+(s2w===true?1:0),svA=(s1w?0:1)+(s2w===false?1:0);
+    const hWin=svH>svA,aWin=svA>svH;
+    const dateStr=p.ts?new Date(p.ts).toLocaleString('it-IT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—';
+    const dayStr=p.ts?new Date(p.ts).toLocaleDateString('it-IT'):'';
+    if(dayStr&&dayStr!==lastDate){
+      html+=`<div style="font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;padding:8px 0 4px;border-top:1px solid var(--border);margin-top:4px">${dayStr}</div>`;
+      lastDate=dayStr;
+    }
+    html+=`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          <span style="font-size:11px;padding:1px 6px;border-radius:8px;${catBadgeStyle(catId)}">${fase.label} · Girone ${g.label}</span>
+          ${p.leg===2?'<span style="font-size:10px;background:#fef9c3;color:#854d0e;padding:1px 5px;border-radius:4px">RIT</span>':''}
+        </div>
+        <div style="margin-top:4px;font-size:13px">
+          <span style="font-weight:${hWin?'700':'400'};color:${hWin?col:'var(--txt)'}">${hn}</span>
+          <span style="color:var(--txt2);margin:0 4px;font-size:11px">${hs||''}</span>
+          <span style="color:var(--txt2);font-size:11px">vs</span>
+          <span style="font-weight:${aWin?'700':'400'};color:${aWin?col:'var(--txt)'}"> ${an}</span>
+          <span style="color:var(--txt2);margin:0 4px;font-size:11px">${as||''}</span>
+        </div>
+        ${p.nota?`<div style="font-size:11px;color:var(--txt2);margin-top:2px">📝 ${p.nota}</div>`:''}
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:16px;font-weight:800;color:${col}">${p.s1h}–${p.s1a}${sets===2&&p.s2h!==''?' / '+p.s2h+'–'+p.s2a:''}</div>
+        <div style="font-size:10px;color:var(--txt2)">${dateStr}</div>
+      </div>
+    </div>`;
+  }
+  html+=`</div>`;
+  return html;
+}
+
+// ============================================================
+// STATISTICHE CATEGORIA
+// ============================================================
+function renderStats(catId){
+  const cat=getCat(catId);if(!cat)return'';
+  const col=cat.colore;
+  // Raccoglie statistiche per squadra su tutte le fasi gironi
+  const squadreMap={};
+  for(const fase of(cat.fasi||[])){
+    if(fase.tipo==='elim')continue;
+    for(const g of(fase.gironi||[])){
+      for(const sq of g.squadre){
+        if(!squadreMap[sq.nome])squadreMap[sq.nome]={nome:sq.nome,soc:sq.soc||'',pt:0,sv:0,sp:0,pv:0,pp:0,pg:0};
+      }
+      for(const p of g.partite){
+        if(p.s1h===''||p.s1a==='')continue;
+        const sets=g.sets||2;
+        const s1h=parseInt(p.s1h)||0,s1a=parseInt(p.s1a)||0;
+        const has2=sets===2&&p.s2h!=='';
+        const s2h=has2?parseInt(p.s2h)||0:0,s2a=has2?parseInt(p.s2a)||0:0;
+        const sh=(s1h>s1a?1:0)+(has2&&s2h>s2a?1:0);
+        const sa=(s1a>s1h?1:0)+(has2&&s2a>s2h?1:0);
+        const hn=g.squadre[p.h].nome,an=g.squadre[p.a].nome;
+        if(squadreMap[hn]){squadreMap[hn].pt+=sh;squadreMap[hn].sv+=sh;squadreMap[hn].sp+=sa;squadreMap[hn].pv+=s1h+(has2?s2h:0);squadreMap[hn].pp+=s1a+(has2?s2a:0);squadreMap[hn].pg++;}
+        if(squadreMap[an]){squadreMap[an].pt+=sa;squadreMap[an].sv+=sa;squadreMap[an].sp+=sh;squadreMap[an].pv+=s1a+(has2?s2a:0);squadreMap[an].pp+=s1h+(has2?s2h:0);squadreMap[an].pg++;}
+      }
+    }
+  }
+  const squadre=Object.values(squadreMap).filter(s=>s.pg>0);
+  if(!squadre.length)return`<div class="card" style="text-align:center;padding:2rem;color:var(--txt2)"><p>Nessun risultato ancora inserito.</p></div>`;
+
+  // Classifiche speciali
+  const byPunti=[...squadre].sort((a,b)=>b.pt-a.pt||(b.sv-b.sp)-(a.sv-a.sp));
+  const byAttacco=[...squadre].sort((a,b)=>b.pv-a.pv);
+  const byDifesa=[...squadre].sort((a,b)=>a.pp-b.pp);
+  const byMedia=[...squadre].filter(s=>s.pg>0).sort((a,b)=>(b.pt/b.pg)-(a.pt/a.pg));
+
+  function topList(lista,label,valFn,icon){
+    return`<div style="flex:1;min-width:200px">
+      <div style="font-size:12px;font-weight:700;color:var(--txt2);text-transform:uppercase;margin-bottom:8px">${icon} ${label}</div>
+      ${lista.slice(0,5).map((s,i)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)">
+        <div>
+          <span style="font-size:11px;font-weight:700;color:${i===0?col:'var(--txt2)'};margin-right:6px">${i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1)+'.'}</span>
+          <span style="font-size:13px;font-weight:${i===0?'700':'400'}">${s.nome}</span>
+          <span style="font-size:10px;color:var(--txt2);margin-left:4px">${s.soc||''}</span>
+        </div>
+        <span style="font-size:14px;font-weight:700;color:${col}">${valFn(s)}</span>
+      </div>`).join('')}
+    </div>`;
+  }
+
+  return`<div class="card">
+    <div class="card-title" style="margin-bottom:1rem">📊 Statistiche — ${squadre.length} squadre · ${squadre.reduce((s,x)=>s+x.pg,0)/2|0} partite</div>
+    <div style="display:flex;flex-wrap:wrap;gap:20px">
+      ${topList(byPunti,'Classifica punti',s=>s.pt+' pt','🏆')}
+      ${topList(byAttacco,'Miglior attacco',s=>s.pv+' pt fatti','⚡')}
+      ${topList(byDifesa,'Miglior difesa',s=>s.pp+' pt subiti','🛡️')}
+      ${topList(byMedia,'Media punti/partita',s=>(s.pt/s.pg).toFixed(2),'📈')}
+    </div>
+    <div style="margin-top:16px">
+      <div style="font-size:12px;font-weight:700;color:var(--txt2);text-transform:uppercase;margin-bottom:8px">📋 Riepilogo completo</div>
+      <table style="font-size:12px"><thead><tr><th>#</th><th>Squadra</th><th>Soc</th><th>PG</th><th>Pt</th><th>SV</th><th>SP</th><th>PF</th><th>PS</th></tr></thead><tbody>
+      ${byPunti.map((s,i)=>`<tr><td style="font-weight:700;color:${i===0?col:'var(--txt2)'}">${i+1}</td><td style="font-weight:600">${s.nome}</td><td style="font-size:10px;color:var(--txt2)">${s.soc}</td><td>${s.pg}</td><td style="font-weight:700;color:${col}">${s.pt}</td><td>${s.sv}</td><td>${s.sp}</td><td style="color:#166534">${s.pv}</td><td style="color:#991b1b">${s.pp}</td></tr>`).join('')}
+      </tbody></table>
+    </div>
   </div>`;
 }
 

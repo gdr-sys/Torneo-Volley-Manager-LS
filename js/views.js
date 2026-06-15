@@ -288,12 +288,13 @@ function renderSocTable(soc,cats){
       return`<span style="font-size:11px;padding:2px 8px;border-radius:10px;margin:2px;display:inline-block;${catBadgeStyle(c.id)}">${em}${catLabel(c.id)}: ${sq} sq${bb?' · 🧒'+bb:''}</span>`;
     }).join('');
     return`<div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap">
+      ${s.logo?`<img src="${s.logo}" style="width:40px;height:40px;border-radius:6px;object-fit:contain;background:#fff;padding:2px;flex-shrink:0;align-self:center">`:'<div style="width:40px;height:40px;border-radius:6px;background:var(--info);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🏢</div>'}
       <div style="flex:1;min-width:100px">
         <div style="font-weight:700;font-size:14px;margin-bottom:6px">${escV(s.nome)}</div>
         <div style="display:flex;flex-wrap:wrap;gap:2px">${righe||'<span style="font-size:11px;color:var(--txt2)">Nessuna squadra</span>'}</div>
       </div>
       <div style="display:flex;gap:4px;flex-shrink:0;margin-top:2px">
-        <button class="bxsm" onclick="socEditState={si:${si},nome:'${s.nome.replace(/'/g,"\\'")}',sqPerCat:{${cats.map(c=>`'${c.id}':${s.sqPerCat?.[c.id]||0}`).join(',')}},bambini:{${cats.map(c=>`'${c.id}':${s.bambini?.[c.id]||0}`).join(',')}}};render()">✏️ Modifica</button>
+        <button class="bxsm" onclick="openSocEdit(${si})">✏️ Modifica</button>
         <button class="bxsm bd" onclick="rimuoviSocTorneo(${si})">✕</button>
       </div>
     </div>`;
@@ -333,6 +334,21 @@ function renderSocForm(si){
           oninput="if(!socEditState.bambini)socEditState.bambini={};socEditState.bambini['${c.id}']=parseInt(this.value)||0">
       </div>`).join('')}
     </div>
+    <div style="font-size:12px;font-weight:600;color:var(--txt2);margin-bottom:6px">🏢 Logo società</div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+      ${st.logo
+        ?`<img src="${st.logo}" style="height:52px;width:52px;border-radius:8px;object-fit:contain;background:#fff;padding:3px;border:1px solid var(--border)">`
+        :'<div style="height:52px;width:52px;border-radius:8px;background:var(--info);display:flex;align-items:center;justify-content:center;font-size:24px">🏢</div>'}
+      <label style="cursor:pointer">
+        <span class="bp bxsm" style="display:inline-block">📎 ${st.logo?'Cambia':'Carica'} logo</span>
+        <input type="file" accept="image/*" style="display:none" onchange="uploadSocLogo(this)">
+      </label>
+      <input type="text" value="${st.logo&&!st.logo.startsWith('data:')?escV(st.logo):''}"
+        placeholder="...oppure URL immagine"
+        style="flex:1;min-width:160px;font-size:12px"
+        oninput="socEditState.logo=this.value">
+      ${st.logo?`<button class="bxsm bd" onclick="socEditState.logo='';render()">✕ Rimuovi</button>`:''}
+    </div>
     <div style="display:flex;gap:8px;justify-content:flex-end">
       <button onclick="socEditState=null;render()">Annulla</button>
       <button class="bp bsm" onclick="saveSoc()">✓ Salva</button>
@@ -344,14 +360,43 @@ function saveSoc(){
   const t=currentTorneo();if(!t)return;if(!t.societa)t.societa=[];
   const st=socEditState;if(!st)return;
   const nome=st.nome.trim();if(!nome){alert('Inserisci il nome.');return;}
-  if(st.si===-1)t.societa.push({nome,sqPerCat:{...st.sqPerCat},bambini:{...st.bambini},squadre:[]});
-  else{t.societa[st.si].nome=nome;t.societa[st.si].sqPerCat={...st.sqPerCat};t.societa[st.si].bambini={...st.bambini};}
+  const logo=st.logo||'';
+  if(st.si===-1)t.societa.push({nome,sqPerCat:{...st.sqPerCat},bambini:{...st.bambini},logo,squadre:[]});
+  else{t.societa[st.si].nome=nome;t.societa[st.si].sqPerCat={...st.sqPerCat};t.societa[st.si].bambini={...st.bambini};t.societa[st.si].logo=logo;}
   socEditState=null;sv();render();
 }
 function rimuoviSocTorneo(si){
   const t=currentTorneo();if(!t||!t.societa)return;
   if(!confirm(`Rimuovere "${t.societa[si].nome}"?`))return;
   t.societa.splice(si,1);sv();render();
+}
+function openSocEdit(si){
+  const t=currentTorneo();if(!t||!t.societa[si])return;
+  const s=t.societa[si];const cats=getCats();
+  const sqPerCat={},bambini={};
+  cats.forEach(c=>{sqPerCat[c.id]=s.sqPerCat?.[c.id]||0;bambini[c.id]=s.bambini?.[c.id]||0;});
+  socEditState={si,nome:s.nome,sqPerCat,bambini,logo:s.logo||''};
+  render();
+}
+function uploadSocLogo(input){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const img=new Image();
+    img.onload=function(){
+      const MAX=300;
+      let w=img.width,h=img.height;
+      if(w>MAX||h>MAX){if(w>h){h=Math.round(h*MAX/w);w=MAX;}else{w=Math.round(w*MAX/h);h=MAX;}}
+      const canvas=document.createElement('canvas');
+      canvas.width=w;canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      if(!socEditState)return;
+      socEditState.logo=canvas.toDataURL('image/png',0.85);
+      render();
+    };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
 }
 
 // ============================================================

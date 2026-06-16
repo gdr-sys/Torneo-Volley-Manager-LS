@@ -259,11 +259,11 @@ function renderTorneoSetup(){
             <div style="font-size:10px;color:var(--txt2);margin-bottom:3px">🏐 Squadre</div>
             <input type="number" min="0" max="20" value="${s.sqPerCat[cat.id]||0}"
               style="width:100%;text-align:center;padding:5px 2px;font-size:18px;font-weight:700"
-              oninput="setSocCat(${si},'${cat.id}',parseInt(this.value)||0)">
+              oninput="setSocCat(${si},'${cat.id}',parseInt(this.value)||0);render()">
             <div style="font-size:10px;color:var(--txt2);margin:6px 0 3px">🧒 Bambini</div>
             <input type="number" min="0" max="999" value="${s.bambini[cat.id]||0}"
               style="width:100%;text-align:center;padding:5px 2px;font-size:18px;font-weight:700"
-              oninput="setSocBambini(${si},'${cat.id}',parseInt(this.value)||0)">
+              oninput="setSocBambini(${si},'${cat.id}',parseInt(this.value)||0);render()">
           </div>`).join('')}
         </div>
       </div>`).join('')}

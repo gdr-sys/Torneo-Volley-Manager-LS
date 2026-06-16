@@ -147,7 +147,10 @@ function openTorneo(id){
 function eliminaTorneo(id){if(!confirm('Eliminare questo torneo?'))return;delete DB.tornei[id];sv();render();}
 function setTorneoLive(id){
   if(DB.tornei[id]?.archiviato){alert('Riattiva il torneo prima di metterlo live.');return;}
-  localStorage.setItem('torneo_live_id',id);render();
+  localStorage.setItem('torneo_live_id',id);
+  // Salva anche l'uid dell'organizzatore per la live pubblica
+  if(window._currentUid)localStorage.setItem('torneo_live_uid',window._currentUid);
+  render();
 }
 function getLiveId(){return localStorage.getItem('torneo_live_id');}
 function rinominaTorneo(id){

@@ -21,7 +21,7 @@ let socEditState=null;
 
 // Struttura dati principale
 // tornei[id].categorie = [{id, nome, colore, emoji, fasi:[]}]
-let DB={tornei:{}};
+var DB={tornei:{}}; // var per accesso globale da Firebase
 
 // ============================================================
 // CATEGORIE DEFAULT (usate alla creazione di un nuovo torneo)

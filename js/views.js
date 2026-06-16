@@ -40,6 +40,7 @@ function renderHome(){
     <div style="display:flex;gap:8px;margin-bottom:1.5rem;flex-wrap:wrap">
       <button class="bp" style="flex:1;padding:12px;font-size:15px;min-width:160px" onclick="startNuovoTorneo()">+ Nuovo torneo</button>
       <button style="padding:12px 18px;font-size:13px" onclick="importTorneo()">⬆ Importa</button>
+      <button style="padding:12px 18px;font-size:13px" onclick="esportaTuttiTornei()" title="Scarica backup di tutti i tornei">⬇ Esporta</button>
       <button style="padding:12px 18px;font-size:13px" class="bd" onclick="azzeraDB()">🗑 Azzera tutto</button>
     </div>
     ${ids.length>3?`<div style="margin-bottom:10px">
@@ -77,16 +78,30 @@ function renderHome(){
         </div>
         <div style="display:flex;gap:6px;align-items:center">
           ${isLive
-            ?'<span style="font-size:11px;color:#166534;font-weight:500">In corso</span>'
-            :`<button class="bsm" style="background:#dcfce7;color:#166534;border-color:#86efac;font-size:11px" onclick="event.stopPropagation();setTorneoLive('${id}')">▶ Live</button>`}
-          <button class="bsm" onclick="event.stopPropagation();rinominaTorneo('${id}')" title="Rinomina">✏️</button>
-          <button class="bsm" onclick="event.stopPropagation();archiviaToggle('${id}')" title="${t.archiviato?'Riattiva':'Archivia'}">${t.archiviato?'📂':'📁'}</button>
-          <button class="bsm" onclick="event.stopPropagation();duplicaTorneo('${id}')">📋</button>
-          <button class="bsm bd" onclick="event.stopPropagation();eliminaTorneo('${id}')">✕</button>
+            ?'<span style="font-size:11px;color:#166534;font-weight:500">● In corso</span>'
+            :`<button class="bsm" style="background:#dcfce7;color:#166534;border-color:#86efac;font-size:11px" onclick="event.stopPropagation();setTorneoLive('${id}')" title="Imposta come torneo live pubblico">▶ Live</button>`}
+          <button class="bsm" onclick="event.stopPropagation();esportaSingoloTorneo('${id}')" title="Esporta torneo (backup)">⬇</button>
+          <button class="bsm" onclick="event.stopPropagation();rinominaTorneo('${id}')" title="Rinomina torneo">✏️</button>
+          <button class="bsm" onclick="event.stopPropagation();archiviaToggle('${id}')" title="${t.archiviato?'Riattiva torneo':'Archivia torneo'}">${t.archiviato?'📂':'📁'}</button>
+          <button class="bsm" onclick="event.stopPropagation();duplicaTorneo('${id}')" title="Duplica torneo">📋</button>
+          <button class="bsm bd" onclick="event.stopPropagation();eliminaTorneo('${id}')" title="Elimina torneo">✕</button>
         </div>
       </div>`;
     }).join('')}
     ${!ids.length?`<p style="text-align:center;color:var(--txt2);font-size:13px;padding:1rem">Nessun torneo. Creane uno!</p>`:''}
+    ${ids.filter(id=>!DB.tornei[id].archiviato).length>0?`<div style="font-size:11px;color:var(--txt2);margin-top:10px;padding:8px 12px;background:var(--info);border-radius:8px;display:flex;flex-wrap:wrap;gap:10px">
+      <span title="Imposta come live pubblico">▶ Live = pagina pubblica</span>
+      <span>·</span>
+      <span title="Esporta backup">⬇ = esporta backup</span>
+      <span>·</span>
+      <span title="Rinomina">✏️ = rinomina</span>
+      <span>·</span>
+      <span title="Archivia">📁 = archivia</span>
+      <span>·</span>
+      <span title="Duplica">📋 = duplica</span>
+      <span>·</span>
+      <span title="Elimina">✕ = elimina</span>
+    </div>`:''}
     ${(()=>{
       const archiviati=ids.filter(id=>DB.tornei[id].archiviato);
       if(!archiviati.length)return'';

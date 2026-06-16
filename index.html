@@ -94,7 +94,7 @@
     setSyncStatus('wait', '⏳ Caricamento...');
     try {
       const dataSnap = await _fbDb.collection('utenti').doc(user.uid).collection('dati').doc('tornei').get();
-      if (dataSnap.exists()) {
+      if (dataSnap.exists) {
         const data = dataSnap.data();
         // Assicura struttura base
         DB = data && data.tornei ? data : { tornei: {} };
@@ -109,7 +109,7 @@
     // Avvia listener per aggiornamenti in tempo reale
     unsubLive = _fbDb.collection('utenti').doc(user.uid).collection('dati').doc('tornei')
       .onSnapshot((snap) => {
-        if (snap.exists && snap.exists() && !snap.metadata.fromCache) {
+        if (snap.exists && !snap.metadata.fromCache) {
           DB = snap.data();
           try { new BroadcastChannel('torneo_update').postMessage('update'); } catch(e) {}
         }

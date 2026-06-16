@@ -1,8 +1,6 @@
 /* Salvataggio su Firebase Firestore (compat SDK) */
 'use strict';
 
-let saveTimer = null;
-
 function setSyncStatus(s, msg) {
   const b = document.getElementById('syncBadge');
   const d = document.getElementById('syncDot');

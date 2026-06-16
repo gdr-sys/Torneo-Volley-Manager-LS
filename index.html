@@ -82,7 +82,7 @@
     }
     // Verifica attivazione
     const snap = await _fbDb.collection('utenti').doc(user.uid).get();
-    if (!snap.exists() || snap.data().attivo !== true) {
+    if (!snap.exists || snap.data().attivo !== true) {
       await _fbAuth.signOut();
       window.location.href = 'login.html';
       return;

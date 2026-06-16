@@ -217,9 +217,71 @@ function loadFromStorage(){
     if(raw){const d=JSON.parse(raw);if(d&&d.tornei){window._liveDB=d;renderLive();}}
   }catch(e){console.error('loadFromStorage:',e);}
 }
-setInterval(loadFromStorage,3000);
-try{new BroadcastChannel('torneo_update').onmessage=()=>loadFromStorage();}catch(e){}
-window.addEventListener('DOMContentLoaded',()=>loadFromStorage());
+// Firebase live listener
+(function initFirebaseLive(){
+  const firebaseConfig = {
+    apiKey: "AIzaSyB-vk1m84YC8ZBMHHvILdgpAfZyp4C_0ZM",
+    authDomain: "torneo-pallavolo-manager.firebaseapp.com",
+    projectId: "torneo-pallavolo-manager",
+    storageBucket: "torneo-pallavolo-manager.firebasestorage.app",
+    messagingSenderId: "423674754433",
+    appId: "1:423674754433:web:35dfeb868d726f6272a480"
+  };
+
+  // Carica Firebase SDK dinamicamente
+  const script1 = document.createElement('script');
+  script1.type = 'module';
+  script1.textContent = `
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, doc, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+    const fbApp = initializeApp(${JSON.stringify({
+      apiKey: "AIzaSyB-vk1m84YC8ZBMHHvILdgpAfZyp4C_0ZM",
+      authDomain: "torneo-pallavolo-manager.firebaseapp.com",
+      projectId: "torneo-pallavolo-manager",
+      storageBucket: "torneo-pallavolo-manager.firebasestorage.app",
+      messagingSenderId: "423674754433",
+      appId: "1:423674754433:web:35dfeb868d726f6272a480"
+    })});
+    const auth = getAuth(fbApp);
+    const db = getFirestore(fbApp);
+
+    // Cerca il torneo live (salviamo l'uid del torneo live in un doc pubblico)
+    // Per ora usiamo il localStorage per trovare l'uid dell'organizzatore
+    const liveUid = localStorage.getItem('torneo_live_uid');
+    if(liveUid){
+      onSnapshot(doc(db,'utenti',liveUid,'dati','tornei'),(snap)=>{
+        if(snap.exists()){
+          window._liveDB=snap.data();
+          if(typeof renderLive==='function')renderLive();
+        }
+      });
+    } else {
+      // Fallback: ascolta BroadcastChannel da stesso browser
+      try{
+        new BroadcastChannel('torneo_update').onmessage=()=>{
+          if(window._liveDB&&typeof renderLive==='function')renderLive();
+        };
+      }catch(e){}
+    }
+  `;
+  document.head.appendChild(script1);
+})();
+
+// Fallback localStorage per stesso dispositivo
+setInterval(()=>{
+  if(!window._liveDB){
+    try{
+      const raw=localStorage.getItem('torneo_local');
+      if(raw){const d=JSON.parse(raw);if(d&&d.tornei){window._liveDB=d;if(typeof renderLive==='function')renderLive();}}
+    }catch(e){}
+  }
+},3000);
+try{new BroadcastChannel('torneo_update').onmessage=()=>{if(typeof renderLive==='function')renderLive();};}catch(e){}
+window.addEventListener('DOMContentLoaded',()=>{
+  try{const raw=localStorage.getItem('torneo_local');if(raw){const d=JSON.parse(raw);if(d&&d.tornei){window._liveDB=d;if(typeof renderLive==='function')renderLive();}}}catch(e){}
+});
 
 // ── Stato ─────────────────────────────────────────────────
 let activeTorneoId=null;

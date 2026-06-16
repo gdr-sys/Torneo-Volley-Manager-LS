@@ -430,6 +430,7 @@ function exportPDFProgramma(){
   // Raccoglie tutti i gironi di tutte le categorie, raggruppati per campo
   const campiMap={}; // campo → [{catId, cat, fase, g}]
   const senzaCampo=[];
+  let hasCampi=false;
 
   for(const cat of getCats()){
     for(const fase of(cat.fasi||[])){
@@ -438,6 +439,7 @@ function exportPDFProgramma(){
         const campo=(g.campo||'').trim();
         const entry={catId:cat.id,cat,fase,g};
         if(campo){
+          hasCampi=true;
           if(!campiMap[campo])campiMap[campo]=[];
           campiMap[campo].push(entry);
         }else{
@@ -528,13 +530,34 @@ function exportPDFProgramma(){
     for(const entry of campiMap[campo])drawGironeBlock(entry);
   }
 
-  // Gironi senza campo assegnato
+  // Gironi senza campo: se NESSUN girone ha il campo assegnato,
+  // raggruppa per categoria invece di mostrare "Campo non assegnato"
   if(senzaCampo.length){
-    chk(16);
-    doc.setFillColor(180,180,180);doc.rect(M,y,W-2*M,10,'F');
-    doc.setTextColor(255,255,255);doc.setFontSize(11);doc.setFont('helvetica','bold');
-    doc.text('Campo non assegnato',M+4,y+7);y+=13;
-    for(const entry of senzaCampo)drawGironeBlock(entry);
+    if(!hasCampi){
+      // Nessun campo assegnato — raggruppa per categoria
+      const catMap={};
+      for(const entry of senzaCampo){
+        const cn=entry.cat.nome;
+        if(!catMap[cn])catMap[cn]={cat:entry.cat,entries:[]};
+        catMap[cn].entries.push(entry);
+      }
+      for(const cn of Object.keys(catMap)){
+        const{cat,entries}=catMap[cn];
+        const CR=hexRgb(cat.colore||'#1e40af');
+        chk(16);
+        doc.setFillColor(...CR);doc.rect(M,y,W-2*M,10,'F');
+        doc.setTextColor(255,255,255);doc.setFontSize(11);doc.setFont('helvetica','bold');
+        doc.text(cn,M+4,y+7);y+=13;
+        for(const entry of entries)drawGironeBlock(entry);
+      }
+    } else {
+      // Alcuni gironi hanno il campo, altri no — mostra sezione separata
+      chk(16);
+      doc.setFillColor(180,180,180);doc.rect(M,y,W-2*M,10,'F');
+      doc.setTextColor(255,255,255);doc.setFontSize(11);doc.setFont('helvetica','bold');
+      doc.text('Campo da definire',M+4,y+7);y+=13;
+      for(const entry of senzaCampo)drawGironeBlock(entry);
+    }
   }
 
   if(isFirst&&y===24){

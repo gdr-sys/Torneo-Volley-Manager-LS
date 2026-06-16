@@ -191,11 +191,11 @@ body.present-mode .present-tabs{display:flex!important}
     <div style="display:flex;justify-content:center;margin-bottom:10px"><div id="qrCode"></div></div>
     <div class="qr-url-panel" id="qrUrl"></div>
   </div>
-  <div id="_presentBanner" style="display:none;position:fixed;bottom:60px;left:0;right:0;background:rgba(124,58,237,.9);color:#fff;text-align:center;padding:8px 16px;font-size:14px;font-weight:700;z-index:200;backdrop-filter:blur(4px)">
+  <div id="_presentBanner" style="display:none;position:fixed;bottom:0;left:0;right:0;background:rgba(124,58,237,.9);color:#fff;text-align:center;padding:8px 16px;font-size:14px;font-weight:700;z-index:150;backdrop-filter:blur(4px)">
   <span id="_presentLabel">—</span>
   <span style="opacity:.6;font-size:11px;margin-left:12px">rotazione ogni 15s</span>
 </div>
-<button class="qr-toggle" id="presentBtn" onclick="togglePresent()" style="background:#7c3aed;margin-bottom:6px">📺 Present</button>
+<button class="qr-toggle" id="presentBtn" onclick="togglePresent()" style="background:#7c3aed;margin-bottom:6px;position:relative;z-index:300">📺 Present</button>
   <button class="qr-toggle" id="qrToggleBtn" onclick="toggleQR()">📱 QR</button>
 </div>
 

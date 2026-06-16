@@ -74,6 +74,24 @@ function lload(){
   }catch(e){console.error('Errore caricamento:',e);}
 }
 
+function esportaTuttiTornei(){
+  const json=JSON.stringify(DB,null,2);
+  const a=document.createElement('a');
+  const data=new Date().toLocaleDateString('it-IT').replace(/[/]/g,'-');
+  a.href='data:application/json;charset=utf-8,'+encodeURIComponent(json);
+  a.download='backup_tutti_tornei_'+data+'.json';
+  a.click();
+}
+function esportaSingoloTorneo(id){
+  const t=DB.tornei[id];if(!t)return;
+  const json=JSON.stringify({tornei:{[id]:t}},null,2);
+  const a=document.createElement('a');
+  const data=new Date().toLocaleDateString('it-IT').replace(/[/]/g,'-');
+  const nome=(t.nome||'torneo').replace(/[^a-zA-Z0-9]/g,'_');
+  a.href='data:application/json;charset=utf-8,'+encodeURIComponent(json);
+  a.download=nome+'_'+data+'.json';
+  a.click();
+}
 function azzeraDB(){
   if(!confirm('Cancellare TUTTI i tornei? Questa operazione non è reversibile.'))return;
   DB={tornei:{}};

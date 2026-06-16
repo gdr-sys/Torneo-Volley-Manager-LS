@@ -217,71 +217,66 @@ function loadFromStorage(){
     if(raw){const d=JSON.parse(raw);if(d&&d.tornei){window._liveDB=d;renderLive();}}
   }catch(e){console.error('loadFromStorage:',e);}
 }
-// Firebase live listener
-(function initFirebaseLive(){
-  const firebaseConfig = {
-    apiKey: "AIzaSyB-vk1m84YC8ZBMHHvILdgpAfZyp4C_0ZM",
-    authDomain: "torneo-pallavolo-manager.firebaseapp.com",
-    projectId: "torneo-pallavolo-manager",
-    storageBucket: "torneo-pallavolo-manager.firebasestorage.app",
-    messagingSenderId: "423674754433",
-    appId: "1:423674754433:web:35dfeb868d726f6272a480"
-  };
-
-  // Carica Firebase SDK dinamicamente
-  const script1 = document.createElement('script');
-  script1.type = 'module';
-  script1.textContent = `
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, doc, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-
-    const fbApp = initializeApp(${JSON.stringify({
+// Firebase live — legge da Firestore tramite documento pubblico
+window.addEventListener('DOMContentLoaded', function() {
+  // Carica Firebase compat
+  var s1=document.createElement('script'); s1.src='https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js'; document.head.appendChild(s1);
+  var s2=document.createElement('script'); s2.src='https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js';
+  s2.onload = function() {
+    firebase.initializeApp({
       apiKey: "AIzaSyB-vk1m84YC8ZBMHHvILdgpAfZyp4C_0ZM",
       authDomain: "torneo-pallavolo-manager.firebaseapp.com",
       projectId: "torneo-pallavolo-manager",
       storageBucket: "torneo-pallavolo-manager.firebasestorage.app",
       messagingSenderId: "423674754433",
       appId: "1:423674754433:web:35dfeb868d726f6272a480"
-    })});
-    const auth = getAuth(fbApp);
-    const db = getFirestore(fbApp);
+    });
+    var db = firebase.firestore();
 
-    // Cerca il torneo live (salviamo l'uid del torneo live in un doc pubblico)
-    // Per ora usiamo il localStorage per trovare l'uid dell'organizzatore
-    const liveUid = localStorage.getItem('torneo_live_uid');
-    if(liveUid){
-      onSnapshot(doc(db,'utenti',liveUid,'dati','tornei'),(snap)=>{
-        if(snap.exists()){
-          window._liveDB=snap.data();
-          if(typeof renderLive==='function')renderLive();
-        }
-      });
-    } else {
-      // Fallback: ascolta BroadcastChannel da stesso browser
-      try{
-        new BroadcastChannel('torneo_update').onmessage=()=>{
-          if(window._liveDB&&typeof renderLive==='function')renderLive();
-        };
-      }catch(e){}
-    }
-  `;
-  document.head.appendChild(script1);
-})();
+    // 1. Leggi il documento live_pubblica/stato per sapere uid e torneoId
+    db.collection('live_pubblica').doc('stato').onSnapshot(function(statoSnap) {
+      if (!statoSnap.exists) {
+        // Fallback localStorage (stesso dispositivo)
+        _loadFromLocalStorage();
+        return;
+      }
+      var stato = statoSnap.data();
+      var uid = stato.uid;
+      var torneoId = stato.torneoId;
 
-// Fallback localStorage per stesso dispositivo
-setInterval(()=>{
-  if(!window._liveDB){
-    try{
-      const raw=localStorage.getItem('torneo_local');
-      if(raw){const d=JSON.parse(raw);if(d&&d.tornei){window._liveDB=d;if(typeof renderLive==='function')renderLive();}}
-    }catch(e){}
-  }
-},3000);
-try{new BroadcastChannel('torneo_update').onmessage=()=>{if(typeof renderLive==='function')renderLive();};}catch(e){}
-window.addEventListener('DOMContentLoaded',()=>{
-  try{const raw=localStorage.getItem('torneo_local');if(raw){const d=JSON.parse(raw);if(d&&d.tornei){window._liveDB=d;if(typeof renderLive==='function')renderLive();}}}catch(e){}
+      // Salva localmente per uso interno
+      localStorage.setItem('torneo_live_uid', uid);
+      localStorage.setItem('torneo_live_id', torneoId);
+
+      // 2. Ascolta i dati dell'organizzatore in real-time
+      db.collection('utenti').doc(uid).collection('dati').doc('tornei')
+        .onSnapshot(function(snap) {
+          if (snap.exists) {
+            window._liveDB = snap.data();
+            if (typeof renderLive === 'function') renderLive();
+          }
+        });
+    });
+  };
+  document.head.appendChild(s2);
 });
+
+function _loadFromLocalStorage() {
+  try {
+    var raw = localStorage.getItem('torneo_local');
+    if (raw) {
+      var d = JSON.parse(raw);
+      if (d && d.tornei) { window._liveDB = d; if (typeof renderLive === 'function') renderLive(); }
+    }
+  } catch(e) {}
+}
+
+// Fallback: polling localStorage per stesso dispositivo
+setInterval(function() {
+  if (!window._liveDB) _loadFromLocalStorage();
+}, 3000);
+try { new BroadcastChannel('torneo_update').onmessage = function() { if (typeof renderLive === 'function') renderLive(); }; } catch(e) {}
+_loadFromLocalStorage();
 
 // ── Stato ─────────────────────────────────────────────────
 let activeTorneoId=null;

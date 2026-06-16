@@ -29,86 +29,69 @@
 </div>
 
 <footer class="footer-noemi">
-  <p>Progetto e idea di
-    <a href="mailto:noemi.marcolini@gmail.com" class="link-noemi">Noemi Marcolini</a>
-  </p>
+  <p>Progetto e idea di <a href="mailto:noemi.marcolini@gmail.com" class="link-noemi">Noemi Marcolini</a></p>
 </footer>
 
-<!-- Firebase compat (non-module per accesso globale) -->
+<!-- Firebase compat -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script>
-  const _auth_unused = null; // placeholder
-  // Inizializzazione Firebase compat
-  const firebaseConfig = {
+  firebase.initializeApp({
     apiKey: "AIzaSyB-vk1m84YC8ZBMHHvILdgpAfZyp4C_0ZM",
     authDomain: "torneo-pallavolo-manager.firebaseapp.com",
     projectId: "torneo-pallavolo-manager",
     storageBucket: "torneo-pallavolo-manager.firebasestorage.app",
     messagingSenderId: "423674754433",
     appId: "1:423674754433:web:35dfeb868d726f6272a480"
-  };
-  firebase.initializeApp(firebaseConfig);
-  const _fbAuth = firebase.auth();
-  const _fbDb = firebase.firestore();
+  });
 
-  // Esponi funzioni per storage.js
+  var _fbAuth = firebase.auth();
+  var _fbDb = firebase.firestore();
   window._fbDb = _fbDb;
-  window._fbSetDoc = (ref, data) => ref.set(data);
-  window._fbDoc = (db, ...path) => {
-    let ref = db;
-    for(let i=0;i<path.length;i+=2) ref=ref.collection(path[i]).doc(path[i+1]);
-    return ref;
-  };
+  window._currentUid = null;
 
-    // Firebase già inizializzato sopra
+  var _unsubLive = null;
 
-
-  let currentUid = null;
-  let unsubLive = null;
-
-  // Controlla se loggato
-  _fbAuth.onAuthStateChanged(async (user) => {
+  _fbAuth.onAuthStateChanged(async function(user) {
     if (!user) {
       window.location.href = 'login.html';
       return;
     }
-    // Verifica attivazione
-    const snap = await _fbDb.collection('utenti').doc(user.uid).get();
+    // Verifica attivazione account
+    var snap = await _fbDb.collection('utenti').doc(user.uid).get();
     if (!snap.exists || snap.data().attivo !== true) {
       await _fbAuth.signOut();
       window.location.href = 'login.html';
       return;
     }
-    currentUid = user.uid;
     window._currentUid = user.uid;
 
     // Carica dati
     setSyncStatus('wait', '⏳ Caricamento...');
     try {
-      const dataSnap = await _fbDb.collection('utenti').doc(user.uid).collection('dati').doc('tornei').get();
+      var dataSnap = await _fbDb.collection('utenti').doc(user.uid).collection('dati').doc('tornei').get();
       if (dataSnap.exists) {
-        const data = dataSnap.data();
-        // Assicura struttura base
-        DB = data && data.tornei ? data : { tornei: {} };
+        var data = dataSnap.data();
+        DB = (data && data.tornei) ? data : { tornei: {} };
       } else {
         DB = { tornei: {} };
       }
     } catch(e) {
-      console.error('Errore caricamento dati:', e);
+      console.error('Errore caricamento:', e);
       DB = { tornei: {} };
     }
 
-    // Avvia listener per aggiornamenti in tempo reale
-    unsubLive = _fbDb.collection('utenti').doc(user.uid).collection('dati').doc('tornei')
-      .onSnapshot((snap) => {
+    // Listener aggiornamenti real-time
+    _unsubLive = _fbDb.collection('utenti').doc(user.uid).collection('dati').doc('tornei')
+      .onSnapshot(function(snap) {
         if (snap.exists && !snap.metadata.fromCache) {
           DB = snap.data();
           try { new BroadcastChannel('torneo_update').postMessage('update'); } catch(e) {}
         }
       });
 
+    // Mostra app
     document.body.style.display = '';
     setSyncStatus('ok', '● Connesso');
     initTheme();
@@ -116,20 +99,20 @@
   });
 
   window.doLogout = async function() {
-    if (unsubLive) unsubLive();
+    if (_unsubLive) _unsubLive();
     await _fbAuth.signOut();
     window.location.href = 'login.html';
   };
 </script>
 
-<!-- v=202606161100 -->
-<script src="js/config.js?v=202606161100"></script>
-<script src="js/state.js?v=202606161100"></script>
-<script src="js/storage.js?v=202606161100"></script>
-<script src="js/utils.js?v=202606161100"></script>
-<script src="js/pdf.js?v=202606161100"></script>
-<script src="js/views.js?v=202606161100"></script>
-<script src="js/main.js?v=202606161100"></script>
+<!-- v=202606161200 -->
+<script src="js/config.js?v=202606161200"></script>
+<script src="js/state.js?v=202606161200"></script>
+<script src="js/storage.js?v=202606161200"></script>
+<script src="js/utils.js?v=202606161200"></script>
+<script src="js/pdf.js?v=202606161200"></script>
+<script src="js/views.js?v=202606161200"></script>
+<script src="js/main.js?v=202606161200"></script>
 
 </body>
 </html>

@@ -148,8 +148,17 @@ function eliminaTorneo(id){if(!confirm('Eliminare questo torneo?'))return;delete
 function setTorneoLive(id){
   if(DB.tornei[id]?.archiviato){alert('Riattiva il torneo prima di metterlo live.');return;}
   localStorage.setItem('torneo_live_id',id);
-  // Salva anche l'uid dell'organizzatore per la live pubblica
-  if(window._currentUid)localStorage.setItem('torneo_live_uid',window._currentUid);
+  if(window._currentUid){
+    localStorage.setItem('torneo_live_uid',window._currentUid);
+    // Scrive su Firestore il torneo live — leggibile da chiunque
+    if(window._fbDb){
+      window._fbDb.collection('live_pubblica').doc('stato').set({
+        uid: window._currentUid,
+        torneoId: id,
+        aggiornatoAt: Date.now()
+      }).catch(e=>console.error('Errore set live:',e));
+    }
+  }
   render();
 }
 function getLiveId(){return localStorage.getItem('torneo_live_id');}

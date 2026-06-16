@@ -32,7 +32,16 @@
   <p>Progetto e idea di <a href="mailto:noemi.marcolini@gmail.com" class="link-noemi">Noemi Marcolini</a></p>
 </footer>
 
-<!-- Firebase compat -->
+<!-- 1. Prima i file JS dell'app -->
+<script src="js/config.js?v=202606161300"></script>
+<script src="js/state.js?v=202606161300"></script>
+<script src="js/storage.js?v=202606161300"></script>
+<script src="js/utils.js?v=202606161300"></script>
+<script src="js/pdf.js?v=202606161300"></script>
+<script src="js/views.js?v=202606161300"></script>
+<script src="js/main.js?v=202606161300"></script>
+
+<!-- 2. Poi Firebase — così setSyncStatus, DB, render sono già disponibili -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
@@ -50,7 +59,6 @@
   var _fbDb = firebase.firestore();
   window._fbDb = _fbDb;
   window._currentUid = null;
-
   var _unsubLive = null;
 
   _fbAuth.onAuthStateChanged(async function(user) {
@@ -58,7 +66,6 @@
       window.location.href = 'login.html';
       return;
     }
-    // Verifica attivazione account
     var snap = await _fbDb.collection('utenti').doc(user.uid).get();
     if (!snap.exists || snap.data().attivo !== true) {
       await _fbAuth.signOut();
@@ -67,31 +74,25 @@
     }
     window._currentUid = user.uid;
 
-    // Carica dati
     setSyncStatus('wait', '⏳ Caricamento...');
     try {
       var dataSnap = await _fbDb.collection('utenti').doc(user.uid).collection('dati').doc('tornei').get();
-      if (dataSnap.exists) {
-        var data = dataSnap.data();
-        DB = (data && data.tornei) ? data : { tornei: {} };
-      } else {
-        DB = { tornei: {} };
-      }
+      DB = dataSnap.exists ? (dataSnap.data() || { tornei: {} }) : { tornei: {} };
+      if (!DB.tornei) DB.tornei = {};
     } catch(e) {
       console.error('Errore caricamento:', e);
       DB = { tornei: {} };
     }
 
-    // Listener aggiornamenti real-time
     _unsubLive = _fbDb.collection('utenti').doc(user.uid).collection('dati').doc('tornei')
       .onSnapshot(function(snap) {
         if (snap.exists && !snap.metadata.fromCache) {
-          DB = snap.data();
+          DB = snap.data() || { tornei: {} };
+          if (!DB.tornei) DB.tornei = {};
           try { new BroadcastChannel('torneo_update').postMessage('update'); } catch(e) {}
         }
       });
 
-    // Mostra app
     document.body.style.display = '';
     setSyncStatus('ok', '● Connesso');
     initTheme();
@@ -104,15 +105,6 @@
     window.location.href = 'login.html';
   };
 </script>
-
-<!-- v=202606161200 -->
-<script src="js/config.js?v=202606161200"></script>
-<script src="js/state.js?v=202606161200"></script>
-<script src="js/storage.js?v=202606161200"></script>
-<script src="js/utils.js?v=202606161200"></script>
-<script src="js/pdf.js?v=202606161200"></script>
-<script src="js/views.js?v=202606161200"></script>
-<script src="js/main.js?v=202606161200"></script>
 
 </body>
 </html>

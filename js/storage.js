@@ -1,4 +1,4 @@
-/* Salvataggio su Firebase Firestore */
+/* Salvataggio su Firebase Firestore (compat SDK) */
 'use strict';
 
 let saveTimer = null;
@@ -20,11 +20,11 @@ function sv() {
     try {
       const uid = window._currentUid;
       if (!uid) { setSyncStatus('err', '⚠️ Non connesso'); return; }
-      const db = window._fbDb;
-      const docRef = window._fbDoc(db, 'utenti', uid, 'dati', 'tornei');
-      await window._fbSetDoc(docRef, DB);
+      await window._fbDb
+        .collection('utenti').doc(uid)
+        .collection('dati').doc('tornei')
+        .set(DB);
       setSyncStatus('ok', '● Salvato');
-      // Notifica live
       try { new BroadcastChannel('torneo_update').postMessage('update'); } catch(e) {}
     } catch(e) {
       console.error('Errore salvataggio Firebase:', e);
@@ -33,13 +33,11 @@ function sv() {
   }, 800);
 }
 
-// lload non serve più — i dati vengono caricati in index.html
 function lload() {
   // Caricamento gestito da Firebase in index.html
 }
 
-// Monitoraggio offline
-window.addEventListener('online', () => setSyncStatus('ok', '● Connesso'));
+window.addEventListener('online',  () => setSyncStatus('ok',  '● Connesso'));
 window.addEventListener('offline', () => setSyncStatus('err', '📵 Offline'));
 
 function azzeraDB() {
@@ -48,4 +46,24 @@ function azzeraDB() {
   sv();
   goHome();
   alert('Database azzerato.');
+}
+
+function esportaTuttiTornei() {
+  const json = JSON.stringify(DB, null, 2);
+  const a = document.createElement('a');
+  const data = new Date().toLocaleDateString('it-IT').replace(/[/]/g, '-');
+  a.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(json);
+  a.download = 'backup_tutti_tornei_' + data + '.json';
+  a.click();
+}
+
+function esportaSingoloTorneo(id) {
+  const t = DB.tornei[id]; if (!t) return;
+  const json = JSON.stringify({ tornei: { [id]: t } }, null, 2);
+  const a = document.createElement('a');
+  const data = new Date().toLocaleDateString('it-IT').replace(/[/]/g, '-');
+  const nome = (t.nome || 'torneo').replace(/[^a-zA-Z0-9]/g, '_');
+  a.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(json);
+  a.download = nome + '_' + data + '.json';
+  a.click();
 }

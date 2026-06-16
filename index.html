@@ -34,11 +34,33 @@
   </p>
 </footer>
 
-<!-- Firebase -->
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-  import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+<!-- Firebase compat (non-module per accesso globale) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
+  const _auth_unused = null; // placeholder
+  // Inizializzazione Firebase compat
+  const firebaseConfig = {
+    apiKey: "AIzaSyB-vk1m84YC8ZBMHHvILdgpAfZyp4C_0ZM",
+    authDomain: "torneo-pallavolo-manager.firebaseapp.com",
+    projectId: "torneo-pallavolo-manager",
+    storageBucket: "torneo-pallavolo-manager.firebasestorage.app",
+    messagingSenderId: "423674754433",
+    appId: "1:423674754433:web:35dfeb868d726f6272a480"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const _fbAuth = firebase.auth();
+  const _fbDb = firebase.firestore();
+
+  // Esponi funzioni per storage.js
+  window._fbDb = _fbDb;
+  window._fbSetDoc = (ref, data) => ref.set(data);
+  window._fbDoc = (db, ...path) => {
+    let ref = db;
+    for(let i=0;i<path.length;i+=2) ref=ref.collection(path[i]).doc(path[i+1]);
+    return ref;
+  };
 
   const firebaseConfig = {
     apiKey: "AIzaSyB-vk1m84YC8ZBMHHvILdgpAfZyp4C_0ZM",
@@ -49,30 +71,19 @@
     appId: "1:423674754433:web:35dfeb868d726f6272a480"
   };
 
-  const fbApp = initializeApp(firebaseConfig);
-  const auth = getAuth(fbApp);
-  const db = getFirestore(fbApp);
-
-  window._fbAuth = auth;
-  window._fbDb = db;
-  window._fbDoc = doc;
-  window._fbGetDoc = getDoc;
-  window._fbSetDoc = setDoc;
-  window._fbOnSnapshot = onSnapshot;
-
   let currentUid = null;
   let unsubLive = null;
 
   // Controlla se loggato
-  onAuthStateChanged(auth, async (user) => {
+  _fbAuth.onAuthStateChanged(async (user) => {
     if (!user) {
       window.location.href = 'login.html';
       return;
     }
     // Verifica attivazione
-    const snap = await getDoc(doc(db, 'utenti', user.uid));
+    const snap = await _fbDb.collection('utenti').doc(user.uid).get();
     if (!snap.exists() || snap.data().attivo !== true) {
-      await signOut(auth);
+      await _fbAuth.signOut();
       window.location.href = 'login.html';
       return;
     }
@@ -81,21 +92,28 @@
 
     // Carica dati
     setSyncStatus('wait', '⏳ Caricamento...');
-    const dataSnap = await getDoc(doc(db, 'utenti', user.uid, 'dati', 'tornei'));
-    if (dataSnap.exists()) {
-      DB = dataSnap.data();
-    } else {
+    try {
+      const dataSnap = await _fbDb.collection('utenti').doc(user.uid).collection('dati').doc('tornei').get();
+      if (dataSnap.exists()) {
+        const data = dataSnap.data();
+        // Assicura struttura base
+        DB = data && data.tornei ? data : { tornei: {} };
+      } else {
+        DB = { tornei: {} };
+      }
+    } catch(e) {
+      console.error('Errore caricamento dati:', e);
       DB = { tornei: {} };
     }
 
     // Avvia listener per aggiornamenti in tempo reale
-    unsubLive = onSnapshot(doc(db, 'utenti', user.uid, 'dati', 'tornei'), (snap) => {
-      if (snap.exists() && snap.metadata.fromCache === false) {
-        DB = snap.data();
-        // Notifica la live se aperta
-        try { new BroadcastChannel('torneo_update').postMessage('update'); } catch(e) {}
-      }
-    });
+    unsubLive = _fbDb.collection('utenti').doc(user.uid).collection('dati').doc('tornei')
+      .onSnapshot((snap) => {
+        if (snap.exists && snap.exists() && !snap.metadata.fromCache) {
+          DB = snap.data();
+          try { new BroadcastChannel('torneo_update').postMessage('update'); } catch(e) {}
+        }
+      });
 
     document.body.style.display = '';
     setSyncStatus('ok', '● Connesso');
@@ -105,7 +123,7 @@
 
   window.doLogout = async function() {
     if (unsubLive) unsubLive();
-    await signOut(auth);
+    await _fbAuth.signOut();
     window.location.href = 'login.html';
   };
 </script>

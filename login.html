@@ -69,7 +69,7 @@
 
 <div class="card">
   <div class="logo">
-    <img src="logo_trasparente.png" alt="Torneo Pallavolo Manager">
+    <img src="logo_trasparente.png" alt="Torneo Pallavolo Manager" onerror="this.style.display='none'">
   </div>
   <h1>Torneo Pallavolo Manager</h1>
   <p class="sub">Accedi al tuo account</p>
@@ -130,7 +130,7 @@
   auth.onAuthStateChanged(async (user) => {
     if (user) {
       const snap = await db.collection('utenti').doc(user.uid).get();
-      if (snap.exists && snap.exists() && snap.data().attivo === true) {
+      if (snap.exists && snap.data().attivo === true) {
         window.location.href = 'index.html';
       }
     }
@@ -162,7 +162,7 @@
     try {
       const cred = await auth.signInWithEmailAndPassword(email, pwd);
       const snap = await db.collection('utenti').doc(cred.user.uid).get();
-      if (snap.exists && snap.exists() && snap.data().attivo === true) {
+      if (snap.exists && snap.data().attivo === true) {
         window.location.href = 'index.html';
       } else {
         document.getElementById('notActive').classList.add('show');

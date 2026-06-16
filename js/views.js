@@ -61,47 +61,33 @@ function renderHome(){
       const date=t.createdAt?new Date(t.createdAt).toLocaleDateString('it-IT'):'';
       const isLive=getLiveId()===id;
       const isArch=!!t.archiviato;
-      return`<div class="torneo-item${isLive?' active-t':''}" onclick="openTorneo('${id}')"
-        style="${isLive?'color:#166534':isArch?'opacity:.6':''}">
-        <div>
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-            <div class="torneo-nome" style="color:${isLive?'#166534':'var(--txt)'}">${t.nome}</div>
-            ${isLive?'<span style="font-size:11px;background:#dcfce7;color:#166534;padding:1px 8px;border-radius:10px;font-weight:600">🔴 LIVE</span>':''}
-            ${isArch?'<span style="font-size:11px;background:var(--info);color:var(--txt2);padding:1px 8px;border-radius:10px;font-weight:600">📁 Archiviato</span>':''}
+      const cats2=t.categorie||[];
+      const totGir=cats2.reduce((s,cat)=>(cat.fasi||[]).reduce((s2,f)=>s2+(f.gironi||[]).length,s),0);
+      const totPart=cats2.reduce((s,cat)=>(cat.fasi||[]).reduce((s2,f)=>(f.gironi||[]).reduce((s3,g)=>s3+g.partite.filter(p=>p.s1h!=='').length,s2),s),0);
+      const meta=[nSoc+' soc.',cats2.length+' cat.',totGir?totGir+' gir.':'',totPart?totPart+' ris.':'',date].filter(Boolean).join(' · ');
+      return`<div class="torneo-item${isLive?' active-t':''}" onclick="openTorneo('${id}')" style="${isArch?'opacity:.65':''}">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px">
+          <div style="min-width:0;flex:1">
+            <div style="font-weight:700;font-size:15px;color:${isLive?'#166534':'var(--txt)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+              ${isLive?'🔴 ':isArch?'📁 ':''}${t.nome}
+            </div>
+            <div style="font-size:11px;color:${isLive?'#166534':'var(--txt2)'};margin-top:3px">${meta}</div>
           </div>
-          <div class="torneo-meta" style="color:${isLive?'#166534':'var(--txt2)'}">${(()=>{
-            const cats=t.categorie||[];
-            const totGironi=cats.reduce((s,cat)=>(cat.fasi||[]).reduce((s2,f)=>s2+(f.gironi||[]).length,s),0);
-            const totPart=cats.reduce((s,cat)=>(cat.fasi||[]).reduce((s2,f)=>(f.gironi||[]).reduce((s3,g)=>s3+g.partite.filter(p=>p.s1h!=='').length,s2),s),0);
-            return nSoc+' società · '+cats.length+' categorie'+(totGironi?' · '+totGironi+' giron'+(totGironi===1?'e':'i'):'')+(totPart?' · '+totPart+' risultati':'');
-          })()} · ${date}</div>
-        </div>
-        <div style="display:flex;gap:6px;align-items:center">
           ${isLive
-            ?'<span style="font-size:11px;color:#166534;font-weight:500">● In corso</span>'
-            :`<button class="bsm" style="background:#dcfce7;color:#166534;border-color:#86efac;font-size:11px" onclick="event.stopPropagation();setTorneoLive('${id}')" title="Imposta come torneo live pubblico">▶ Live</button>`}
-          <button class="bsm" onclick="event.stopPropagation();esportaSingoloTorneo('${id}')" title="Esporta torneo (backup)">⬇</button>
-          <button class="bsm" onclick="event.stopPropagation();rinominaTorneo('${id}')" title="Rinomina torneo">✏️</button>
-          <button class="bsm" onclick="event.stopPropagation();archiviaToggle('${id}')" title="${t.archiviato?'Riattiva torneo':'Archivia torneo'}">${t.archiviato?'📂':'📁'}</button>
-          <button class="bsm" onclick="event.stopPropagation();duplicaTorneo('${id}')" title="Duplica torneo">📋</button>
-          <button class="bsm bd" onclick="event.stopPropagation();eliminaTorneo('${id}')" title="Elimina torneo">✕</button>
+            ?`<span style="font-size:11px;background:#dcfce7;color:#166534;padding:4px 10px;border-radius:6px;font-weight:600;white-space:nowrap;flex-shrink:0">● Live</span>`
+            :`<button class="bsm" style="background:#dcfce7;color:#166534;border-color:#86efac;font-size:11px;white-space:nowrap;flex-shrink:0" onclick="event.stopPropagation();setTorneoLive('${id}')">▶ Live</button>`}
+        </div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap">
+          <button class="bxsm" onclick="event.stopPropagation();esportaSingoloTorneo('${id}')">⬇ Esporta</button>
+          <button class="bxsm" onclick="event.stopPropagation();rinominaTorneo('${id}')">✏️ Rinomina</button>
+          <button class="bxsm" onclick="event.stopPropagation();archiviaToggle('${id}')">${t.archiviato?'📂 Riattiva':'📁 Archivia'}</button>
+          <button class="bxsm" onclick="event.stopPropagation();duplicaTorneo('${id}')">📋 Duplica</button>
+          <button class="bxsm bd" onclick="event.stopPropagation();eliminaTorneo('${id}')">✕ Elimina</button>
         </div>
       </div>`;
     }).join('')}
     ${!ids.length?`<p style="text-align:center;color:var(--txt2);font-size:13px;padding:1rem">Nessun torneo. Creane uno!</p>`:''}
-    ${ids.filter(id=>!DB.tornei[id].archiviato).length>0?`<div style="font-size:11px;color:var(--txt2);margin-top:10px;padding:8px 12px;background:var(--info);border-radius:8px;display:flex;flex-wrap:wrap;gap:10px">
-      <span title="Imposta come live pubblico">▶ Live = pagina pubblica</span>
-      <span>·</span>
-      <span title="Esporta backup">⬇ = esporta backup</span>
-      <span>·</span>
-      <span title="Rinomina">✏️ = rinomina</span>
-      <span>·</span>
-      <span title="Archivia">📁 = archivia</span>
-      <span>·</span>
-      <span title="Duplica">📋 = duplica</span>
-      <span>·</span>
-      <span title="Elimina">✕ = elimina</span>
-    </div>`:''}
+
     ${(()=>{
       const archiviati=ids.filter(id=>DB.tornei[id].archiviato);
       if(!archiviati.length)return'';

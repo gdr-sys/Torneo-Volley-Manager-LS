@@ -141,9 +141,9 @@ function exportPDFElim(catId,fid){
   if(wFin){
     doc.setFillColor(...CL);doc.rect(M,y,W-2*M,14,'F');
     doc.setTextColor(...CR);doc.setFont('helvetica','bold');doc.setFontSize(11);
-    doc.text(`🥇 ${wFin}`,M+4,y+6);
+    doc.text(`1. ${wFin}`,M+4,y+6);
     doc.setFontSize(9);doc.setFont('helvetica','normal');doc.setTextColor(80,80,80);
-    doc.text(`🥈 ${lFin||'—'}   🥉 ${wF34||'—'}`,M+4,y+11);
+    doc.text(`2. ${lFin||'—'}   3. ${wF34||'—'}`,M+4,y+11);
     y+=18;
   }
 
@@ -328,7 +328,7 @@ function exportPDFCategoria(catId){
           }
           if(p.nota){
             doc.setTextColor(150,150,150);doc.setFontSize(7);doc.setFont('helvetica','oblique');
-            doc.text('📝 '+p.nota,M+2,y+7);
+            doc.text('Nota: '+p.nota,M+2,y+7);
           }
           doc.setTextColor(30,30,30);y+=p.nota?9:7;
         });
@@ -347,17 +347,17 @@ function exportPDFCategoria(catId){
     newPage();
     doc.setFillColor(...CR);doc.rect(M,y,W-2*M,9,'F');
     doc.setTextColor(255,255,255);doc.setFontSize(11);doc.setFont('helvetica','bold');
-    doc.text(`⚡ ${fase.label}`,M+3,y+6.5);y+=12;
+    doc.text(`${fase.label} - Eliminazione`,M+3,y+6.5);y+=12;
     const e=fase.elim;const es=fase.elimSets||1;
     propagateElim(fase);
     const wF=getWinner(e.fin12,es);
     if(wF){
       doc.setFillColor(...CL);doc.rect(M,y,W-2*M,12,'F');
       doc.setTextColor(...CR);doc.setFont('helvetica','bold');doc.setFontSize(12);
-      doc.text(`🥇 ${wF}`,M+4,y+5);
+      doc.text(`1. ${wF}`,M+4,y+5);
       doc.setFontSize(9);doc.setFont('helvetica','normal');doc.setTextColor(80,80,80);
       const lF=getLoser(e.fin12,es),wF34=getWinner(e.fin34,es);
-      doc.text(`🥈 ${lF||'—'}   🥉 ${wF34||'—'}`,M+4,y+10);
+      doc.text(`2. ${lF||'—'}   3. ${wF34||'—'}`,M+4,y+10);
       y+=16;
     }
     // Stampa match
@@ -417,13 +417,13 @@ function exportPDFProgramma(){
     isFirst=false;
     doc.setFillColor(30,30,30);doc.rect(0,0,W,20,'F');
     doc.setTextColor(255,255,255);doc.setFontSize(14);doc.setFont('helvetica','bold');
-    doc.text(`📋 ${t.nome} — Programma di sala`,M,9);
+    doc.text(`${t.nome} — Programma di sala`,M,9);
     doc.setFontSize(8);doc.setFont('helvetica','normal');
     doc.text(`${new Date().toLocaleString('it-IT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})} · Pagina ${doc.getNumberOfPages()}`,M,16);
     y=24;
   }
 
-  function chk(n=12){if(y+n>284)newPage();}
+  function chk(n=12){if(y+n>278)newPage();}
 
   newPage();
 
@@ -462,7 +462,7 @@ function exportPDFProgramma(){
     doc.setFillColor(...CR);
     doc.rect(M,y,W-2*M,8,'F');
     doc.setTextColor(255,255,255);doc.setFontSize(10);doc.setFont('helvetica','bold');
-    doc.text(`${cat.emoji||''} ${cat.nome} · ${fase.label} · Girone ${g.label}${g.campo?' · 📍 '+g.campo:''} · ${sets} set · ${giocate}/${g.partite.length} partite`,M+3,y+5.5);
+      doc.text(`${cat.nome} · ${fase.label} · Girone ${g.label}${g.campo?' · Campo '+g.campo:''} · ${sets} set · ${giocate}/${g.partite.length} partite`,M+3,y+5.5);
     y+=10;
 
     // Partite
@@ -487,7 +487,7 @@ function exportPDFProgramma(){
         // Campo override
         if(p.campo){
           doc.setTextColor(100,100,200);doc.setFontSize(7.5);doc.setFont('helvetica','bold');
-          doc.text('📍'+p.campo,M+148,y+5.5);
+          doc.text('Campo '+p.campo,M+148,y+5.5);
         }
         // Risultato
         if(played){
@@ -501,7 +501,7 @@ function exportPDFProgramma(){
         // Nota
         if(p.nota){
           doc.setTextColor(150,150,150);doc.setFontSize(7);doc.setFont('helvetica','oblique');
-          doc.text('📝 '+p.nota,M+9,y+7.5);
+          doc.text('Nota: '+p.nota,M+9,y+7.5);
         }
         y+=p.nota?10:8;
       });
@@ -524,7 +524,7 @@ function exportPDFProgramma(){
     // Banner campo
     doc.setFillColor(50,50,50);doc.rect(M,y,W-2*M,10,'F');
     doc.setTextColor(255,255,255);doc.setFontSize(12);doc.setFont('helvetica','bold');
-    doc.text(`📍 Campo ${campo}`,M+4,y+7);y+=13;
+    doc.text(`Campo ${campo}`,M+4,y+7);y+=13;
     for(const entry of campiMap[campo])drawGironeBlock(entry);
   }
 

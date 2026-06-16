@@ -129,6 +129,14 @@
 
   <button class="btn" id="loginBtn" onclick="doLogin()">Accedi</button>
 
+  <p style="text-align:center;margin-top:12px;font-size:13px">
+    <a href="#" onclick="doResetPassword()" style="color:#2d5fc4;text-decoration:none;font-weight:600">Password dimenticata?</a>
+  </p>
+
+  <div class="success" id="resetMsg" style="background:#dcfce7;color:#166534;border-radius:8px;padding:10px 14px;font-size:13px;margin-top:12px;display:none">
+    ✓ Email di recupero inviata! Controlla la tua casella.
+  </div>
+
   <div class="not-active" id="notActive">
     ⏳ Il tuo account è in attesa di attivazione.<br>
     Hai già effettuato il pagamento?<br>
@@ -142,7 +150,7 @@
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
   import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -217,6 +225,28 @@
   document.getElementById('pwd').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') window.doLogin();
   });
+
+  window.doResetPassword = async function() {
+    const email = document.getElementById('email').value.trim();
+    const err = document.getElementById('errMsg');
+    const msg = document.getElementById('resetMsg');
+    err.classList.remove('show');
+    msg.style.display = 'none';
+    if (!email) {
+      err.textContent = 'Inserisci la tua email per recuperare la password.';
+      err.classList.add('show');
+      return;
+    }
+    try {
+      await sendPasswordResetEmail(auth, email);
+      msg.style.display = 'block';
+    } catch(e) {
+      err.textContent = e.code === 'auth/user-not-found'
+        ? 'Email non trovata.'
+        : 'Errore. Riprova.';
+      err.classList.add('show');
+    }
+  };
 </script>
 
 </body>

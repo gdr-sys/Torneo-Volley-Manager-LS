@@ -218,47 +218,59 @@ function loadFromStorage(){
   }catch(e){console.error('loadFromStorage:',e);}
 }
 // Firebase live — legge da Firestore tramite documento pubblico
-window.addEventListener('DOMContentLoaded', function() {
-  // Carica Firebase compat
-  var s1=document.createElement('script'); s1.src='https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js'; document.head.appendChild(s1);
-  var s2=document.createElement('script'); s2.src='https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js';
-  s2.onload = function() {
-    firebase.initializeApp({
-      apiKey: "AIzaSyB-vk1m84YC8ZBMHHvILdgpAfZyp4C_0ZM",
-      authDomain: "torneo-pallavolo-manager.firebaseapp.com",
-      projectId: "torneo-pallavolo-manager",
-      storageBucket: "torneo-pallavolo-manager.firebasestorage.app",
-      messagingSenderId: "423674754433",
-      appId: "1:423674754433:web:35dfeb868d726f6272a480"
-    });
-    var db = firebase.firestore();
-
-    // 1. Leggi il documento live_pubblica/stato per sapere uid e torneoId
-    db.collection('live_pubblica').doc('stato').onSnapshot(function(statoSnap) {
-      if (!statoSnap.exists) {
-        // Fallback localStorage (stesso dispositivo)
-        _loadFromLocalStorage();
-        return;
-      }
-      var stato = statoSnap.data();
-      var uid = stato.uid;
-      var torneoId = stato.torneoId;
-
-      // Salva localmente per uso interno
-      localStorage.setItem('torneo_live_uid', uid);
-      localStorage.setItem('torneo_live_id', torneoId);
-
-      // 2. Ascolta i dati dell'organizzatore in real-time
-      db.collection('utenti').doc(uid).collection('dati').doc('tornei')
-        .onSnapshot(function(snap) {
-          if (snap.exists) {
-            window._liveDB = snap.data();
-            if (typeof renderLive === 'function') renderLive();
-          }
+// Carica Firebase immediatamente (non aspettare DOMContentLoaded)
+function _initFirebaseLive() {
+  var s1 = document.createElement('script');
+  s1.src = 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js';
+  s1.onload = function() {
+    var s2 = document.createElement('script');
+    s2.src = 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js';
+    s2.onload = function() {
+      try {
+        firebase.initializeApp({
+          apiKey: "AIzaSyB-vk1m84YC8ZBMHHvILdgpAfZyp4C_0ZM",
+          authDomain: "torneo-pallavolo-manager.firebaseapp.com",
+          projectId: "torneo-pallavolo-manager",
+          storageBucket: "torneo-pallavolo-manager.firebasestorage.app",
+          messagingSenderId: "423674754433",
+          appId: "1:423674754433:web:35dfeb868d726f6272a480"
         });
-    });
+      } catch(e) {} // già inizializzato
+      var db = firebase.firestore();
+
+      // Ascolta live_pubblica/stato — lettura pubblica
+      db.collection('live_pubblica').doc('stato').onSnapshot(function(statoSnap) {
+        if (!statoSnap.exists) {
+          _loadFromLocalStorage();
+          return;
+        }
+        var stato = statoSnap.data();
+        localStorage.setItem('torneo_live_uid', stato.uid);
+        localStorage.setItem('torneo_live_id', stato.torneoId);
+
+        // Ascolta i dati dell'organizzatore
+        db.collection('utenti').doc(stato.uid).collection('dati').doc('tornei')
+          .onSnapshot(function(snap) {
+            if (snap.exists) {
+              window._liveDB = snap.data();
+              if (typeof renderLive === 'function') renderLive();
+            }
+          });
+      }, function(err) {
+        // Errore (es. regole non aggiornate) — fallback localStorage
+        console.warn('Firebase live error:', err);
+        _loadFromLocalStorage();
+      });
+    };
+    document.head.appendChild(s2);
   };
-  document.head.appendChild(s2);
+  document.head.appendChild(s1);
+}
+_initFirebaseLive();
+
+window.addEventListener('DOMContentLoaded', function() {
+  // Carica subito dal localStorage se disponibile
+  _loadFromLocalStorage();
 });
 
 function _loadFromLocalStorage() {

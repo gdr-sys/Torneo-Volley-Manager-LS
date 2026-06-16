@@ -37,11 +37,13 @@ function renderHome(){
       <div class="card-title" style="margin-bottom:0">🏐 Gestione Tornei</div>
       ${storageInfo}
     </div>
-    <div style="display:flex;gap:8px;margin-bottom:1.5rem;flex-wrap:wrap">
+    <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap">
       <button class="bp" style="flex:1;padding:12px;font-size:15px;min-width:160px" onclick="startNuovoTorneo()">+ Nuovo torneo</button>
-      <button style="padding:12px 18px;font-size:13px" onclick="importTorneo()">⬆ Importa</button>
-      <button style="padding:12px 18px;font-size:13px" onclick="esportaTuttiTornei()" title="Scarica backup di tutti i tornei">⬇ Esporta</button>
-      <button style="padding:12px 18px;font-size:13px" class="bd" onclick="azzeraDB()">🗑 Azzera tutto</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:1.5rem">
+      <button style="flex:1;padding:9px;font-size:13px" onclick="importTorneo()">⬆ Importa</button>
+      <button style="flex:1;padding:9px;font-size:13px" onclick="esportaTuttiTornei()">⬇ Esporta</button>
+      <button style="flex:1;padding:9px;font-size:13px" class="bd" onclick="azzeraDB()">🗑 Azzera</button>
     </div>
     ${ids.length>3?`<div style="margin-bottom:10px">
       <input type="text" id="cercaTorneo" placeholder="🔍 Cerca torneo..." style="font-size:13px"

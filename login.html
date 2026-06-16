@@ -80,7 +80,13 @@
   <input type="email" id="email" placeholder="la-tua@email.com" autocomplete="email">
 
   <label for="pwd">Password</label>
-  <input type="password" id="pwd" placeholder="••••••••" autocomplete="current-password">
+  <div style="position:relative">
+    <input type="password" id="pwd" placeholder="••••••••" autocomplete="current-password" style="margin-bottom:16px;padding-right:44px">
+    <button type="button" onclick="togglePwd()" id="pwdToggle"
+      style="position:absolute;right:12px;top:11px;background:none;border:none;cursor:pointer;font-size:16px;color:#6b7280;padding:0">
+      👁
+    </button>
+  </div>
 
   <button class="btn" id="loginBtn" onclick="doLogin()">Accedi</button>
 
@@ -175,6 +181,18 @@
       showErr(msgs[e.code] || 'Errore di accesso. Riprova.');
       btn.disabled = false;
       btn.textContent = 'Accedi';
+    }
+  }
+
+  function togglePwd() {
+    const input = document.getElementById('pwd');
+    const btn = document.getElementById('pwdToggle');
+    if (input.type === 'password') {
+      input.type = 'text';
+      btn.textContent = '🙈';
+    } else {
+      input.type = 'password';
+      btn.textContent = '👁';
     }
   }
 

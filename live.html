@@ -191,7 +191,11 @@ body.present-mode .present-tabs{display:flex!important}
     <div style="display:flex;justify-content:center;margin-bottom:10px"><div id="qrCode"></div></div>
     <div class="qr-url-panel" id="qrUrl"></div>
   </div>
-  <button class="qr-toggle" id="presentBtn" onclick="togglePresent()" style="background:#7c3aed;margin-bottom:6px">📺 Present</button>
+  <div id="_presentBanner" style="display:none;position:fixed;bottom:60px;left:0;right:0;background:rgba(124,58,237,.9);color:#fff;text-align:center;padding:8px 16px;font-size:14px;font-weight:700;z-index:200;backdrop-filter:blur(4px)">
+  <span id="_presentLabel">—</span>
+  <span style="opacity:.6;font-size:11px;margin-left:12px">rotazione ogni 15s</span>
+</div>
+<button class="qr-toggle" id="presentBtn" onclick="togglePresent()" style="background:#7c3aed;margin-bottom:6px">📺 Present</button>
   <button class="qr-toggle" id="qrToggleBtn" onclick="toggleQR()">📱 QR</button>
 </div>
 
@@ -354,7 +358,11 @@ function renderContent(){
   let html='<div class="live-body">';
   for(const fase of fasi){
     if(fase.tipo==='elim'){html+=renderElimLive(fase,cat);continue;}
-    const gironiDaMostrare=activeGirone==='all'?(fase.gironi||[]):(fase.gironi||[]).filter(g=>g.id===activeGirone);
+    // In modalità presentazione mostra solo il girone corrente della slide
+    const _pg=presentMode&&window._presentGirone||null;
+    const gironiDaMostrare=_pg
+      ?(fase.gironi||[]).filter(g=>g.id===_pg)
+      :activeGirone==='all'?(fase.gironi||[]):(fase.gironi||[]).filter(g=>g.id===activeGirone);
     for(const g of gironiDaMostrare){
       html+=`<div class="girone-card">
         <div class="girone-card-hdr" style="background:${col}18;border-bottom-color:${col}33">
@@ -716,6 +724,8 @@ function togglePresent(){
   document.body.classList.toggle('present-mode',presentMode);
   const btn=document.getElementById('presentBtn');
   if(btn)btn.textContent=presentMode?'✕ Esci':'📺 Present';
+  const banner=document.getElementById('_presentBanner');
+  if(banner)banner.style.display=presentMode?'block':'none';
   // Aggiorna le tab grandi
   updatePresentTabs();
   if(presentMode)startPresentRotation();else stopPresentRotation();
@@ -733,17 +743,54 @@ function updatePresentTabs(){
       ${cat.emoji||''} ${cat.nome}
     </div>`).join('');
 }
+function buildPresentSlides(){
+  // Costruisce la lista di slide: ogni girone di ogni categoria
+  const torneo=DB.tornei?.[activeTorneoId];if(!torneo)return[];
+  const slides=[];
+  for(const cat of(torneo.categorie||[])){
+    const fasi=(cat.fasi||[]).filter(f=>f.tipo!=='elim'&&(f.gironi||[]).length>0);
+    for(const fase of fasi){
+      for(const g of(fase.gironi||[])){
+        slides.push({catId:cat.id,gironeId:g.id,label:`${cat.nome} — Girone ${g.label}`});
+      }
+    }
+    // Aggiungi anche la fase eliminazione se presente
+    const elim=(cat.fasi||[]).find(f=>f.tipo==='elim'&&f.elim);
+    if(elim)slides.push({catId:cat.id,faseId:elim.id,isElim:true,label:`${cat.nome} — Eliminazione`});
+  }
+  return slides;
+}
+
 function startPresentRotation(){
-  // Auto-scroll tra classifiche ogni 15 secondi
+  const slides=buildPresentSlides();
+  if(!slides.length)return;
+  presentTabIdx=0;
+  // Mostra subito la prima slide
+  applyPresentSlide(slides[0]);
   presentRotTimer=setInterval(()=>{
-    const torneo=DB.tornei?.[activeTorneoId];if(!torneo)return;
-    const cats=(torneo.categorie||[]).filter(c=>(c.fasi||[]).some(f=>f.gironi?.length));
-    if(!cats.length)return;
-    presentTabIdx=(presentTabIdx+1)%cats.length;
-    activeCat=cats[presentTabIdx].id;
-    activeSub='classifiche';
-    renderLive();
+    const sl=buildPresentSlides();if(!sl.length)return;
+    presentTabIdx=(presentTabIdx+1)%sl.length;
+    applyPresentSlide(sl[presentTabIdx]);
   },15000);
+}
+
+function applyPresentSlide(slide){
+  if(!slide)return;
+  activeCat=slide.catId;
+  activeSub='classifiche';
+  // Forza il filtro sul girone specifico
+  if(slide.isElim){
+    window._presentGirone=null;
+    window._presentElim=true;
+  } else {
+    window._presentGirone=slide.gironeId||null;
+    window._presentElim=false;
+  }
+  renderLive();
+  // Aggiorna label slide nel banner presentazione
+  const lbl=document.getElementById('_presentLabel');
+  if(lbl)lbl.textContent=slide.label||'';
+  updatePresentTabs();
 }
 function stopPresentRotation(){
   if(presentRotTimer){clearInterval(presentRotTimer);presentRotTimer=null;}

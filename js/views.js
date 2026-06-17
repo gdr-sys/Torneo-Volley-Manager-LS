@@ -946,10 +946,10 @@ function generaLinkSegnapunti(catId,fid,gv,pid,mode){
       <div style="background:#f3f4f6;border-radius:8px;padding:10px;font-size:11px;word-break:break-all;color:#374151;margin-bottom:14px">${link}</div>
       <div style="display:flex;gap:8px;margin-bottom:8px">
         <button class="bp bsm" style="flex:1" onclick="navigator.clipboard.writeText('${link}').then(()=>alert('Link copiato!'))">📋 Copia</button>
-        <a href="https://wa.me/?text=${encodeURIComponent('Ciao! Ecco il link per segnare la partita: ${link}')}" target="_blank"
-          style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:8px;background:#25d366;color:#fff;border-radius:8px;font-size:13px;font-weight:700;text-decoration:none">
+        <button onclick="window.open('https://wa.me/?text='+encodeURIComponent('Ciao! Ecco il link per segnare la partita: ${link}'),'_blank')"
+          style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:8px;background:#25d366;color:#fff;border-radius:8px;font-size:13px;font-weight:700;border:none;cursor:pointer">
           💬 WhatsApp
-        </a>
+        </button>
       </div>
       <button onclick="document.getElementById('_sqModal').remove()"
         style="width:100%;padding:10px;background:#f3f4f6;color:#374151;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">

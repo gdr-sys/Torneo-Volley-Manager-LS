@@ -170,25 +170,32 @@ function topBar() {
 }
 
 function getNomeSquadra(key) {
-  // key può essere un indice numerico o un nome diretto
-  if (!girone || !girone.squadre) return key || '?';
+  if (key === null || key === undefined) return '?';
   var idx = parseInt(key);
-  if (!isNaN(idx) && girone.squadre[idx]) return girone.squadre[idx];
-  return key || '?';
+  if (!isNaN(idx) && girone && girone.squadre && girone.squadre[idx] !== undefined) {
+    var sq = girone.squadre[idx];
+    if (typeof sq === 'string') return sq;
+    if (sq && sq.nome) return sq.nome;
+    return String(idx);
+  }
+  if (typeof key === 'string') return key;
+  return '?';
 }
 
-function getSocDiSquadra(nomeSquadra) {
-  var soc = (torneoData.societa||[]).find(function(s){
-    return (s.squadre||[]).indexOf(nomeSquadra) >= 0;
-  });
-  return soc ? soc.nome : '';
+function getSocNome(key) {
+  var idx = parseInt(key);
+  if (!isNaN(idx) && girone && girone.squadre && girone.squadre[idx]) {
+    var sq = girone.squadre[idx];
+    if (sq && sq.soc) return sq.soc;
+  }
+  return '';
 }
 
 function squadreBar() {
   var nH = getNomeSquadra(partita.h);
   var nA = getNomeSquadra(partita.a);
-  var socH = getSocDiSquadra(nH);
-  var socA = getSocDiSquadra(nA);
+  var socH = getSocNome(partita.h);
+  var socA = getSocNome(partita.a);
   return '<div class="squadre">'
     +'<div class="squadra home"><div class="sq-nome">'+nH+'</div>'+(socH?'<div class="sq-soc">'+socH+'</div>':'')+'</div>'
     +'<div class="squadra away"><div class="sq-nome">'+nA+'</div>'+(socA?'<div class="sq-soc">'+socA+'</div>':'')+'</div>'

@@ -390,7 +390,7 @@ function renderSocieta(){
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="bsm" onclick="importTorneo()">⬆ Importa torneo</button>
         <button class="bsm" onclick="exportTorneo()">⬇ Esporta torneo</button>
-        <button class="bsm bp" onclick="socEditState={si:-1,nome:'',sqPerCat:{},bambini:{},logo:''};render()">+ Società</button>
+        <button class="bsm bp" onclick="socEditState={si:-1,nome:'',sqPerCat:{},bambini:{},logo:'',referenti:[{nome:'',email:'',tel:''}]};render()">+ Società</button>
       </div>
     </div>
     ${socEditState&&socEditState.si===-1?renderSocForm(-1):''}
@@ -414,6 +414,12 @@ function renderSocTable(soc,cats){
       <div style="flex:1;min-width:100px">
         <div style="font-weight:700;font-size:14px;margin-bottom:6px">${escV(s.nome)}</div>
         <div style="display:flex;flex-wrap:wrap;gap:2px">${righe||'<span style="font-size:11px;color:var(--txt2)">Nessuna squadra</span>'}</div>
+        ${(s.referenti||[]).filter(r=>r.nome||r.email||r.tel).map(r=>`
+          <div style="margin-top:5px;font-size:11px;color:var(--txt2);display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+            ${r.nome?`<span>👤 <b>${r.nome}</b></span>`:''}
+            ${r.email?`<a href="mailto:${r.email}" style="color:var(--blu,#2d5fc4);font-size:11px">${r.email}</a>`:''}
+            ${r.tel?`<a href="tel:${r.tel}" style="color:var(--blu,#2d5fc4);font-size:11px">${r.tel}</a>`:''}
+          </div>`).join('')}
       </div>
       <div style="display:flex;gap:4px;flex-shrink:0;margin-top:2px">
         <button class="bxsm" onclick="openSocEdit(${si})">✏️ Modifica</button>
@@ -471,6 +477,27 @@ function renderSocForm(si){
         oninput="socEditState.logo=this.value">
       ${(st.logo||'')?`<button class="bxsm bd" onclick="socEditState.logo='';render()">✕ Rimuovi</button>`:''}
     </div>
+    <div style="font-size:12px;font-weight:600;color:var(--txt2);margin-bottom:6px;margin-top:4px">👤 Referenti (opzionale)</div>
+    ${(st.referenti||[{nome:'',email:'',tel:''}]).map((r,ri)=>`
+      <div style="background:var(--info);border-radius:8px;padding:10px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span style="font-size:11px;font-weight:600;color:var(--txt2)">Referente ${ri+1}</span>
+          ${ri>0?`<button class="bxsm bd" onclick="socEditState.referenti.splice(${ri},1);render()">✕</button>`:''}
+        </div>
+        <input type="text" placeholder="Nome referente" value="${escV(r.nome||'')}"
+          style="margin-bottom:6px;font-size:13px"
+          oninput="if(!socEditState.referenti)socEditState.referenti=[{}];socEditState.referenti[${ri}].nome=this.value">
+        <input type="email" placeholder="Email" value="${escV(r.email||'')}"
+          style="margin-bottom:6px;font-size:13px"
+          oninput="if(!socEditState.referenti)socEditState.referenti=[{}];socEditState.referenti[${ri}].email=this.value">
+        <input type="tel" placeholder="Telefono" value="${escV(r.tel||'')}"
+          style="font-size:13px"
+          oninput="if(!socEditState.referenti)socEditState.referenti=[{}];socEditState.referenti[${ri}].tel=this.value">
+      </div>`).join('')}
+    <button class="bxsm" style="margin-bottom:12px"
+      onclick="if(!socEditState.referenti)socEditState.referenti=[{}];socEditState.referenti.push({nome:'',email:'',tel:''});render()">
+      + Aggiungi referente
+    </button>
     <div style="display:flex;gap:8px;justify-content:flex-end">
       <button onclick="socEditState=null;render()">Annulla</button>
       <button class="bp bsm" onclick="saveSoc()">✓ Salva</button>
@@ -483,14 +510,16 @@ function saveSoc(){
   const st=socEditState;if(!st)return;
   const nome=st.nome.trim();if(!nome){alert('Inserisci il nome.');return;}
   const logo=st.logo||'';
+  const referenti=(st.referenti||[]).filter(r=>r.nome||r.email||r.tel);
   if(st.si===-1){
-    t.societa.push({nome,sqPerCat:{...st.sqPerCat},bambini:{...st.bambini},logo,squadre:[]});
+    t.societa.push({nome,sqPerCat:{...st.sqPerCat},bambini:{...st.bambini},logo,referenti,squadre:[]});
   } else {
     const vecchioNome=t.societa[st.si].nome;
     t.societa[st.si].nome=nome;
     t.societa[st.si].sqPerCat={...st.sqPerCat};
     t.societa[st.si].bambini={...st.bambini};
     t.societa[st.si].logo=logo;
+    t.societa[st.si].referenti=referenti;
     // Aggiorna il nome società in tutte le squadre dei gironi
     if(vecchioNome!==nome){
       for(const cat of getCats()){
@@ -516,7 +545,7 @@ function openSocEdit(si){
   const s=t.societa[si];const cats=getCats();
   const sqPerCat={},bambini={};
   cats.forEach(c=>{sqPerCat[c.id]=s.sqPerCat?.[c.id]||0;bambini[c.id]=s.bambini?.[c.id]||0;});
-  socEditState={si,nome:s.nome,sqPerCat,bambini,logo:s.logo||''};
+  socEditState={si,nome:s.nome,sqPerCat,bambini,logo:s.logo||'',referenti:s.referenti||[{nome:'',email:'',tel:''}]};
   render();
 }
 function uploadSocLogo(input){

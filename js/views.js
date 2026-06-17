@@ -461,6 +461,7 @@ function renderSocieta(){
     iscHtml+='<textarea rows="7" onchange="saveIscCfg(&quot;disclaimer&quot;,this.value)" style="font-size:12px;resize:vertical;width:100%">'+escV(iscCfg.disclaimer||"L'organizzazione declina ogni responsabilita per eventuali incidenti o fatti che potranno accadere prima, durante e dopo il torneo, salvo quanto previsto dalla assicurativa dei cartellini struttura giovanile e CONI - SPORTASS (compresi eventuali furti o smarrimenti che accadessero durante la manifestazione).")+'</textarea></div>';
   }
   iscHtml+='</div>';
+  html+=iscHtml;
 
 
   html+=`<div class="card">

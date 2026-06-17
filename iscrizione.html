@@ -145,9 +145,9 @@ function renderForm(t) {
     html += '</div></div>';
   }
 
-  if (cfg.testoComposizione) {
-    html += '<div style="font-size:12px;color:#374151;background:#f8f9ff;border-radius:8px;padding:12px;margin-bottom:14px;line-height:1.6">' + cfg.testoComposizione + '</div>';
-  }
+  var defaultComp = 'Le squadre dovranno essere composte da un minimo di 3 atleti nel White e 4 nel Green e Red.';
+  var testoComp = cfg.testoComposizione || defaultComp;
+  html += '<div style="font-size:12px;color:#374151;background:#f8f9ff;border-radius:8px;padding:12px;margin-bottom:14px;line-height:1.6">' + testoComp + '</div>';
 
   html += '<div class="sec">Accettazione</div>';
   var testoAcc = cfg.testoAccettazione || 'La societa sottoscrivendo il presente modulo dichiara di aver preso visione del regolamento e di accettarlo integralmente.';

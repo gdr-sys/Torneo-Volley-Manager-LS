@@ -932,6 +932,10 @@ function apriSegnapunti(catId,fid,gv,pid){
   modal.addEventListener('click',function(e){if(e.target===modal)modal.remove();});
 }
 
+function mandaWhatsApp(link){
+  var msg='Ciao! Ecco il link per segnare la partita:\n'+link;
+  window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');
+}
 function generaLinkSegnapunti(catId,fid,gv,pid,mode){
   const base=location.origin+location.pathname.replace('index.html','')+'segnapunti.html';
   const g_sq=getGirone(catId,fid,gv);
@@ -946,7 +950,7 @@ function generaLinkSegnapunti(catId,fid,gv,pid,mode){
       <div style="background:#f3f4f6;border-radius:8px;padding:10px;font-size:11px;word-break:break-all;color:#374151;margin-bottom:14px">${link}</div>
       <div style="display:flex;gap:8px;margin-bottom:8px">
         <button class="bp bsm" style="flex:1" onclick="navigator.clipboard.writeText('${link}').then(()=>alert('Link copiato!'))">📋 Copia</button>
-        <button onclick="window.open('https://wa.me/?text='+encodeURIComponent('Ciao! Ecco il link per segnare la partita: ${link}'),'_blank')"
+        <button onclick="mandaWhatsApp('${link}')"
           style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:8px;background:#25d366;color:#fff;border-radius:8px;font-size:13px;font-weight:700;border:none;cursor:pointer">
           💬 WhatsApp
         </button>

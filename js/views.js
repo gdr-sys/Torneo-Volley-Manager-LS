@@ -905,32 +905,55 @@ function saveSquadre(catId,fid,gv){
   g.partite=genPartite(g.squadre.length,g.ritorno||false,g.sets||2);sv();render();
 }
 function apriSegnapunti(catId,fid,gv,pid){
-  const base=location.origin+location.pathname.replace('index.html','')+'segnapunti.html';
-  const link=base+'?u='+(window._currentUid||'')+'&t='+currentTorneoId+'&c='+catId+'&f='+fid+'&g='+gv+'&p='+pid;
-  // Mostra popup con QR e link
   const existing=document.getElementById('_sqModal');
   if(existing)existing.remove();
   const modal=document.createElement('div');
   modal.id='_sqModal';
   modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
   modal.innerHTML=`<div style="background:#fff;border-radius:16px;padding:24px;max-width:340px;width:100%;box-shadow:0 8px 40px rgba(0,0,0,.2)">
-    <div style="font-weight:700;font-size:16px;margin-bottom:16px">📲 Link segnapunti</div>
-    <div id="_sqQR" style="text-align:center;margin-bottom:16px"></div>
-    <div style="background:#f3f4f6;border-radius:8px;padding:10px;font-size:11px;word-break:break-all;color:#374151;margin-bottom:14px">${link}</div>
-    <div style="display:flex;gap:8px">
-      <button class="bp bsm" style="flex:1" onclick="navigator.clipboard.writeText('${link}').then(()=>alert('Link copiato!'))">📋 Copia link</button>
-      <button class="bsm" style="flex:1" onclick="document.getElementById('_sqModal').remove()">Chiudi</button>
-    </div>
+    <div style="font-weight:700;font-size:16px;margin-bottom:6px">📲 Link segnapunti</div>
+    <div style="font-size:13px;color:#6b7280;margin-bottom:18px">Scegli la modalità per il segnapunti</div>
+    <button onclick="generaLinkSegnapunti('${catId}','${fid}','${gv}',${pid},'finale')"
+      style="display:block;width:100%;padding:14px;margin-bottom:10px;background:#1e40af;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;text-align:left">
+      📋 Risultato finale
+      <div style="font-size:12px;font-weight:400;opacity:.85;margin-top:2px">Inserisce il punteggio a fine partita</div>
+    </button>
+    <button onclick="generaLinkSegnapunti('${catId}','${fid}','${gv}',${pid},'live')"
+      style="display:block;width:100%;padding:14px;margin-bottom:16px;background:#166534;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;text-align:left">
+      ⚡ Punto per punto
+      <div style="font-size:12px;font-weight:400;opacity:.85;margin-top:2px">Segna i punti in tempo reale</div>
+    </button>
+    <button onclick="document.getElementById('_sqModal').remove()"
+      style="display:block;width:100%;padding:10px;background:#f3f4f6;color:#374151;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer">
+      Annulla
+    </button>
   </div>`;
   document.body.appendChild(modal);
   modal.addEventListener('click',function(e){if(e.target===modal)modal.remove();});
-  // Genera QR
-  const qrDiv=document.getElementById('_sqQR');
-  if(qrDiv){
-    const qrImg=document.createElement('img');
-    qrImg.src='https://api.qrserver.com/v1/create-qr-code/?size=180x180&data='+encodeURIComponent(link);
-    qrImg.style.cssText='width:180px;height:180px;border-radius:8px';
-    qrDiv.appendChild(qrImg);
+}
+
+function generaLinkSegnapunti(catId,fid,gv,pid,mode){
+  const base=location.origin+location.pathname.replace('index.html','')+'segnapunti.html';
+  const link=base+'?u='+(window._currentUid||'')+'&t='+currentTorneoId+'&c='+catId+'&f='+fid+'&g='+gv+'&p='+pid+'&m='+mode;
+  const modal=document.getElementById('_sqModal');
+  if(modal){
+    modal.innerHTML=`<div style="background:#fff;border-radius:16px;padding:24px;max-width:340px;width:100%;box-shadow:0 8px 40px rgba(0,0,0,.2)">
+      <div style="font-weight:700;font-size:16px;margin-bottom:4px">📲 ${mode==='live'?'⚡ Punto per punto':'📋 Risultato finale'}</div>
+      <div style="font-size:12px;color:#6b7280;margin-bottom:16px">Fai scansionare il QR o copia il link</div>
+      <div id="_sqQR" style="text-align:center;margin-bottom:16px"></div>
+      <div style="background:#f3f4f6;border-radius:8px;padding:10px;font-size:11px;word-break:break-all;color:#374151;margin-bottom:14px">${link}</div>
+      <div style="display:flex;gap:8px">
+        <button class="bp bsm" style="flex:1" onclick="navigator.clipboard.writeText('${link}').then(()=>alert('Link copiato!'))">📋 Copia</button>
+        <button class="bsm" style="flex:1" onclick="document.getElementById('_sqModal').remove()">Chiudi</button>
+      </div>
+    </div>`;
+    const qrDiv=document.getElementById('_sqQR');
+    if(qrDiv){
+      const qrImg=document.createElement('img');
+      qrImg.src='https://api.qrserver.com/v1/create-qr-code/?size=180x180&data='+encodeURIComponent(link);
+      qrImg.style.cssText='width:180px;height:180px;border-radius:8px';
+      qrDiv.appendChild(qrImg);
+    }
   }
 }
 function toggleInCorso(catId,fid,gv,pid){

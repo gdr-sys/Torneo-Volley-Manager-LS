@@ -934,7 +934,9 @@ function apriSegnapunti(catId,fid,gv,pid){
 
 function generaLinkSegnapunti(catId,fid,gv,pid,mode){
   const base=location.origin+location.pathname.replace('index.html','')+'segnapunti.html';
-  const link=base+'?u='+(window._currentUid||'')+'&t='+currentTorneoId+'&c='+catId+'&f='+fid+'&g='+gv+'&p='+pid+'&m='+mode;
+  const g_sq=getGirone(catId,fid,gv);
+  const timerParam=g_sq&&g_sq.timerAttivo?'&timer='+( g_sq.timerMinuti||12):'';
+  const link=base+'?u='+(window._currentUid||'')+'&t='+currentTorneoId+'&c='+catId+'&f='+fid+'&g='+gv+'&p='+pid+'&m='+mode+timerParam;
   const modal=document.getElementById('_sqModal');
   if(modal){
     modal.innerHTML=`<div style="background:#fff;border-radius:16px;padding:24px;max-width:340px;width:100%;box-shadow:0 8px 40px rgba(0,0,0,.2)">
@@ -942,10 +944,17 @@ function generaLinkSegnapunti(catId,fid,gv,pid,mode){
       <div style="font-size:12px;color:#6b7280;margin-bottom:16px">Fai scansionare il QR o copia il link</div>
       <div id="_sqQR" style="text-align:center;margin-bottom:16px"></div>
       <div style="background:#f3f4f6;border-radius:8px;padding:10px;font-size:11px;word-break:break-all;color:#374151;margin-bottom:14px">${link}</div>
-      <div style="display:flex;gap:8px">
+      <div style="display:flex;gap:8px;margin-bottom:8px">
         <button class="bp bsm" style="flex:1" onclick="navigator.clipboard.writeText('${link}').then(()=>alert('Link copiato!'))">📋 Copia</button>
-        <button class="bsm" style="flex:1" onclick="document.getElementById('_sqModal').remove()">Chiudi</button>
+        <a href="https://wa.me/?text=${encodeURIComponent('Ciao! Ecco il link per segnare la partita: ${link}')}" target="_blank"
+          style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:8px;background:#25d366;color:#fff;border-radius:8px;font-size:13px;font-weight:700;text-decoration:none">
+          💬 WhatsApp
+        </a>
       </div>
+      <button onclick="document.getElementById('_sqModal').remove()"
+        style="width:100%;padding:10px;background:#f3f4f6;color:#374151;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">
+        Chiudi
+      </button>
     </div>`;
     const qrDiv=document.getElementById('_sqQR');
     if(qrDiv){
@@ -1033,6 +1042,16 @@ function saveIscCatInfo(catId,key,val){
   if(!t.iscrizioniConfig.catInfo)t.iscrizioniConfig.catInfo={};
   if(!t.iscrizioniConfig.catInfo[catId])t.iscrizioniConfig.catInfo[catId]={};
   t.iscrizioniConfig.catInfo[catId][key]=val;sv();
+}
+function toggleTimerGirone(catId,fid,gv,val){
+  const g=getGirone(catId,fid,gv);if(!g)return;
+  g.timerAttivo=val;
+  if(val&&!g.timerMinuti)g.timerMinuti=12;
+  sv();render();
+}
+function setTimerMinuti(catId,fid,gv,val){
+  const g=getGirone(catId,fid,gv);if(!g)return;
+  g.timerMinuti=val;sv();
 }
 function toggleRitorno(catId,fid,gv){const g=getGirone(catId,fid,gv);if(!g)return;g.ritorno=!g.ritorno;const old={};g.partite.filter(p=>p.leg===1||!p.leg).forEach(p=>{old[`${p.h}_${p.a}`]=p});const np=genPartite(g.squadre.length,g.ritorno,g.sets||2);np.forEach(p=>{if(p.leg===1){const o=old[`${p.h}_${p.a}`];if(o){p.s1h=o.s1h;p.s1a=o.s1a;p.s2h=o.s2h;p.s2a=o.s2a;}}});g.partite=np;sv();render();}
 function saveResult(catId,fid,gv,pid){
@@ -1222,6 +1241,17 @@ function renderGironeContent(catId,fase,g){
         <option value="1"${sets===1?' selected':''}>1 set</option>
         <option value="2"${sets===2?' selected':''}>2 set</option>
       </select>
+      <div style="display:flex;align-items:center;gap:6px">
+        <label class="toggle" title="Partita a tempo">
+          <input type="checkbox" ${g.timerAttivo?'checked':''} onchange="toggleTimerGirone('${catId}','${fase.id}','${g.id}',this.checked)">
+          <span class="slider"></span>
+        </label>
+        <span style="font-size:13px;color:var(--txt2)">⏱ Tempo</span>
+        ${g.timerAttivo?`<input type="number" min="1" max="60" value="${g.timerMinuti||12}"
+          style="width:52px;padding:4px 6px;font-size:12px;text-align:center"
+          onchange="setTimerMinuti('${catId}','${fase.id}','${g.id}',parseInt(this.value)||12)"
+          title="Minuti per partita"> min`:''}
+      </div>
       <button class="bg bsm" onclick="exportPDF('${catId}','${fase.id}','${g.id}')">📄 PDF</button>
     </div></div>
     <div class="g2"><div><div class="sec">Classifica</div>${clHtml}</div><div><div class="sec">Partite${g.ritorno?' — Andata':''}</div>${rPL(andataP)}${ritornoP.length?`<div class="sec" style="margin-top:14px">Ritorno</div>${rPL(ritornoP)}`:''}</div></div>

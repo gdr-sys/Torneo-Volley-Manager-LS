@@ -16,8 +16,8 @@
     input,textarea,select{width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;color:#111;background:#fff;margin-bottom:14px;outline:none;font-family:inherit}
     input:focus,textarea:focus{border-color:#2d5fc4}
     .cat-row{background:#f8f9ff;border-radius:10px;padding:14px;margin-bottom:10px}
-    .cat-name{font-size:14px;font-weight:700;margin-bottom:10px}
-    .cat-sub{font-size:12px;color:#6b7280;margin-bottom:8px}
+    .cat-name{font-size:14px;font-weight:700;margin-bottom:6px}
+    .cat-sub{font-size:12px;color:#6b7280;margin-bottom:4px}
     .two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
     .btn{width:100%;padding:14px;background:#2d5fc4;color:#fff;border:none;border-radius:8px;font-size:16px;font-weight:700;cursor:pointer;margin-top:8px}
     .btn:hover{background:#1e4aa0}
@@ -31,22 +31,19 @@
     .header-logo img{max-height:80px;max-width:200px;object-fit:contain}
     .disclaimer{font-size:11px;color:#9ca3af;line-height:1.6;margin-top:16px;padding-top:16px;border-top:1px solid #f0f0f0}
     .checkbox-row{display:flex;align-items:flex-start;gap:10px;margin-bottom:14px}
-    .checkbox-row input{width:auto;margin:0;flex-shrink:0;margin-top:2px}
+    .checkbox-row input[type=checkbox]{width:auto;margin:0;flex-shrink:0;margin-top:2px}
     .checkbox-row label{font-size:13px;font-weight:400;color:#374151;margin:0}
     .logo-preview{width:64px;height:64px;object-fit:contain;border-radius:8px;background:#f3f4f6;padding:4px;border:1px solid #e5e7eb;display:none}
     .upload-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
     .upload-btn{padding:8px 14px;background:#f3f4f6;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;color:#374151;white-space:nowrap}
-    .upload-btn:hover{background:#e5e7eb}
     @media(max-width:480px){.two-col{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
-
 <div class="card" id="mainCard">
-  <div class="loading" id="loadingDiv">⏳ Caricamento modulo...</div>
+  <div class="loading">Caricamento modulo...</div>
 </div>
 
-<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script>
@@ -58,127 +55,116 @@ firebase.initializeApp({
   messagingSenderId: "423674754433",
   appId: "1:423674754433:web:35dfeb868d726f6272a480"
 });
-const db = firebase.firestore();
 
-// Leggi parametri URL
-const params = new URLSearchParams(location.search);
-const torneoId = params.get('t');
-const uid = params.get('u');
+var db = firebase.firestore();
+var params = new URLSearchParams(location.search);
+var torneoId = params.get('t');
+var uid = params.get('u');
+var torneoData = null;
+var logoBase64 = '';
 
-let torneoData = null;
-let logoBase64 = '';
+function showError(msg) {
+  document.getElementById('mainCard').innerHTML =
+    '<div class="error-page">' + msg + '</div>';
+}
 
-async function init() {
-  const card = document.getElementById('mainCard');
+function init() {
+  var card = document.getElementById('mainCard');
   if (!torneoId || !uid) {
-    card.innerHTML = '<div class="error-page">❌ Link non valido.<br><small>Contatta l&apos;organizzatore.</small></div>';
+    showError('Link non valido. Contatta l\'organizzatore.');
     return;
   }
-  try {
-    const snap = await db.collection('utenti').doc(uid).collection('dati').doc('tornei').get();
-    if (!snap.exists) throw new Error('Torneo non trovato');
-    const dati = snap.data();
-    const torneo = dati.tornei?.[torneoId];
-    if (!torneo) throw new Error('Torneo non trovato');
-    if (!torneo.iscrizioniAperte) {
-      card.innerHTML = '<div class="error-page">🔒 Le iscrizioni per questo torneo sono chiuse.</div>';
-      return;
-    }
-    torneoData = torneo;
-    renderForm(torneo);
-  } catch(e) {
-    const msg = e.code || e.message || 'Errore sconosciuto';
-    card.innerHTML = '<div class="error-page">❌ Errore: '+msg+'<br><small>Contatta l&apos;organizzatore.<br>Codice: '+(e.code||'N/A')+'</small></div>';
-  }
+  db.collection('utenti').doc(uid).collection('dati').doc('tornei').get()
+    .then(function(snap) {
+      if (!snap.exists) { showError('Torneo non trovato.'); return; }
+      var dati = snap.data();
+      var torneo = dati.tornei && dati.tornei[torneoId];
+      if (!torneo) { showError('Torneo non trovato.'); return; }
+      if (!torneo.iscrizioniAperte) {
+        showError('Le iscrizioni per questo torneo sono chiuse.');
+        return;
+      }
+      torneoData = torneo;
+      renderForm(torneo);
+    })
+    .catch(function(e) {
+      showError('Errore caricamento: ' + (e.code || e.message || 'sconosciuto'));
+    });
 }
 
 function renderForm(t) {
-  const card = document.getElementById('mainCard');
-  const cfg = t.iscrizioniConfig || {};
-  const cats = (t.categorie || []);
-  const dataStr = cfg.data ? `<span style="margin-left:8px">📅 ${cfg.data}</span>` : '';
-  const scadenzaStr = cfg.scadenza ? `<div style="font-size:12px;color:#dc2626;margin-top:4px">⏰ Scadenza iscrizioni: <b>${cfg.scadenza}</b></div>` : '';
+  var card = document.getElementById('mainCard');
+  var cfg = t.iscrizioniConfig || {};
+  var cats = t.categorie || [];
 
-  let logoOrg = '';
-  if (cfg.logoOrg) logoOrg = `<div class="header-logo"><img src="${cfg.logoOrg}" alt="Logo"></div>`;
+  var html = '';
 
-  let catsHtml = cats.map(cat => {
-    const info = cfg.catInfo?.[cat.id] || {};
-    return `<div class="cat-row" style="border-left:4px solid ${cat.colore||'#2d5fc4'}">
-      <div class="cat-name" style="color:${cat.colore||'#2d5fc4'}">${cat.emoji||''} ${cat.nome}</div>
-      ${info.formato ? `<div class="cat-sub">Formato: <b>${info.formato}</b></div>` : ''}
-      ${info.anni ? `<div class="cat-sub">Anni di nascita: <b>${info.anni}</b></div>` : ''}
-      ${info.minAtleti ? `<div class="cat-sub">Composizione minima: <b>min. ${info.minAtleti} atleti</b></div>` : ''}
-      <div class="two-col">
-        <div>
-          <label>N° squadre</label>
-          <input type="number" min="0" max="20" value="0" id="sq_${cat.id}" style="text-align:center">
-        </div>
-        <div>
-          <label>N° atleti totali</label>
-          <input type="number" min="0" max="999" value="0" id="at_${cat.id}" style="text-align:center">
-        </div>
-      </div>
-    </div>`;
-  }).join('');
+  if (cfg.logoOrg) {
+    html += '<div class="header-logo"><img src="' + cfg.logoOrg + '" alt="Logo"></div>';
+  }
 
-  card.innerHTML = `
-    ${logoOrg}
-    <h1>${t.nome}</h1>
-    <div class="torneo-info">${dataStr}${scadenzaStr}</div>
+  html += '<h1>' + (t.nome || 'Torneo') + '</h1>';
+  html += '<div class="torneo-info">';
+  if (cfg.data) html += '&#128197; ' + cfg.data + '&nbsp;&nbsp;';
+  if (cfg.scadenza) html += '<br><span style="color:#dc2626;font-size:12px">&#9200; Scadenza: ' + cfg.scadenza + '</span>';
+  html += '</div>';
 
-    <div class="sec">Dati società</div>
-    <div class="msg-err" id="errMsg"></div>
+  html += '<div class="sec">Dati societa</div>';
+  html += '<div id="errMsg" class="msg-err"></div>';
+  html += '<label>Nome societa *</label>';
+  html += '<input type="text" id="nomeSoc" placeholder="Es. ASD Pallavolo Pesaro">';
+  html += '<label>Dirigente responsabile *</label>';
+  html += '<input type="text" id="dirigente" placeholder="Nome e cognome">';
+  html += '<div class="two-col">';
+  html += '<div><label>Cellulare *</label><input type="tel" id="cellulare" placeholder="333 1234567"></div>';
+  html += '<div><label>Email *</label><input type="email" id="emailSoc" placeholder="info@societa.it"></div>';
+  html += '</div>';
 
-    <label>Nome società *</label>
-    <input type="text" id="nomeSoc" placeholder="Es. ASD Pallavolo Pesaro" required>
+  html += '<label>Logo societa (opzionale)</label>';
+  html += '<div class="upload-row">';
+  html += '<img id="logoPreview" class="logo-preview" src="" alt="Logo">';
+  html += '<label class="upload-btn">&#128206; Carica immagine<input type="file" accept="image/*" style="display:none" onchange="handleLogoUpload(this)"></label>';
+  html += '<span style="font-size:12px;color:#9ca3af">oppure</span>';
+  html += '<input type="url" id="logoUrl" placeholder="URL immagine" style="flex:1;min-width:180px;margin-bottom:0" oninput="handleLogoUrl(this.value)">';
+  html += '</div>';
 
-    <label>Dirigente responsabile *</label>
-    <input type="text" id="dirigente" placeholder="Nome e cognome" required>
+  html += '<div class="sec">Iscrizione squadre</div>';
 
-    <div class="two-col">
-      <div>
-        <label>Cellulare *</label>
-        <input type="tel" id="cellulare" placeholder="333 1234567" required>
-      </div>
-      <div>
-        <label>Email *</label>
-        <input type="email" id="email" placeholder="info@societa.it" required>
-      </div>
-    </div>
+  for (var i = 0; i < cats.length; i++) {
+    var cat = cats[i];
+    var info = (cfg.catInfo && cfg.catInfo[cat.id]) || {};
+    var col = cat.colore || '#2d5fc4';
+    html += '<div class="cat-row" style="border-left:4px solid ' + col + '">';
+    html += '<div class="cat-name" style="color:' + col + '">' + (cat.emoji || '') + ' ' + cat.nome + '</div>';
+    if (info.formato) html += '<div class="cat-sub">Formato: <b>' + info.formato + '</b></div>';
+    if (info.anni) html += '<div class="cat-sub">Anni di nascita: <b>' + info.anni + '</b></div>';
+    if (info.minAtleti) html += '<div class="cat-sub">Minimo atleti: <b>' + info.minAtleti + '</b></div>';
+    html += '<div class="two-col">';
+    html += '<div><label>N&deg; squadre</label><input type="number" min="0" max="20" value="0" id="sq_' + cat.id + '" style="text-align:center"></div>';
+    html += '<div><label>N&deg; atleti totali</label><input type="number" min="0" max="999" value="0" id="at_' + cat.id + '" style="text-align:center"></div>';
+    html += '</div></div>';
+  }
 
-    <label>Logo società (opzionale)</label>
-    <div class="upload-row">
-      <img id="logoPreview" class="logo-preview" src="" alt="Logo anteprima">
-      <label class="upload-btn">
-        📎 Carica immagine
-        <input type="file" accept="image/*" style="display:none" onchange="handleLogoUpload(this)">
-      </label>
-      <span style="font-size:12px;color:#9ca3af">oppure</span>
-      <input type="url" id="logoUrl" placeholder="URL immagine" style="flex:1;min-width:180px;margin-bottom:0"
-        oninput="handleLogoUrl(this.value)">
-    </div>
+  if (cfg.testoComposizione) {
+    html += '<div style="font-size:12px;color:#374151;background:#f8f9ff;border-radius:8px;padding:12px;margin-bottom:14px;line-height:1.6">' + cfg.testoComposizione + '</div>';
+  }
 
-    <div class="sec">Iscrizione squadre</div>
-    ${catsHtml}
+  html += '<div class="sec">Accettazione</div>';
+  var testoAcc = cfg.testoAccettazione || 'Sottoscrivendo il presente modulo dichiaro di aver preso visione del regolamento e di accettarlo integralmente.';
+  html += '<div class="checkbox-row"><input type="checkbox" id="accetto"><label for="accetto">' + testoAcc + '</label></div>';
 
-    ${cfg.testoComposizione ? `<div style="font-size:12px;color:#374151;background:#f8f9ff;border-radius:8px;padding:12px;margin-bottom:14px;line-height:1.6">${cfg.testoComposizione}</div>` : ''}
+  if (cfg.disclaimer) {
+    html += '<div class="disclaimer">' + cfg.disclaimer + '</div>';
+  }
 
-    <div class="sec">Accettazione</div>
-    <div class="checkbox-row">
-      <input type="checkbox" id="accetto">
-      <label for="accetto">${cfg.testoAccettazione || 'Sottoscrivendo il presente modulo dichiaro di aver preso visione del regolamento e di accettarlo integralmente.'}</label>
-    </div>
+  html += '<button class="btn" id="inviaBtn" onclick="invia()">Invia iscrizione</button>';
+  html += '<div class="msg-ok" id="okMsg">Iscrizione inviata con successo! L\'organizzatore ti contatter&agrave; a breve.</div>';
 
-    ${cfg.disclaimer ? `<div class="disclaimer">${cfg.disclaimer}</div>` : ''}
-
-    <button class="btn" onclick="invia()">Invia iscrizione</button>
-    <div class="msg-ok" id="okMsg">✅ Iscrizione inviata con successo!<br><small>L'organizzatore riceverà la tua richiesta e ti contatterà a breve.</small></div>
-  `;
+  card.innerHTML = html;
 }
 
 function handleLogoUrl(url) {
-  const preview = document.getElementById('logoPreview');
+  var preview = document.getElementById('logoPreview');
   if (url) {
     preview.src = url;
     preview.style.display = 'block';
@@ -190,24 +176,23 @@ function handleLogoUrl(url) {
 }
 
 function handleLogoUpload(input) {
-  const file = input.files[0];
+  var file = input.files[0];
   if (!file) return;
-  const reader = new FileReader();
+  var reader = new FileReader();
   reader.onload = function(e) {
-    // Comprimi
-    const img = new Image();
+    var img = new Image();
     img.onload = function() {
-      const canvas = document.createElement('canvas');
-      const max = 300;
-      let w = img.width, h = img.height;
+      var canvas = document.createElement('canvas');
+      var max = 300;
+      var w = img.width, h = img.height;
       if (w > max || h > max) {
-        const r = Math.min(max/w, max/h);
+        var r = Math.min(max/w, max/h);
         w = Math.round(w*r); h = Math.round(h*r);
       }
       canvas.width = w; canvas.height = h;
       canvas.getContext('2d').drawImage(img, 0, 0, w, h);
       logoBase64 = canvas.toDataURL('image/png', 0.85);
-      const preview = document.getElementById('logoPreview');
+      var preview = document.getElementById('logoPreview');
       preview.src = logoBase64;
       preview.style.display = 'block';
     };
@@ -216,55 +201,68 @@ function handleLogoUpload(input) {
   reader.readAsDataURL(file);
 }
 
-async function invia() {
-  const err = document.getElementById('errMsg');
-  err.classList.remove('show');
+function showErr(msg) {
+  var el = document.getElementById('errMsg');
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.add('show');
+  el.scrollIntoView({behavior:'smooth'});
+}
 
-  const nome = document.getElementById('nomeSoc').value.trim();
-  const dirigente = document.getElementById('dirigente').value.trim();
-  const cellulare = document.getElementById('cellulare').value.trim();
-  const email = document.getElementById('email').value.trim();
-  const accetto = document.getElementById('accetto').checked;
+function invia() {
+  var errEl = document.getElementById('errMsg');
+  if (errEl) errEl.classList.remove('show');
 
-  if (!nome) { err.textContent = 'Inserisci il nome della società.'; err.classList.add('show'); return; }
-  if (!dirigente) { err.textContent = 'Inserisci il nome del dirigente responsabile.'; err.classList.add('show'); return; }
-  if (!cellulare) { err.textContent = 'Inserisci il numero di cellulare.'; err.classList.add('show'); return; }
-  if (!email) { err.textContent = 'Inserisci l'email.'; err.classList.add('show'); return; }
-  if (!accetto) { err.textContent = 'Devi accettare il regolamento per procedere.'; err.classList.add('show'); return; }
+  var nome = document.getElementById('nomeSoc').value.trim();
+  var dirigente = document.getElementById('dirigente').value.trim();
+  var cellulare = document.getElementById('cellulare').value.trim();
+  var emailVal = document.getElementById('emailSoc').value.trim();
+  var accetto = document.getElementById('accetto').checked;
 
-  // Raccoglie squadre per categoria
-  const sqPerCat = {};
-  const atlPerCat = {};
-  let totSq = 0;
-  for (const cat of (torneoData.categorie || [])) {
-    const sq = parseInt(document.getElementById('sq_'+cat.id)?.value) || 0;
-    const at = parseInt(document.getElementById('at_'+cat.id)?.value) || 0;
+  if (!nome) { showErr('Inserisci il nome della societa.'); return; }
+  if (!dirigente) { showErr('Inserisci il nome del dirigente.'); return; }
+  if (!cellulare) { showErr('Inserisci il cellulare.'); return; }
+  if (!emailVal) { showErr('Inserisci la email.'); return; }
+  if (!accetto) { showErr('Devi accettare il regolamento.'); return; }
+
+  var sqPerCat = {};
+  var atlPerCat = {};
+  var totSq = 0;
+  var cats = torneoData.categorie || [];
+  for (var i = 0; i < cats.length; i++) {
+    var cat = cats[i];
+    var sq = parseInt(document.getElementById('sq_' + cat.id).value) || 0;
+    var at = parseInt(document.getElementById('at_' + cat.id).value) || 0;
     sqPerCat[cat.id] = sq;
     atlPerCat[cat.id] = at;
     totSq += sq;
   }
-  if (totSq === 0) { err.textContent = 'Inserisci almeno una squadra.'; err.classList.add('show'); return; }
+  if (totSq === 0) { showErr('Inserisci almeno una squadra.'); return; }
 
-  const btn = document.querySelector('.btn');
-  btn.disabled = true; btn.textContent = 'Invio in corso...';
+  var btn = document.getElementById('inviaBtn');
+  btn.disabled = true;
+  btn.textContent = 'Invio in corso...';
 
-  try {
-    await db.collection('iscrizioni').doc(uid+'_'+torneoId).collection('richieste').add({
-      uid, torneoId,
-      nomeSoc: nome,
-      dirigente, cellulare, email,
-      logo: logoBase64 || '',
-      sqPerCat, atlPerCat,
-      inviatoAt: Date.now(),
-      stato: 'attesa'
-    });
+  db.collection('iscrizioni').doc(uid + '_' + torneoId).collection('richieste').add({
+    uid: uid,
+    torneoId: torneoId,
+    nomeSoc: nome,
+    dirigente: dirigente,
+    cellulare: cellulare,
+    email: emailVal,
+    logo: logoBase64 || '',
+    sqPerCat: sqPerCat,
+    atlPerCat: atlPerCat,
+    inviatoAt: Date.now(),
+    stato: 'attesa'
+  }).then(function() {
     document.getElementById('okMsg').classList.add('show');
     btn.style.display = 'none';
-  } catch(e) {
-    err.textContent = 'Errore nell'invio. Riprova.';
-    err.classList.add('show');
-    btn.disabled = false; btn.textContent = 'Invia iscrizione';
-  }
+  }).catch(function(e) {
+    showErr('Errore invio: ' + (e.code || e.message));
+    btn.disabled = false;
+    btn.textContent = 'Invia iscrizione';
+  });
 }
 
 init();

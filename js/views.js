@@ -47,7 +47,7 @@ function renderHome(){
     </div>
     ${ids.length>3?`<div style="margin-bottom:10px">
       <input type="text" id="cercaTorneo" placeholder="🔍 Cerca torneo..." style="font-size:13px"
-        oninput="render()" value="">
+        oninput="renderPreserveScroll()" value="">
     </div>`:''}
     ${(()=>{
       const attivi=ids.filter(id=>!DB.tornei[id].archiviato);
@@ -268,11 +268,11 @@ function renderTorneoSetup(){
             <div style="font-size:10px;color:var(--txt2);margin-bottom:3px">🏐 Squadre</div>
             <input type="number" min="0" max="20" value="${s.sqPerCat[cat.id]||0}"
               style="width:100%;text-align:center;padding:5px 2px;font-size:18px;font-weight:700"
-              oninput="setSocCat(${si},'${cat.id}',parseInt(this.value)||0);render()">
+              oninput="setSocCat(${si},'${cat.id}',parseInt(this.value)||0);renderPreserveScroll()">
             <div style="font-size:10px;color:var(--txt2);margin:6px 0 3px">🧒 Bambini</div>
             <input type="number" min="0" max="999" value="${s.bambini[cat.id]||0}"
               style="width:100%;text-align:center;padding:5px 2px;font-size:18px;font-weight:700"
-              oninput="setSocBambini(${si},'${cat.id}',parseInt(this.value)||0);render()">
+              oninput="setSocBambini(${si},'${cat.id}',parseInt(this.value)||0);renderPreserveScroll()">
           </div>`).join('')}
         </div>
       </div>`).join('')}
@@ -417,6 +417,58 @@ function renderSocieta(){
     html+=attHtml;
   }
 
+  const t_isc=currentTorneo();
+  const iscCfg=t_isc?.iscrizioniConfig||{};
+  const iscAperte=!!t_isc?.iscrizioniAperte;
+  const iscLink=location.origin+location.pathname.replace('index.html','')+'iscrizione.html?u='+(window._currentUid||'')+'&t='+currentTorneoId;
+  // Sezione iscrizioni come stringa separata
+  let iscHtml='<div class="card" style="margin-bottom:1rem">';
+  iscHtml+='<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">';
+  iscHtml+='<div style="font-weight:700;font-size:14px">📝 Modulo iscrizioni online</div>';
+  iscHtml+='<div style="display:flex;align-items:center;gap:8px">';
+  iscHtml+='<label class="toggle"><input type="checkbox" '+(iscAperte?'checked':'')+' onchange="toggleIscrizioni(this.checked)"><span class="slider"></span></label>';
+  iscHtml+='<span style="font-size:13px;color:var(--txt2)">'+(iscAperte?'<span style="color:#166534;font-weight:600">● Aperto</span>':'Chiuso')+'</span>';
+  iscHtml+='</div></div>';
+  if(iscAperte){
+    iscHtml+='<div style="background:var(--info);border-radius:8px;padding:10px 12px;margin-bottom:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">';
+    iscHtml+='<span style="font-size:12px;color:var(--txt2);word-break:break-all;flex:1">'+iscLink+'</span>';
+    iscHtml+='<button class="bxsm" onclick="copiaIscLink()">📋 Copia</button></div>';
+    iscHtml+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">';
+    iscHtml+='<div><label style="font-size:12px;font-weight:600;color:var(--txt2);display:block;margin-bottom:4px">📅 Data torneo</label>';
+    iscHtml+='<input type="text" placeholder="Es. 17 Maggio 2026" value="'+escV(iscCfg.data||'')+'" onchange="saveIscCfg(&quot;data&quot;,this.value)" style="font-size:13px"></div>';
+    iscHtml+='<div><label style="font-size:12px;font-weight:600;color:var(--txt2);display:block;margin-bottom:4px">⏰ Scadenza iscrizioni</label>';
+    iscHtml+='<input type="text" placeholder="Es. 10 Maggio 2026 ore 12:00" value="'+escV(iscCfg.scadenza||'')+'" onchange="saveIscCfg(&quot;scadenza&quot;,this.value)" style="font-size:13px"></div></div>';
+    iscHtml+='<div style="margin-bottom:10px"><label style="font-size:12px;font-weight:600;color:var(--txt2);display:block;margin-bottom:4px">🏢 Logo organizzatore (URL)</label>';
+    iscHtml+='<input type="text" placeholder="https://..." value="'+escV(iscCfg.logoOrg||'')+'" onchange="saveIscCfg(&quot;logoOrg&quot;,this.value)" style="font-size:13px"></div>';
+    iscHtml+='<div style="margin-bottom:10px"><label style="font-size:12px;font-weight:600;color:var(--txt2);display:block;margin-bottom:4px">📋 Info categorie (formato, anni, min. atleti)</label>';
+    (currentTorneo()?.categorie||[]).forEach(function(cat){
+      iscHtml+='<div style="background:var(--info);border-radius:8px;padding:8px 10px;margin-bottom:6px;border-left:3px solid '+(cat.colore||'#2d5fc4')+'">';
+      iscHtml+='<div style="font-size:12px;font-weight:700;color:'+(cat.colore||'#2d5fc4')+';margin-bottom:6px">'+(cat.emoji||'')+' '+cat.nome+'</div>';
+      iscHtml+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">';
+      iscHtml+='<input type="text" placeholder="Formato (es. 3x3)" value="'+escV((iscCfg.catInfo||{})[cat.id]?.formato||'')+'" onchange="saveIscCatInfo(&quot;'+cat.id+'&quot;,&quot;formato&quot;,this.value)" style="font-size:12px">';
+      iscHtml+='<input type="text" placeholder="Anni (es. 2016-2017)" value="'+escV((iscCfg.catInfo||{})[cat.id]?.anni||'')+'" onchange="saveIscCatInfo(&quot;'+cat.id+'&quot;,&quot;anni&quot;,this.value)" style="font-size:12px">';
+      iscHtml+='<input type="number" placeholder="Min. atleti" min="1" value="'+((iscCfg.catInfo||{})[cat.id]?.minAtleti||'')+'" onchange="saveIscCatInfo(&quot;'+cat.id+'&quot;,&quot;minAtleti&quot;,parseInt(this.value)||0)" style="font-size:12px;text-align:center">';
+      iscHtml+='</div></div>';
+    });
+    iscHtml+='</div>';
+    const defaultComp='Le squadre dovranno essere composte da un minimo di 3 atleti nel White e 4 nel Green e Red.';
+    iscHtml+='<div style="margin-bottom:10px"><label style="font-size:12px;font-weight:600;color:var(--txt2);display:block;margin-bottom:4px">📝 Testo composizione squadre</label>';
+    iscHtml+='<textarea rows="5" onchange="saveIscCfg(&quot;testoComposizione&quot;,this.value)" style="font-size:12px;resize:vertical;width:100%">'+escV(iscCfg.testoComposizione||defaultComp)+'</textarea></div>';
+    iscHtml+='<div style="margin-bottom:10px"><label style="font-size:12px;font-weight:600;color:var(--txt2);display:block;margin-bottom:4px">✅ Testo accettazione regolamento</label>';
+    iscHtml+='<textarea rows="5" onchange="saveIscCfg(&quot;testoAccettazione&quot;,this.value)" style="font-size:12px;resize:vertical;width:100%">'+escV(iscCfg.testoAccettazione||'La societa sottoscrivendo il presente modulo dichiara di aver preso visione del regolamento e di accettarlo integralmente.')+'</textarea></div>';
+    iscHtml+='<div><label style="font-size:12px;font-weight:600;color:var(--txt2);display:block;margin-bottom:4px">⚠️ Disclaimer</label>';
+    iscHtml+='<textarea rows="7" onchange="saveIscCfg(&quot;disclaimer&quot;,this.value)" style="font-size:12px;resize:vertical;width:100%">'+escV(iscCfg.disclaimer||"L'organizzazione declina ogni responsabilita per eventuali incidenti o fatti che potranno accadere prima, durante e dopo il torneo, salvo quanto previsto dalla assicurativa dei cartellini struttura giovanile e CONI - SPORTASS (compresi eventuali furti o smarrimenti che accadessero durante la manifestazione).")+'</textarea></div>';
+  }
+  iscHtml+='</div>';
+
+  html+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
+    <div class="card-title" style="margin-bottom:0">⚙️ Setup gironi</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button class="bsm" onclick="exportPDFProgramma()">📋 PDF programma</button>
+      <button class="bsm bp" onclick="showAddCatModal()">+ Nuova categoria</button>
+    </div>
+
+  `;
   html+=`<div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
       <div class="card-title" style="margin-bottom:0">🏢 Società partecipanti</div>
@@ -637,57 +689,7 @@ function renderSetupGironi(){
   // Assicura fase1 per tutte le categorie (solo in memoria)
   for(const cat of cats){if(!cat.fasi?.length)cat.fasi=[{id:uid(),label:'Fase 1',gironi:[]}];}
 
-  const t_setup=currentTorneo();
-  const iscCfg=t_setup?.iscrizioniConfig||{};
-  const iscAperte=!!t_setup?.iscrizioniAperte;
-  const iscLink=location.origin+location.pathname.replace('index.html','')+'iscrizione.html?u='+(window._currentUid||'')+'&t='+currentTorneoId;
-
-  // Sezione iscrizioni come stringa separata
-  let iscHtml='<div class="card" style="margin-bottom:1rem">';
-  iscHtml+='<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">';
-  iscHtml+='<div style="font-weight:700;font-size:14px">📝 Modulo iscrizioni online</div>';
-  iscHtml+='<div style="display:flex;align-items:center;gap:8px">';
-  iscHtml+='<label class="toggle"><input type="checkbox" '+(iscAperte?'checked':'')+' onchange="toggleIscrizioni(this.checked)"><span class="slider"></span></label>';
-  iscHtml+='<span style="font-size:13px;color:var(--txt2)">'+(iscAperte?'<span style="color:#166534;font-weight:600">● Aperto</span>':'Chiuso')+'</span>';
-  iscHtml+='</div></div>';
-  if(iscAperte){
-    iscHtml+='<div style="background:var(--info);border-radius:8px;padding:10px 12px;margin-bottom:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">';
-    iscHtml+='<span style="font-size:12px;color:var(--txt2);word-break:break-all;flex:1">'+iscLink+'</span>';
-    iscHtml+='<button class="bxsm" onclick="copiaIscLink()">📋 Copia</button></div>';
-    iscHtml+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">';
-    iscHtml+='<div><label style="font-size:12px;font-weight:600;color:var(--txt2);display:block;margin-bottom:4px">📅 Data torneo</label>';
-    iscHtml+='<input type="text" placeholder="Es. 17 Maggio 2026" value="'+escV(iscCfg.data||'')+'" onchange="saveIscCfg(&quot;data&quot;,this.value)" style="font-size:13px"></div>';
-    iscHtml+='<div><label style="font-size:12px;font-weight:600;color:var(--txt2);display:block;margin-bottom:4px">⏰ Scadenza iscrizioni</label>';
-    iscHtml+='<input type="text" placeholder="Es. 10 Maggio 2026 ore 12:00" value="'+escV(iscCfg.scadenza||'')+'" onchange="saveIscCfg(&quot;scadenza&quot;,this.value)" style="font-size:13px"></div></div>';
-    iscHtml+='<div style="margin-bottom:10px"><label style="font-size:12px;font-weight:600;color:var(--txt2);display:block;margin-bottom:4px">🏢 Logo organizzatore (URL)</label>';
-    iscHtml+='<input type="text" placeholder="https://..." value="'+escV(iscCfg.logoOrg||'')+'" onchange="saveIscCfg(&quot;logoOrg&quot;,this.value)" style="font-size:13px"></div>';
-    iscHtml+='<div style="margin-bottom:10px"><label style="font-size:12px;font-weight:600;color:var(--txt2);display:block;margin-bottom:4px">📋 Info categorie (formato, anni, min. atleti)</label>';
-    (currentTorneo()?.categorie||[]).forEach(function(cat){
-      iscHtml+='<div style="background:var(--info);border-radius:8px;padding:8px 10px;margin-bottom:6px;border-left:3px solid '+(cat.colore||'#2d5fc4')+'">';
-      iscHtml+='<div style="font-size:12px;font-weight:700;color:'+(cat.colore||'#2d5fc4')+';margin-bottom:6px">'+(cat.emoji||'')+' '+cat.nome+'</div>';
-      iscHtml+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">';
-      iscHtml+='<input type="text" placeholder="Formato (es. 3x3)" value="'+escV((iscCfg.catInfo||{})[cat.id]?.formato||'')+'" onchange="saveIscCatInfo(&quot;'+cat.id+'&quot;,&quot;formato&quot;,this.value)" style="font-size:12px">';
-      iscHtml+='<input type="text" placeholder="Anni (es. 2016-2017)" value="'+escV((iscCfg.catInfo||{})[cat.id]?.anni||'')+'" onchange="saveIscCatInfo(&quot;'+cat.id+'&quot;,&quot;anni&quot;,this.value)" style="font-size:12px">';
-      iscHtml+='<input type="number" placeholder="Min. atleti" min="1" value="'+((iscCfg.catInfo||{})[cat.id]?.minAtleti||'')+'" onchange="saveIscCatInfo(&quot;'+cat.id+'&quot;,&quot;minAtleti&quot;,parseInt(this.value)||0)" style="font-size:12px;text-align:center">';
-      iscHtml+='</div></div>';
-    });
-    iscHtml+='</div>';
-    iscHtml+='<div style="margin-bottom:10px"><label style="font-size:12px;font-weight:600;color:var(--txt2);display:block;margin-bottom:4px">📝 Testo composizione squadre</label>';
-    iscHtml+='<textarea rows="2" onchange="saveIscCfg(&quot;testoComposizione&quot;,this.value)" placeholder="Es. Le squadre dovranno essere composte da min. 3 atleti." style="font-size:12px;resize:vertical">'+escV(iscCfg.testoComposizione||'')+'</textarea></div>';
-    iscHtml+='<div style="margin-bottom:10px"><label style="font-size:12px;font-weight:600;color:var(--txt2);display:block;margin-bottom:4px">✅ Testo accettazione regolamento</label>';
-    iscHtml+='<textarea rows="5" onchange="saveIscCfg(&quot;testoAccettazione&quot;,this.value)" style="font-size:12px;resize:vertical;width:100%">'+escV(iscCfg.testoAccettazione||'La societa sottoscrivendo il presente modulo dichiara di aver preso visione del regolamento e di accettarlo integralmente.')+'</textarea></div>';
-    iscHtml+='<div><label style="font-size:12px;font-weight:600;color:var(--txt2);display:block;margin-bottom:4px">⚠️ Disclaimer</label>';
-    iscHtml+='<textarea rows="7" onchange="saveIscCfg(&quot;disclaimer&quot;,this.value)" style="font-size:12px;resize:vertical;width:100%">'+escV(iscCfg.disclaimer||"L'organizzazione declina ogni responsabilita per eventuali incidenti o fatti che potranno accadere prima, durante e dopo il torneo, salvo quanto previsto dalla assicurativa dei cartellini struttura giovanile e CONI - SPORTASS (compresi eventuali furti o smarrimenti che accadessero durante la manifestazione).")+'</textarea></div>';
-  }
-  iscHtml+='</div>';
-
-  let html=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
-    <div class="card-title" style="margin-bottom:0">⚙️ Setup gironi</div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap">
-      <button class="bsm" onclick="exportPDFProgramma()">📋 PDF programma</button>
-      <button class="bsm bp" onclick="showAddCatModal()">+ Nuova categoria</button>
-    </div>
-  </div>`+iscHtml+`<div style="background:var(--info);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--txt2);margin-bottom:1rem;line-height:1.7">
+  html+=`<div style="background:var(--info);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--txt2);margin-bottom:1rem;line-height:1.7">
     Imposta i campi disponibili per ogni categoria e crea i gironi. Puoi anche aggiungere nuove categorie personalizzate.
   </div>`;
 
@@ -719,7 +721,7 @@ function renderSetupGironi(){
           <div style="font-size:11px;font-weight:600;color:var(--txt2);margin-bottom:4px">CAMPI DISPONIBILI</div>
           <input type="number" min="1" max="20" value="${nCampi||''}" placeholder="es. 3"
             style="width:80px;text-align:center;font-size:15px;font-weight:700"
-            oninput="setPref('${cat.id}','campi',parseInt(this.value)||0);render()">
+            oninput="setPref('${cat.id}','campi',parseInt(this.value)||0);renderPreserveScroll()">
         </div>
         <div style="flex:1;min-width:160px">
           <div style="font-size:11px;font-weight:600;color:var(--txt2);margin-bottom:4px">SUGGERIMENTO</div>

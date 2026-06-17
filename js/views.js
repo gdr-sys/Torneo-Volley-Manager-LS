@@ -675,9 +675,9 @@ function renderSetupGironi(){
     iscHtml+='<div style="margin-bottom:10px"><label style="font-size:12px;font-weight:600;color:var(--txt2);display:block;margin-bottom:4px">📝 Testo composizione squadre</label>';
     iscHtml+='<textarea rows="2" onchange="saveIscCfg(&quot;testoComposizione&quot;,this.value)" placeholder="Es. Le squadre dovranno essere composte da min. 3 atleti." style="font-size:12px;resize:vertical">'+escV(iscCfg.testoComposizione||'')+'</textarea></div>';
     iscHtml+='<div style="margin-bottom:10px"><label style="font-size:12px;font-weight:600;color:var(--txt2);display:block;margin-bottom:4px">✅ Testo accettazione regolamento</label>';
-    iscHtml+='<textarea rows="2" onchange="saveIscCfg(&quot;testoAccettazione&quot;,this.value)" placeholder="Es. Sottoscrivendo il modulo dichiaro di aver preso visione del regolamento." style="font-size:12px;resize:vertical">'+escV(iscCfg.testoAccettazione||'')+'</textarea></div>';
+    iscHtml+='<textarea rows="5" onchange="saveIscCfg(&quot;testoAccettazione&quot;,this.value)" style="font-size:12px;resize:vertical;width:100%">'+escV(iscCfg.testoAccettazione||'La societa sottoscrivendo il presente modulo dichiara di aver preso visione del regolamento e di accettarlo integralmente.')+'</textarea></div>';
     iscHtml+='<div><label style="font-size:12px;font-weight:600;color:var(--txt2);display:block;margin-bottom:4px">⚠️ Disclaimer</label>';
-    iscHtml+='<textarea rows="3" onchange="saveIscCfg(&quot;disclaimer&quot;,this.value)" placeholder="Es. L&apos;organizzazione declina ogni responsabilità..." style="font-size:12px;resize:vertical">'+escV(iscCfg.disclaimer||'')+'</textarea></div>';
+    iscHtml+='<textarea rows="7" onchange="saveIscCfg(&quot;disclaimer&quot;,this.value)" style="font-size:12px;resize:vertical;width:100%">'+escV(iscCfg.disclaimer||"L'organizzazione declina ogni responsabilita per eventuali incidenti o fatti che potranno accadere prima, durante e dopo il torneo, salvo quanto previsto dalla assicurativa dei cartellini struttura giovanile e CONI - SPORTASS (compresi eventuali furti o smarrimenti che accadessero durante la manifestazione).")+'</textarea></div>';
   }
   iscHtml+='</div>';
 

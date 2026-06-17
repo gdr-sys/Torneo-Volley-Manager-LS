@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="it" style="color-scheme:light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Segnapunti</title>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:system-ui,-apple-system,sans-serif;background:#f3f4f6;color:#111;min-height:100vh;color-scheme:light}
+    .top{background:#1e40af;color:#fff;padding:12px 16px;text-align:center}
+    .top .torneo{font-size:12px;opacity:.8;margin-bottom:2px}
+    .top .partita-info{font-size:14px;font-weight:700}
+    .loading{text-align:center;padding:60px 20px;color:#6b7280;font-size:16px}
+    .error{text-align:center;padding:60px 20px;color:#991b1b;font-size:15px}
+
+    /* MODALITÀ SCELTA */
+    .mode-card{background:#fff;border-radius:16px;margin:16px;padding:24px;box-shadow:0 2px 12px rgba(0,0,0,.08)}
+    .mode-title{font-size:16px;font-weight:800;color:#111;margin-bottom:6px}
+    .mode-sub{font-size:13px;color:#6b7280;margin-bottom:20px;line-height:1.5}
+    .mode-btn{display:block;width:100%;padding:16px;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;margin-bottom:12px;transition:opacity .15s}
+    .mode-btn:active{opacity:.8}
+    .btn-finale{background:#1e40af;color:#fff}
+    .btn-live{background:#166534;color:#fff}
+
+    /* SQUADRE */
+    .squadre{display:grid;grid-template-columns:1fr 1fr;gap:0;margin:0}
+    .squadra{padding:20px 12px;text-align:center;border-bottom:3px solid transparent}
+    .squadra.home{border-color:#1e40af;background:#eff6ff}
+    .squadra.away{border-color:#991b1b;background:#fef2f2}
+    .sq-nome{font-size:15px;font-weight:800;color:#111;margin-bottom:4px;line-height:1.2}
+    .sq-soc{font-size:11px;color:#6b7280}
+
+    /* MODALITÀ A — RISULTATO FINALE */
+    .finale-wrap{padding:16px}
+    .inputs-row{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin-bottom:20px}
+    .score-input{width:100%;padding:16px 8px;font-size:48px;font-weight:800;text-align:center;border:2px solid #e5e7eb;border-radius:12px;background:#fff;color:#111;-moz-appearance:textfield}
+    .score-input::-webkit-outer-spin-button,.score-input::-webkit-inner-spin-button{-webkit-appearance:none}
+    .score-input:focus{border-color:#1e40af;outline:none}
+    .score-input.home:focus{border-color:#1e40af}
+    .score-input.away:focus{border-color:#991b1b}
+    .vs{font-size:20px;font-weight:800;color:#9ca3af;text-align:center}
+    .btn-salva{display:block;width:100%;padding:18px;background:#1e40af;color:#fff;border:none;border-radius:12px;font-size:18px;font-weight:700;cursor:pointer;margin-top:4px}
+    .btn-salva:disabled{background:#9ca3af;cursor:not-allowed}
+    .btn-salva:active{opacity:.85}
+
+    /* CONFERMA */
+    .conferma-wrap{padding:20px 16px}
+    .conferma-box{background:#fff;border-radius:16px;padding:24px;margin-bottom:16px;box-shadow:0 2px 12px rgba(0,0,0,.08)}
+    .conferma-title{font-size:14px;font-weight:600;color:#6b7280;margin-bottom:16px;text-align:center}
+    .conferma-score{display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:20px}
+    .conf-team{text-align:center;flex:1}
+    .conf-nome{font-size:15px;font-weight:700;color:#111;margin-bottom:6px}
+    .conf-punti{font-size:52px;font-weight:900;line-height:1}
+    .conf-punti.home{color:#1e40af}
+    .conf-punti.away{color:#991b1b}
+    .conf-vs{font-size:20px;font-weight:800;color:#9ca3af}
+    .btn-conferma{display:block;width:100%;padding:16px;background:#166534;color:#fff;border:none;border-radius:12px;font-size:17px;font-weight:700;cursor:pointer;margin-bottom:10px}
+    .btn-correggi{display:block;width:100%;padding:14px;background:#f3f4f6;color:#374151;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer}
+
+    /* MODALITÀ B — PUNTO PER PUNTO */
+    .live-wrap{padding:0}
+    .live-score{display:grid;grid-template-columns:1fr 1fr;gap:0;background:#fff}
+    .live-team{padding:24px 12px;text-align:center}
+    .live-team.home{background:#eff6ff}
+    .live-team.away{background:#fef2f2}
+    .live-punti{font-size:72px;font-weight:900;line-height:1;margin-bottom:16px}
+    .live-punti.home{color:#1e40af}
+    .live-punti.away{color:#991b1b}
+    .live-nome{font-size:13px;font-weight:700;color:#374151;margin-bottom:16px;line-height:1.2}
+    .btn-wrap{display:flex;gap:8px;justify-content:center}
+    .btn-plus{padding:14px 20px;background:#1e40af;color:#fff;border:none;border-radius:10px;font-size:22px;font-weight:800;cursor:pointer;flex:1;max-width:80px}
+    .btn-plus.away{background:#991b1b}
+    .btn-minus{padding:14px 16px;background:#e5e7eb;color:#374151;border:none;border-radius:10px;font-size:18px;font-weight:700;cursor:pointer;min-width:48px}
+    .btn-plus:active,.btn-minus:active{opacity:.75;transform:scale(.96)}
+    .live-footer{padding:16px;background:#fff;border-top:1px solid #f0f0f0;margin-top:2px}
+    .btn-fine{display:block;width:100%;padding:16px;background:#166534;color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer}
+    .live-stato{text-align:center;font-size:12px;color:#6b7280;margin-top:8px}
+
+    /* SALVATO */
+    .salvato-wrap{padding:40px 20px;text-align:center}
+    .salvato-ico{font-size:64px;margin-bottom:16px}
+    .salvato-title{font-size:22px;font-weight:800;color:#166534;margin-bottom:8px}
+    .salvato-sub{font-size:14px;color:#6b7280;margin-bottom:24px}
+    .btn-correggi2{padding:12px 24px;background:#f3f4f6;color:#374151;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer}
+
+    .set-label{font-size:11px;color:#6b7280;text-align:center;margin-bottom:4px;font-weight:600;letter-spacing:.5px;text-transform:uppercase}
+    .sets-tabs{display:flex;gap:6px;padding:12px 16px;background:#f9fafb;border-bottom:1px solid #f0f0f0;overflow-x:auto}
+    .set-tab{padding:6px 14px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;border:2px solid #e5e7eb;background:#fff;color:#374151;white-space:nowrap}
+    .set-tab.active{background:#1e40af;color:#fff;border-color:#1e40af}
+  </style>
+</head>
+<body>
+
+<div id="app"><div class="loading">Caricamento...</div></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
+firebase.initializeApp({
+  apiKey: "AIzaSyB-vk1m84YC8ZBMHHvILdgpAfZyp4C_0ZM",
+  authDomain: "torneo-pallavolo-manager.firebaseapp.com",
+  projectId: "torneo-pallavolo-manager",
+  storageBucket: "torneo-pallavolo-manager.firebasestorage.app",
+  messagingSenderId: "423674754433",
+  appId: "1:423674754433:web:35dfeb868d726f6272a480"
+});
+var db = firebase.firestore();
+
+var params = new URLSearchParams(location.search);
+var uid = params.get('u');
+var torneoId = params.get('t');
+var catId = params.get('c');
+var faseId = params.get('f');
+var gironeId = params.get('g');
+var partitaIdx = parseInt(params.get('p')) || 0;
+var mode = params.get('m'); // 'finale' o 'live'
+
+var torneoData = null;
+var partita = null;
+var girone = null;
+var categoria = null;
+var scoreH = 0, scoreA = 0;
+var currentSet = 1; // per modalità live con 2 set
+var liveSets = [{h:0,a:0},{h:0,a:0}];
+var saving = false;
+
+function app(html){ document.getElementById('app').innerHTML = html; }
+function showError(msg){ app('<div class="error">❌ '+msg+'</div>'); }
+
+function init() {
+  if (!uid || !torneoId || !catId || !faseId || !gironeId) {
+    showError('Link non valido.');
+    return;
+  }
+  db.collection('utenti').doc(uid).collection('dati').doc('tornei').get()
+    .then(function(snap) {
+      if (!snap.exists) { showError('Torneo non trovato.'); return; }
+      var dati = snap.data();
+      torneoData = dati.tornei && dati.tornei[torneoId];
+      if (!torneoData) { showError('Torneo non trovato.'); return; }
+      // Trova categoria, fase, girone, partita
+      categoria = (torneoData.categorie||[]).find(function(c){ return c.id===catId; });
+      if (!categoria) { showError('Categoria non trovata.'); return; }
+      var fase = (categoria.fasi||[]).find(function(f){ return f.id===faseId; });
+      if (!fase) { showError('Fase non trovata.'); return; }
+      girone = (fase.gironi||[]).find(function(g){ return g.id===gironeId; });
+      if (!girone) { showError('Girone non trovato.'); return; }
+      partita = girone.partite && girone.partite[partitaIdx];
+      if (!partita) { showError('Partita non trovata.'); return; }
+
+      if (!mode) {
+        renderScelta();
+      } else if (mode === 'finale') {
+        renderFinale();
+      } else if (mode === 'live') {
+        renderLive();
+      }
+    })
+    .catch(function(e){ showError('Errore: '+(e.code||e.message)); });
+}
+
+function topBar() {
+  var nSets = girone.sets || 1;
+  var setLabel = nSets===1 ? '1 set' : '2 set';
+  return '<div class="top">'
+    +'<div class="torneo">'+torneoData.nome+' — '+(categoria.emoji||'')+' '+categoria.nome+'</div>'
+    +'<div class="partita-info">Girone '+(girone.label||gironeId)+' · '+setLabel+'</div>'
+    +'</div>';
+}
+
+function squadreBar() {
+  var nH = partita.h || '?';
+  var nA = partita.a || '?';
+  var socH = getSoc(nH);
+  var socA = getSoc(nA);
+  return '<div class="squadre">'
+    +'<div class="squadra home"><div class="sq-nome">'+nH+'</div><div class="sq-soc">'+(socH||'')+'</div></div>'
+    +'<div class="squadra away"><div class="sq-nome">'+nA+'</div><div class="sq-soc">'+(socA||'')+'</div></div>'
+    +'</div>';
+}
+
+function getSoc(squadra) {
+  var soc = (torneoData.societa||[]).find(function(s){
+    return (s.squadre||[]).indexOf(squadra) >= 0;
+  });
+  return soc ? soc.nome : '';
+}
+
+// ── SCELTA MODALITÀ ─────────────────────────────────────────
+function renderScelta() {
+  var nH = partita.h || '?';
+  var nA = partita.a || '?';
+  var html = topBar() + squadreBar();
+  html += '<div class="mode-card">';
+  html += '<div class="mode-title">Come vuoi inserire il risultato?</div>';
+  html += '<div class="mode-sub">Scegli la modalità più adatta alla situazione.</div>';
+  html += '<button class="mode-btn btn-finale" onclick="setMode(\'finale\')">📋 Risultato finale<br><span style="font-size:13px;font-weight:400;opacity:.85">Inserisci il punteggio a fine partita</span></button>';
+  html += '<button class="mode-btn btn-live" onclick="setMode(\'live\')">⚡ Punto per punto<br><span style="font-size:13px;font-weight:400;opacity:.85">Segna i punti in tempo reale</span></button>';
+  html += '</div>';
+  app(html);
+}
+
+function setMode(m) {
+  mode = m;
+  if (m === 'finale') renderFinale();
+  else renderLive();
+}
+
+// ── MODALITÀ A — RISULTATO FINALE ───────────────────────────
+function renderFinale() {
+  var nH = partita.h || '?';
+  var nA = partita.a || '?';
+  var nSets = girone.sets || 1;
+  var html = topBar() + squadreBar();
+  html += '<div class="finale-wrap">';
+
+  if (nSets === 2) {
+    // Tabs Set 1 / Set 2
+    html += '<div class="sets-tabs">';
+    html += '<button class="set-tab'+(currentSet===1?' active':'')+'" onclick="switchSet(1)">Set 1</button>';
+    html += '<button class="set-tab'+(currentSet===2?' active':'')+'" onclick="switchSet(2)">Set 2</button>';
+    html += '</div>';
+  }
+
+  var valH = currentSet===1 ? (partita.s1h||'') : (partita.s2h||'');
+  var valA = currentSet===1 ? (partita.s1a||'') : (partita.s2a||'');
+
+  html += '<div style="margin-top:16px">';
+  html += '<div class="set-label">'+(nSets===2?'Punteggio Set '+currentSet:'Punteggio finale')+'</div>';
+  html += '<div class="inputs-row">';
+  html += '<input class="score-input home" type="number" min="0" max="99" id="scoreH" value="'+valH+'" placeholder="0" inputmode="numeric">';
+  html += '<div class="vs">—</div>';
+  html += '<input class="score-input away" type="number" min="0" max="99" id="scoreA" value="'+valA+'" placeholder="0" inputmode="numeric">';
+  html += '</div>';
+  html += '<button class="btn-salva" onclick="mostraConferma()">Conferma risultato</button>';
+  html += '</div></div>';
+  app(html);
+}
+
+function switchSet(n) {
+  // Salva i valori correnti prima di switchare
+  var h = document.getElementById('scoreH');
+  var a = document.getElementById('scoreA');
+  if (h && a) {
+    if (currentSet===1){ partita.s1h=h.value; partita.s1a=a.value; }
+    else { partita.s2h=h.value; partita.s2a=a.value; }
+  }
+  currentSet = n;
+  renderFinale();
+}
+
+function mostraConferma() {
+  var h = document.getElementById('scoreH').value.trim();
+  var a = document.getElementById('scoreA').value.trim();
+  if (h==='' || a==='') { alert('Inserisci entrambi i punteggi.'); return; }
+  var nH = partita.h || '?';
+  var nA = partita.a || '?';
+  var nSets = girone.sets || 1;
+  // Salva nel partita object
+  if (currentSet===1){ partita.s1h=h; partita.s1a=a; }
+  else { partita.s2h=h; partita.s2a=a; }
+
+  var html = topBar();
+  html += '<div class="conferma-wrap">';
+  html += '<div class="conferma-box">';
+  html += '<div class="conferma-title">Conferma il risultato</div>';
+
+  if (nSets===2) {
+    html += '<div style="margin-bottom:16px">';
+    if (partita.s1h!=='' && partita.s1a!=='') {
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f0f0f0">';
+      html += '<span style="font-size:13px;color:#6b7280">Set 1</span>';
+      html += '<span style="font-size:20px;font-weight:800">'+nH+' <span style="color:#1e40af">'+partita.s1h+'</span> — <span style="color:#991b1b">'+partita.s1a+'</span> '+nA+'</span>';
+      html += '</div>';
+    }
+    if (partita.s2h!=='' && partita.s2a!=='') {
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0">';
+      html += '<span style="font-size:13px;color:#6b7280">Set 2</span>';
+      html += '<span style="font-size:20px;font-weight:800">'+nH+' <span style="color:#1e40af">'+partita.s2h+'</span> — <span style="color:#991b1b">'+partita.s2a+'</span> '+nA+'</span>';
+      html += '</div>';
+    }
+    html += '</div>';
+  } else {
+    html += '<div class="conferma-score">';
+    html += '<div class="conf-team"><div class="conf-nome">'+nH+'</div><div class="conf-punti home">'+h+'</div></div>';
+    html += '<div class="conf-vs">—</div>';
+    html += '<div class="conf-team"><div class="conf-nome">'+nA+'</div><div class="conf-punti away">'+a+'</div></div>';
+    html += '</div>';
+  }
+
+  html += '<button class="btn-conferma" onclick="salvaFinale()">✓ Salva risultato</button>';
+  html += '<button class="btn-correggi" onclick="renderFinale()">← Correggi</button>';
+  html += '</div></div>';
+  app(html);
+}
+
+function salvaFinale() {
+  if (saving) return;
+  saving = true;
+  var btn = document.querySelector('.btn-conferma');
+  if (btn) { btn.disabled=true; btn.textContent='Salvataggio...'; }
+
+  db.collection('utenti').doc(uid).collection('dati').doc('tornei').get()
+    .then(function(snap) {
+      var dati = snap.data();
+      var t = dati.tornei[torneoId];
+      var cat = (t.categorie||[]).find(function(c){ return c.id===catId; });
+      var fase = (cat.fasi||[]).find(function(f){ return f.id===faseId; });
+      var gir = (fase.gironi||[]).find(function(g){ return g.id===gironeId; });
+      var p = gir.partite[partitaIdx];
+      p.s1h = partita.s1h || '';
+      p.s1a = partita.s1a || '';
+      p.s2h = partita.s2h || '';
+      p.s2a = partita.s2a || '';
+      return db.collection('utenti').doc(uid).collection('dati').doc('tornei').set(dati);
+    })
+    .then(function() {
+      saving = false;
+      renderSalvato();
+    })
+    .catch(function(e) {
+      saving = false;
+      alert('Errore salvataggio: '+(e.code||e.message));
+      var btn2 = document.querySelector('.btn-conferma');
+      if (btn2) { btn2.disabled=false; btn2.textContent='✓ Salva risultato'; }
+    });
+}
+
+function renderSalvato() {
+  var nH = partita.h || '?';
+  var nA = partita.a || '?';
+  var html = topBar();
+  html += '<div class="salvato-wrap">';
+  html += '<div class="salvato-ico">✅</div>';
+  html += '<div class="salvato-title">Risultato salvato!</div>';
+  html += '<div class="salvato-sub">'+nH+' vs '+nA+'<br>';
+  if (partita.s1h!=='' && partita.s1a!=='') html += 'Set 1: '+partita.s1h+' — '+partita.s1a+'<br>';
+  if (partita.s2h!=='' && partita.s2a!=='') html += 'Set 2: '+partita.s2h+' — '+partita.s2a;
+  html += '</div>';
+  html += '<button class="btn-correggi2" onclick="renderFinale()">Correggi</button>';
+  html += '</div>';
+  app(html);
+}
+
+// ── MODALITÀ B — PUNTO PER PUNTO ────────────────────────────
+function renderLive() {
+  var nH = partita.h || '?';
+  var nA = partita.a || '?';
+  var nSets = girone.sets || 1;
+  var s = liveSets[currentSet-1];
+
+  var html = topBar();
+
+  if (nSets===2) {
+    html += '<div class="sets-tabs">';
+    html += '<button class="set-tab'+(currentSet===1?' active':'')+'" onclick="switchSetLive(1)">Set 1</button>';
+    html += '<button class="set-tab'+(currentSet===2?' active':'')+'" onclick="switchSetLive(2)">Set 2</button>';
+    html += '</div>';
+  }
+
+  html += '<div class="live-wrap">';
+  html += '<div class="live-score">';
+
+  // Team Home
+  html += '<div class="live-team home">';
+  html += '<div class="live-nome">'+nH+'</div>';
+  html += '<div class="live-punti home" id="pHome">'+s.h+'</div>';
+  html += '<div class="btn-wrap">';
+  html += '<button class="btn-minus" onclick="addPoint(\'h\',-1)">−1</button>';
+  html += '<button class="btn-plus" onclick="addPoint(\'h\',1)">+1</button>';
+  html += '</div></div>';
+
+  // Team Away
+  html += '<div class="live-team away">';
+  html += '<div class="live-nome">'+nA+'</div>';
+  html += '<div class="live-punti away" id="pAway">'+s.a+'</div>';
+  html += '<div class="btn-wrap">';
+  html += '<button class="btn-plus away" onclick="addPoint(\'a\',1)">+1</button>';
+  html += '<button class="btn-minus" onclick="addPoint(\'a\',-1)">−1</button>';
+  html += '</div></div>';
+
+  html += '</div>'; // live-score
+
+  html += '<div class="live-footer">';
+  html += '<button class="btn-fine" onclick="confermaLive()">Fine partita — Salva</button>';
+  html += '<div class="live-stato" id="liveStato">Punteggio in tempo reale</div>';
+  html += '</div>';
+  html += '</div>';
+  app(html);
+}
+
+function addPoint(team, val) {
+  var s = liveSets[currentSet-1];
+  if (team==='h') s.h = Math.max(0, s.h+val);
+  else s.a = Math.max(0, s.a+val);
+  // Aggiorna solo i numeri senza fare un full re-render
+  var elH = document.getElementById('pHome');
+  var elA = document.getElementById('pAway');
+  if (elH) elH.textContent = s.h;
+  if (elA) elA.textContent = s.a;
+  // Salva su Firebase in tempo reale
+  aggiornaLiveFirebase();
+}
+
+var saveTimeout = null;
+function aggiornaLiveFirebase() {
+  clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(function() {
+    var stato = document.getElementById('liveStato');
+    if (stato) stato.textContent = 'Salvataggio...';
+    db.collection('utenti').doc(uid).collection('dati').doc('tornei').get()
+      .then(function(snap) {
+        var dati = snap.data();
+        var t = dati.tornei[torneoId];
+        var cat = (t.categorie||[]).find(function(c){ return c.id===catId; });
+        var fase = (cat.fasi||[]).find(function(f){ return f.id===faseId; });
+        var gir = (fase.gironi||[]).find(function(g){ return g.id===gironeId; });
+        var p = gir.partite[partitaIdx];
+        p.s1h = liveSets[0].h > 0 || liveSets[0].a > 0 ? String(liveSets[0].h) : (p.s1h||'');
+        p.s1a = liveSets[0].h > 0 || liveSets[0].a > 0 ? String(liveSets[0].a) : (p.s1a||'');
+        if (girone.sets===2) {
+          p.s2h = liveSets[1].h > 0 || liveSets[1].a > 0 ? String(liveSets[1].h) : (p.s2h||'');
+          p.s2a = liveSets[1].h > 0 || liveSets[1].a > 0 ? String(liveSets[1].a) : (p.s2a||'');
+        }
+        p.inCorso = true;
+        return db.collection('utenti').doc(uid).collection('dati').doc('tornei').set(dati);
+      })
+      .then(function() {
+        var stato = document.getElementById('liveStato');
+        if (stato) stato.textContent = '✓ Aggiornato in tempo reale';
+      })
+      .catch(function() {
+        var stato = document.getElementById('liveStato');
+        if (stato) stato.textContent = '⚠ Errore aggiornamento';
+      });
+  }, 600);
+}
+
+function switchSetLive(n) {
+  currentSet = n;
+  renderLive();
+}
+
+function confermaLive() {
+  var nH = partita.h || '?';
+  var nA = partita.a || '?';
+  var nSets = girone.sets || 1;
+  var html = topBar();
+  html += '<div class="conferma-wrap">';
+  html += '<div class="conferma-box">';
+  html += '<div class="conferma-title">Conferma fine partita</div>';
+
+  if (nSets===2) {
+    html += '<div style="margin-bottom:16px">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f0f0f0">';
+    html += '<span style="font-size:13px;color:#6b7280">Set 1</span>';
+    html += '<span style="font-size:20px;font-weight:800"><span style="color:#1e40af">'+liveSets[0].h+'</span> — <span style="color:#991b1b">'+liveSets[0].a+'</span></span>';
+    html += '</div>';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0">';
+    html += '<span style="font-size:13px;color:#6b7280">Set 2</span>';
+    html += '<span style="font-size:20px;font-weight:800"><span style="color:#1e40af">'+liveSets[1].h+'</span> — <span style="color:#991b1b">'+liveSets[1].a+'</span></span>';
+    html += '</div></div>';
+  } else {
+    html += '<div class="conferma-score">';
+    html += '<div class="conf-team"><div class="conf-nome">'+nH+'</div><div class="conf-punti home">'+liveSets[0].h+'</div></div>';
+    html += '<div class="conf-vs">—</div>';
+    html += '<div class="conf-team"><div class="conf-nome">'+nA+'</div><div class="conf-punti away">'+liveSets[0].a+'</div></div>';
+    html += '</div>';
+  }
+
+  html += '<button class="btn-conferma" onclick="salvaLive()">✓ Chiudi partita</button>';
+  html += '<button class="btn-correggi" onclick="renderLive()">← Continua a segnare</button>';
+  html += '</div></div>';
+  app(html);
+}
+
+function salvaLive() {
+  if (saving) return;
+  saving = true;
+  var btn = document.querySelector('.btn-conferma');
+  if (btn) { btn.disabled=true; btn.textContent='Salvataggio...'; }
+
+  db.collection('utenti').doc(uid).collection('dati').doc('tornei').get()
+    .then(function(snap) {
+      var dati = snap.data();
+      var t = dati.tornei[torneoId];
+      var cat = (t.categorie||[]).find(function(c){ return c.id===catId; });
+      var fase = (cat.fasi||[]).find(function(f){ return f.id===faseId; });
+      var gir = (fase.gironi||[]).find(function(g){ return g.id===gironeId; });
+      var p = gir.partite[partitaIdx];
+      p.s1h = String(liveSets[0].h);
+      p.s1a = String(liveSets[0].a);
+      if (girone.sets===2) {
+        p.s2h = String(liveSets[1].h);
+        p.s2a = String(liveSets[1].a);
+      }
+      p.inCorso = false;
+      return db.collection('utenti').doc(uid).collection('dati').doc('tornei').set(dati);
+    })
+    .then(function() {
+      saving = false;
+      partita.s1h = String(liveSets[0].h);
+      partita.s1a = String(liveSets[0].a);
+      renderSalvato();
+    })
+    .catch(function(e) {
+      saving = false;
+      alert('Errore: '+(e.code||e.message));
+    });
+}
+
+init();
+</script>
+</body>
+</html>

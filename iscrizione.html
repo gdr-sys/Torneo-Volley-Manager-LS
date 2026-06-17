@@ -71,7 +71,7 @@ let logoBase64 = '';
 async function init() {
   const card = document.getElementById('mainCard');
   if (!torneoId || !uid) {
-    card.innerHTML = '<div class="error-page">❌ Link non valido.<br><small>Contatta l'organizzatore.</small></div>';
+    card.innerHTML = '<div class="error-page">❌ Link non valido.<br><small>Contatta l&apos;organizzatore.</small></div>';
     return;
   }
   try {
@@ -88,7 +88,7 @@ async function init() {
     renderForm(torneo);
   } catch(e) {
     const msg = e.code || e.message || 'Errore sconosciuto';
-    card.innerHTML = '<div class="error-page">❌ Errore: '+msg+'<br><small>Contatta l'organizzatore.<br>Codice: '+(e.code||'N/A')+'</small></div>';
+    card.innerHTML = '<div class="error-page">❌ Errore: '+msg+'<br><small>Contatta l&apos;organizzatore.<br>Codice: '+(e.code||'N/A')+'</small></div>';
   }
 }
 

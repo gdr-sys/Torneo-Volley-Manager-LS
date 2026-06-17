@@ -13,7 +13,7 @@
     .torneo-info{font-size:14px;color:#6b7280;margin-bottom:24px}
     .sec{font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:#2d5fc4;margin:20px 0 10px}
     label{display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:5px}
-    input,textarea,select{width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;color:#111;background:#fff;margin-bottom:14px;outline:none;font-family:inherit}
+    input,textarea,select{width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;color:#111;background:#fff;margin-bottom:14px;outline:none;font-family:inherit}
     input:focus,textarea:focus{border-color:#2d5fc4}
     .cat-row{background:#f8f9ff;border-radius:10px;padding:14px;margin-bottom:10px}
     .cat-name{font-size:14px;font-weight:700;margin-bottom:6px}
@@ -112,7 +112,7 @@ function renderForm(t) {
   html += '<div class="sec">Dati societa</div>';
   html += '<div id="errMsg" class="msg-err"></div>';
   html += '<label>Nome societa *</label>';
-  html += '<input type="text" id="nomeSoc" placeholder="Es. ASD Pallavolo Pesaro">';
+  html += '<input type="text" id="nomeSoc" placeholder="Es. ASD Pallavolo">';
   html += '<label>Dirigente responsabile *</label>';
   html += '<input type="text" id="dirigente" placeholder="Nome e cognome">';
   html += '<div class="two-col">';
@@ -150,7 +150,7 @@ function renderForm(t) {
   }
 
   html += '<div class="sec">Accettazione</div>';
-  var testoAcc = cfg.testoAccettazione || 'Sottoscrivendo il presente modulo dichiaro di aver preso visione del regolamento e di accettarlo integralmente.';
+  var testoAcc = cfg.testoAccettazione || 'La societa sottoscrivendo il presente modulo dichiara di aver preso visione del regolamento e di accettarlo integralmente.';
   html += '<div class="checkbox-row"><input type="checkbox" id="accetto"><label for="accetto">' + testoAcc + '</label></div>';
 
   if (cfg.disclaimer) {

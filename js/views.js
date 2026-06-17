@@ -124,7 +124,7 @@ function renderHome(){
 }
 
 function openTorneo(id){
-  currentTorneoId=id;view='torneo';localCat=null;builderState=null;socEditState=null;IC={};window._catView={};
+  currentTorneoId=id;view='torneo';localCat=null;builderState=null;socEditState=null;IC={};window._catView={};window._iscrizioniLoaded=false;window._iscrizioniAttesa=[];
   const t=DB.tornei[id];
   document.getElementById('torneoNomeHdr').textContent=t.nome;
   getCats(); // migrazione vecchio formato se necessario
@@ -384,7 +384,40 @@ function renderTorneo(){
 function renderSocieta(){
   const t=currentTorneo();const cats=getCats();
   const soc=t.societa||(t.societa=[]);
-  let html=`<div class="card">
+  let html='';
+
+  // Sezione iscrizioni in attesa
+  const attesa=window._iscrizioniAttesa||[];
+  if(!window._iscrizioniLoaded&&window._currentUid&&window._fbDb){
+    window._iscrizioniLoaded=true;
+    window._fbDb.collection('iscrizioni').doc(window._currentUid+'_'+currentTorneoId)
+      .collection('richieste').where('stato','==','attesa').get()
+      .then(snap=>{
+        window._iscrizioniAttesa=snap.docs.map(d=>({id:d.id,...d.data()}));
+        render();
+      }).catch(()=>{});
+  }
+  if(attesa.length){
+    let attHtml='<div class="card" style="margin-bottom:1rem;border:2px solid #2d5fc4">';
+    attHtml+='<div style="font-weight:700;font-size:14px;color:#2d5fc4;margin-bottom:12px">Iscrizioni in attesa — '+attesa.length+'</div>';
+    attesa.forEach(function(isc){
+      attHtml+='<div style="background:var(--info);border-radius:8px;padding:10px 12px;margin-bottom:8px">';
+      attHtml+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">';
+      if(isc.logo)attHtml+='<img src="'+isc.logo+'" style="width:32px;height:32px;object-fit:contain;border-radius:4px;background:#fff;padding:2px">';
+      attHtml+='<div style="font-weight:700;font-size:14px">'+escV(isc.nomeSoc)+'</div></div>';
+      attHtml+='<div style="font-size:12px;color:var(--txt2);margin-bottom:4px">'+escV(isc.dirigente)+' · '+escV(isc.cellulare)+' · '+escV(isc.email)+'</div>';
+      const sqInfo=Object.entries(isc.sqPerCat||{}).filter(function(e){return e[1]>0;}).map(function(e){return catLabel(e[0])+': '+e[1];}).join(' · ')||'—';
+      attHtml+='<div style="font-size:12px;color:var(--txt2);margin-bottom:8px">Squadre: '+sqInfo+'</div>';
+      attHtml+='<div style="display:flex;gap:6px;flex-wrap:wrap">';
+      attHtml+='<button class="bxsm bp" onclick="approvaIscrizione(\'' +isc.id+ '\')">Approva</button>';
+      attHtml+='<button class="bxsm bd" onclick="rifiutaIscrizione(\'' +isc.id+ '\')">Rifiuta</button>';
+      attHtml+='</div></div>';
+    });
+    attHtml+='</div>';
+    html+=attHtml;
+  }
+
+  html+=`<div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
       <div class="card-title" style="margin-bottom:0">🏢 Società partecipanti</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -604,14 +637,57 @@ function renderSetupGironi(){
   // Assicura fase1 per tutte le categorie (solo in memoria)
   for(const cat of cats){if(!cat.fasi?.length)cat.fasi=[{id:uid(),label:'Fase 1',gironi:[]}];}
 
+  const t_setup=currentTorneo();
+  const iscCfg=t_setup?.iscrizioniConfig||{};
+  const iscAperte=!!t_setup?.iscrizioniAperte;
+  const iscLink=location.origin+location.pathname.replace('index.html','')+'iscrizione.html?u='+(window._currentUid||'')+'&t='+currentTorneoId;
+
+  // Sezione iscrizioni come stringa separata
+  let iscHtml='<div class="card" style="margin-bottom:1rem">';
+  iscHtml+='<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">';
+  iscHtml+='<div style="font-weight:700;font-size:14px">📝 Modulo iscrizioni online</div>';
+  iscHtml+='<div style="display:flex;align-items:center;gap:8px">';
+  iscHtml+='<label class="toggle"><input type="checkbox" '+(iscAperte?'checked':'')+' onchange="toggleIscrizioni(this.checked)"><span class="slider"></span></label>';
+  iscHtml+='<span style="font-size:13px;color:var(--txt2)">'+(iscAperte?'<span style="color:#166534;font-weight:600">● Aperto</span>':'Chiuso')+'</span>';
+  iscHtml+='</div></div>';
+  if(iscAperte){
+    iscHtml+='<div style="background:var(--info);border-radius:8px;padding:10px 12px;margin-bottom:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">';
+    iscHtml+='<span style="font-size:12px;color:var(--txt2);word-break:break-all;flex:1">'+iscLink+'</span>';
+    iscHtml+='<button class="bxsm" onclick="copiaIscLink()">📋 Copia</button></div>';
+    iscHtml+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">';
+    iscHtml+='<div><label style="font-size:12px;font-weight:600;color:var(--txt2);display:block;margin-bottom:4px">📅 Data torneo</label>';
+    iscHtml+='<input type="text" placeholder="Es. 17 Maggio 2026" value="'+escV(iscCfg.data||'')+'" onchange="saveIscCfg(&quot;data&quot;,this.value)" style="font-size:13px"></div>';
+    iscHtml+='<div><label style="font-size:12px;font-weight:600;color:var(--txt2);display:block;margin-bottom:4px">⏰ Scadenza iscrizioni</label>';
+    iscHtml+='<input type="text" placeholder="Es. 10 Maggio 2026 ore 12:00" value="'+escV(iscCfg.scadenza||'')+'" onchange="saveIscCfg(&quot;scadenza&quot;,this.value)" style="font-size:13px"></div></div>';
+    iscHtml+='<div style="margin-bottom:10px"><label style="font-size:12px;font-weight:600;color:var(--txt2);display:block;margin-bottom:4px">🏢 Logo organizzatore (URL)</label>';
+    iscHtml+='<input type="text" placeholder="https://..." value="'+escV(iscCfg.logoOrg||'')+'" onchange="saveIscCfg(&quot;logoOrg&quot;,this.value)" style="font-size:13px"></div>';
+    iscHtml+='<div style="margin-bottom:10px"><label style="font-size:12px;font-weight:600;color:var(--txt2);display:block;margin-bottom:4px">📋 Info categorie (formato, anni, min. atleti)</label>';
+    (currentTorneo()?.categorie||[]).forEach(function(cat){
+      iscHtml+='<div style="background:var(--info);border-radius:8px;padding:8px 10px;margin-bottom:6px;border-left:3px solid '+(cat.colore||'#2d5fc4')+'">';
+      iscHtml+='<div style="font-size:12px;font-weight:700;color:'+(cat.colore||'#2d5fc4')+';margin-bottom:6px">'+(cat.emoji||'')+' '+cat.nome+'</div>';
+      iscHtml+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">';
+      iscHtml+='<input type="text" placeholder="Formato (es. 3x3)" value="'+escV((iscCfg.catInfo||{})[cat.id]?.formato||'')+'" onchange="saveIscCatInfo(&quot;'+cat.id+'&quot;,&quot;formato&quot;,this.value)" style="font-size:12px">';
+      iscHtml+='<input type="text" placeholder="Anni (es. 2016-2017)" value="'+escV((iscCfg.catInfo||{})[cat.id]?.anni||'')+'" onchange="saveIscCatInfo(&quot;'+cat.id+'&quot;,&quot;anni&quot;,this.value)" style="font-size:12px">';
+      iscHtml+='<input type="number" placeholder="Min. atleti" min="1" value="'+((iscCfg.catInfo||{})[cat.id]?.minAtleti||'')+'" onchange="saveIscCatInfo(&quot;'+cat.id+'&quot;,&quot;minAtleti&quot;,parseInt(this.value)||0)" style="font-size:12px;text-align:center">';
+      iscHtml+='</div></div>';
+    });
+    iscHtml+='</div>';
+    iscHtml+='<div style="margin-bottom:10px"><label style="font-size:12px;font-weight:600;color:var(--txt2);display:block;margin-bottom:4px">📝 Testo composizione squadre</label>';
+    iscHtml+='<textarea rows="2" onchange="saveIscCfg(&quot;testoComposizione&quot;,this.value)" placeholder="Es. Le squadre dovranno essere composte da min. 3 atleti." style="font-size:12px;resize:vertical">'+escV(iscCfg.testoComposizione||'')+'</textarea></div>';
+    iscHtml+='<div style="margin-bottom:10px"><label style="font-size:12px;font-weight:600;color:var(--txt2);display:block;margin-bottom:4px">✅ Testo accettazione regolamento</label>';
+    iscHtml+='<textarea rows="2" onchange="saveIscCfg(&quot;testoAccettazione&quot;,this.value)" placeholder="Es. Sottoscrivendo il modulo dichiaro di aver preso visione del regolamento." style="font-size:12px;resize:vertical">'+escV(iscCfg.testoAccettazione||'')+'</textarea></div>';
+    iscHtml+='<div><label style="font-size:12px;font-weight:600;color:var(--txt2);display:block;margin-bottom:4px">⚠️ Disclaimer</label>';
+    iscHtml+='<textarea rows="3" onchange="saveIscCfg(&quot;disclaimer&quot;,this.value)" placeholder="Es. L&apos;organizzazione declina ogni responsabilità..." style="font-size:12px;resize:vertical">'+escV(iscCfg.disclaimer||'')+'</textarea></div>';
+  }
+  iscHtml+='</div>';
+
   let html=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
     <div class="card-title" style="margin-bottom:0">⚙️ Setup gironi</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap">
       <button class="bsm" onclick="exportPDFProgramma()">📋 PDF programma</button>
       <button class="bsm bp" onclick="showAddCatModal()">+ Nuova categoria</button>
     </div>
-  </div>
-  <div style="background:var(--info);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--txt2);margin-bottom:1rem;line-height:1.7">
+  </div>`+iscHtml+`<div style="background:var(--info);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--txt2);margin-bottom:1rem;line-height:1.7">
     Imposta i campi disponibili per ogni categoria e crea i gironi. Puoi anche aggiungere nuove categorie personalizzate.
   </div>`;
 
@@ -850,6 +926,63 @@ function cambiaSetGirone(catId,fid,gv,nuoviSet){
   // Aggiorna sets in ogni partita
   g.partite.forEach(p=>{p.sets=nuoviSet;if(nuoviSet===1){p.s2h='';p.s2a='';}});
   sv();render();
+}
+function approvaIscrizione(iscId){
+  const isc=(window._iscrizioniAttesa||[]).find(i=>i.id===iscId);
+  if(!isc)return;
+  // Aggiungi società al torneo
+  const t=currentTorneo();if(!t)return;
+  if(!t.societa)t.societa=[];
+  // Costruisci bambini da atleti
+  const bambini={};
+  for(const k in isc.atlPerCat||{})bambini[k]=isc.atlPerCat[k]||0;
+  t.societa.push({
+    nome:isc.nomeSoc,
+    sqPerCat:{...isc.sqPerCat},
+    bambini,
+    logo:isc.logo||'',
+    referenti:[{nome:isc.dirigente,email:isc.email,tel:isc.cellulare}],
+    squadre:[]
+  });
+  sv();
+  // Segna come approvata su Firestore
+  if(window._fbDb&&window._currentUid){
+    window._fbDb.collection('iscrizioni').doc(window._currentUid+'_'+currentTorneoId)
+      .collection('richieste').doc(iscId).update({stato:'approvata'}).catch(()=>{});
+  }
+  window._iscrizioniAttesa=(window._iscrizioniAttesa||[]).filter(i=>i.id!==iscId);
+  render();
+}
+function rifiutaIscrizione(iscId){
+  if(!confirm('Rifiutare questa iscrizione?'))return;
+  if(window._fbDb&&window._currentUid){
+    window._fbDb.collection('iscrizioni').doc(window._currentUid+'_'+currentTorneoId)
+      .collection('richieste').doc(iscId).update({stato:'rifiutata'}).catch(()=>{});
+  }
+  window._iscrizioniAttesa=(window._iscrizioniAttesa||[]).filter(i=>i.id!==iscId);
+  render();
+}
+function copiaIscLink(){
+  const link=location.origin+location.pathname.replace('index.html','')+'iscrizione.html?u='+(window._currentUid||'')+'&t='+currentTorneoId;
+  navigator.clipboard.writeText(link).then(()=>alert('Link copiato!')).catch(()=>{prompt('Copia il link:',link);});
+}
+function toggleIscrizioni(val){
+  const t=currentTorneo();if(!t)return;
+  t.iscrizioniAperte=val;
+  if(val&&!t.iscrizioniConfig)t.iscrizioniConfig={};
+  sv();render();
+}
+function saveIscCfg(key,val){
+  const t=currentTorneo();if(!t)return;
+  if(!t.iscrizioniConfig)t.iscrizioniConfig={};
+  t.iscrizioniConfig[key]=val;sv();
+}
+function saveIscCatInfo(catId,key,val){
+  const t=currentTorneo();if(!t)return;
+  if(!t.iscrizioniConfig)t.iscrizioniConfig={};
+  if(!t.iscrizioniConfig.catInfo)t.iscrizioniConfig.catInfo={};
+  if(!t.iscrizioniConfig.catInfo[catId])t.iscrizioniConfig.catInfo[catId]={};
+  t.iscrizioniConfig.catInfo[catId][key]=val;sv();
 }
 function toggleRitorno(catId,fid,gv){const g=getGirone(catId,fid,gv);if(!g)return;g.ritorno=!g.ritorno;const old={};g.partite.filter(p=>p.leg===1||!p.leg).forEach(p=>{old[`${p.h}_${p.a}`]=p});const np=genPartite(g.squadre.length,g.ritorno,g.sets||2);np.forEach(p=>{if(p.leg===1){const o=old[`${p.h}_${p.a}`];if(o){p.s1h=o.s1h;p.s1a=o.s1a;p.s2h=o.s2h;p.s2a=o.s2a;}}});g.partite=np;sv();render();}
 function saveResult(catId,fid,gv,pid){

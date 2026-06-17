@@ -169,22 +169,30 @@ function topBar() {
     +'</div>';
 }
 
-function squadreBar() {
-  var nH = partita.h || '?';
-  var nA = partita.a || '?';
-  var socH = getSoc(nH);
-  var socA = getSoc(nA);
-  return '<div class="squadre">'
-    +'<div class="squadra home"><div class="sq-nome">'+nH+'</div><div class="sq-soc">'+(socH||'')+'</div></div>'
-    +'<div class="squadra away"><div class="sq-nome">'+nA+'</div><div class="sq-soc">'+(socA||'')+'</div></div>'
-    +'</div>';
+function getNomeSquadra(key) {
+  // key può essere un indice numerico o un nome diretto
+  if (!girone || !girone.squadre) return key || '?';
+  var idx = parseInt(key);
+  if (!isNaN(idx) && girone.squadre[idx]) return girone.squadre[idx];
+  return key || '?';
 }
 
-function getSoc(squadra) {
+function getSocDiSquadra(nomeSquadra) {
   var soc = (torneoData.societa||[]).find(function(s){
-    return (s.squadre||[]).indexOf(squadra) >= 0;
+    return (s.squadre||[]).indexOf(nomeSquadra) >= 0;
   });
   return soc ? soc.nome : '';
+}
+
+function squadreBar() {
+  var nH = getNomeSquadra(partita.h);
+  var nA = getNomeSquadra(partita.a);
+  var socH = getSocDiSquadra(nH);
+  var socA = getSocDiSquadra(nA);
+  return '<div class="squadre">'
+    +'<div class="squadra home"><div class="sq-nome">'+nH+'</div>'+(socH?'<div class="sq-soc">'+socH+'</div>':'')+'</div>'
+    +'<div class="squadra away"><div class="sq-nome">'+nA+'</div>'+(socA?'<div class="sq-soc">'+socA+'</div>':'')+'</div>'
+    +'</div>';
 }
 
 // ── SCELTA MODALITÀ ─────────────────────────────────────────
@@ -209,8 +217,8 @@ function setMode(m) {
 
 // ── MODALITÀ A — RISULTATO FINALE ───────────────────────────
 function renderFinale() {
-  var nH = partita.h || '?';
-  var nA = partita.a || '?';
+  var nH = getNomeSquadra(partita.h);
+  var nA = getNomeSquadra(partita.a);
   var nSets = girone.sets || 1;
   var html = topBar() + squadreBar();
   html += '<div class="finale-wrap">';
@@ -254,8 +262,8 @@ function mostraConferma() {
   var h = document.getElementById('scoreH').value.trim();
   var a = document.getElementById('scoreA').value.trim();
   if (h==='' || a==='') { alert('Inserisci entrambi i punteggi.'); return; }
-  var nH = partita.h || '?';
-  var nA = partita.a || '?';
+  var nH = getNomeSquadra(partita.h);
+  var nA = getNomeSquadra(partita.a);
   var nSets = girone.sets || 1;
   // Salva nel partita object
   if (currentSet===1){ partita.s1h=h; partita.s1a=a; }
@@ -328,8 +336,8 @@ function salvaFinale() {
 }
 
 function renderSalvato() {
-  var nH = partita.h || '?';
-  var nA = partita.a || '?';
+  var nH = getNomeSquadra(partita.h);
+  var nA = getNomeSquadra(partita.a);
   var html = topBar();
   html += '<div class="salvato-wrap">';
   html += '<div class="salvato-ico">✅</div>';
@@ -345,8 +353,8 @@ function renderSalvato() {
 
 // ── MODALITÀ B — PUNTO PER PUNTO ────────────────────────────
 function renderLive() {
-  var nH = partita.h || '?';
-  var nA = partita.a || '?';
+  var nH = getNomeSquadra(partita.h);
+  var nA = getNomeSquadra(partita.a);
   var nSets = girone.sets || 1;
   var s = liveSets[currentSet-1];
 
@@ -443,8 +451,8 @@ function switchSetLive(n) {
 }
 
 function confermaLive() {
-  var nH = partita.h || '?';
-  var nA = partita.a || '?';
+  var nH = getNomeSquadra(partita.h);
+  var nA = getNomeSquadra(partita.a);
   var nSets = girone.sets || 1;
   var html = topBar();
   html += '<div class="conferma-wrap">';

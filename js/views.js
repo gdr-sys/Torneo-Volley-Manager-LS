@@ -689,6 +689,7 @@ function renderSetupGironi(){
   // Assicura fase1 per tutte le categorie (solo in memoria)
   for(const cat of cats){if(!cat.fasi?.length)cat.fasi=[{id:uid(),label:'Fase 1',gironi:[]}];}
 
+  let html='';
   html+=`<div style="background:var(--info);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--txt2);margin-bottom:1rem;line-height:1.7">
     Imposta i campi disponibili per ogni categoria e crea i gironi. Puoi anche aggiungere nuove categorie personalizzate.
   </div>`;

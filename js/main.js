@@ -1,15 +1,19 @@
 /* Entry point — avvio applicazione con Firebase */
 'use strict';
 
+function renderPreserveScroll() {
+  const sy = window.scrollY;
+  render();
+  requestAnimationFrame(function(){ window.scrollTo(0, sy); });
+}
+
 function render() {
   try {
     const root = document.getElementById('root');
     if (!root) return;
-    const scrollY = window.scrollY; // salva posizione scroll
     if (view === 'home')              root.innerHTML = renderHome();
     else if (view === 'torneo-setup') root.innerHTML = renderTorneoSetup();
     else if (view === 'torneo')       root.innerHTML = renderTorneo();
-    window.scrollTo(0, scrollY); // ripristina posizione scroll
   } catch(e) {
     console.error('Render error:', e);
     const root = document.getElementById('root');

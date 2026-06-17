@@ -904,6 +904,35 @@ function saveSquadre(catId,fid,gv){
   if(giocate>0&&!confirm(`Attenzione: ci sono ${giocate} risultat${giocate===1?'o':'i'} già inserit${giocate===1?'o':'i'}. Rigenerare le partite li cancellerà. Continuare?`))return;
   g.partite=genPartite(g.squadre.length,g.ritorno||false,g.sets||2);sv();render();
 }
+function apriSegnapunti(catId,fid,gv,pid){
+  const base=location.origin+location.pathname.replace('index.html','')+'segnapunti.html';
+  const link=base+'?u='+(window._currentUid||'')+'&t='+currentTorneoId+'&c='+catId+'&f='+fid+'&g='+gv+'&p='+pid;
+  // Mostra popup con QR e link
+  const existing=document.getElementById('_sqModal');
+  if(existing)existing.remove();
+  const modal=document.createElement('div');
+  modal.id='_sqModal';
+  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  modal.innerHTML=`<div style="background:#fff;border-radius:16px;padding:24px;max-width:340px;width:100%;box-shadow:0 8px 40px rgba(0,0,0,.2)">
+    <div style="font-weight:700;font-size:16px;margin-bottom:16px">📲 Link segnapunti</div>
+    <div id="_sqQR" style="text-align:center;margin-bottom:16px"></div>
+    <div style="background:#f3f4f6;border-radius:8px;padding:10px;font-size:11px;word-break:break-all;color:#374151;margin-bottom:14px">${link}</div>
+    <div style="display:flex;gap:8px">
+      <button class="bp bsm" style="flex:1" onclick="navigator.clipboard.writeText('${link}').then(()=>alert('Link copiato!'))">📋 Copia link</button>
+      <button class="bsm" style="flex:1" onclick="document.getElementById('_sqModal').remove()">Chiudi</button>
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click',function(e){if(e.target===modal)modal.remove();});
+  // Genera QR
+  const qrDiv=document.getElementById('_sqQR');
+  if(qrDiv){
+    const qrImg=document.createElement('img');
+    qrImg.src='https://api.qrserver.com/v1/create-qr-code/?size=180x180&data='+encodeURIComponent(link);
+    qrImg.style.cssText='width:180px;height:180px;border-radius:8px';
+    qrDiv.appendChild(qrImg);
+  }
+}
 function toggleInCorso(catId,fid,gv,pid){
   const g=getGirone(catId,fid,gv);if(!g)return;
   const p=g.partite[pid];if(!p)return;
@@ -1140,6 +1169,9 @@ function renderGironeContent(catId,fase,g){
         <button class="${p.inCorso?'bg':'bsm'}" style="padding:8px;font-size:11px" onclick="toggleInCorso('${catId}','${fase.id}','${g.id}',${pid})" title="Segna come partita in corso nella live">${p.inCorso?'🔴 In corso':'▶ Live'}</button>
         <button class="bp" style="flex:1;padding:8px;font-size:13px;font-weight:600" onclick="saveResult('${catId}','${fase.id}','${g.id}',${pid})">✓ Salva</button>
         ${played?`<button style="padding:8px 14px;font-size:13px" class="bd" onclick="clearResult('${catId}','${fase.id}','${g.id}',${pid})">✕</button>`:''}
+      </div>
+      <div style="margin-top:4px">
+        <button class="bsm" style="font-size:11px;width:100%;padding:6px" onclick="apriSegnapunti('${catId}','${fase.id}','${g.id}',${pid})">📲 Link segnapunti</button>
       </div>
       ${played?`<div class="saved">✓ Set1: ${p.s1h}–${p.s1a}${sets===2&&p.s2h!==''?' | Set2: '+p.s2h+'–'+p.s2a:''}</div>`:''}
       <div style="display:flex;gap:6px;align-items:center;margin-top:4px;flex-wrap:wrap">

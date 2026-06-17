@@ -1,3 +1,4 @@
+// v=20260617-fix-societa
 /* Render: Home, Wizard, Torneo, Società, Setup, Categoria, Builder */
 'use strict';
 
@@ -461,14 +462,7 @@ function renderSocieta(){
   }
   iscHtml+='</div>';
 
-  html+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
-    <div class="card-title" style="margin-bottom:0">⚙️ Setup gironi</div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap">
-      <button class="bsm" onclick="exportPDFProgramma()">📋 PDF programma</button>
-      <button class="bsm bp" onclick="showAddCatModal()">+ Nuova categoria</button>
-    </div>
 
-  `;
   html+=`<div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
       <div class="card-title" style="margin-bottom:0">🏢 Società partecipanti</div>

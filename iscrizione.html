@@ -87,7 +87,8 @@ async function init() {
     torneoData = torneo;
     renderForm(torneo);
   } catch(e) {
-    card.innerHTML = `<div class="error-page">❌ Errore: ${e.message}<br><small>Contatta l'organizzatore.</small></div>`;
+    const msg = e.code || e.message || 'Errore sconosciuto';
+    card.innerHTML = '<div class="error-page">❌ Errore: '+msg+'<br><small>Contatta l'organizzatore.<br>Codice: '+(e.code||'N/A')+'</small></div>';
   }
 }
 

@@ -87,11 +87,12 @@
 
     _unsubLive = _fbDb.collection('utenti').doc(user.uid).collection('dati').doc('tornei')
       .onSnapshot(function(snap) {
-        if (snap.exists && !snap.metadata.fromCache) {
-          DB = snap.data() || { tornei: {} };
-          if (!DB.tornei) DB.tornei = {};
+        if (snap.exists) {
+          var newDB = snap.data() || { tornei: {} };
+          if (!newDB.tornei) newDB.tornei = {};
+          DB = newDB;
           try { new BroadcastChannel('torneo_update').postMessage('update'); } catch(e) {}
-          // Aggiorna UI se la modifica viene da un altro dispositivo (segnapunti)
+          // Aggiorna UI ad ogni cambiamento (anche da segnapunti esterni)
           if (typeof renderPreserveScroll === 'function') renderPreserveScroll();
         }
       });

@@ -88,6 +88,16 @@
     .sets-tabs{display:flex;gap:6px;padding:12px 16px;background:#f9fafb;border-bottom:1px solid #f0f0f0;overflow-x:auto}
     .set-tab{padding:6px 14px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;border:2px solid #e5e7eb;background:#fff;color:#374151;white-space:nowrap}
     .set-tab.active{background:#1e40af;color:#fff;border-color:#1e40af}
+    .timer-bar{background:#1e293b;color:#fff;padding:14px 16px;text-align:center;border-bottom:2px solid #1e40af}
+    .timer-display{font-size:48px;font-weight:900;font-variant-numeric:tabular-nums;letter-spacing:2px;line-height:1}
+    .timer-display.warning{color:#fbbf24}
+    .timer-display.danger{color:#ef4444;animation:pulse 1s infinite}
+    .timer-label{font-size:11px;color:#94a3b8;margin-bottom:6px;letter-spacing:1px;text-transform:uppercase}
+    .btn-timer{padding:10px 24px;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin:0 4px}
+    .btn-timer-start{background:#166534;color:#fff}
+    .btn-timer-pause{background:#92400e;color:#fff}
+    .btn-timer-reset{background:#374151;color:#fff}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
   </style>
 </head>
 <body>
@@ -124,6 +134,11 @@ var scoreH = 0, scoreA = 0;
 var currentSet = 1; // per modalità live con 2 set
 var liveSets = [{h:0,a:0},{h:0,a:0}];
 var saving = false;
+var timerMinuti = parseInt(params.get('timer')) || 0;  // 0 = no timer
+var timerSecondi = timerMinuti * 60;
+var timerRimasti = timerSecondi;
+var timerRunning = false;
+var timerInterval = null;
 
 function app(html){ document.getElementById('app').innerHTML = html; }
 function showError(msg){ app('<div class="error">❌ '+msg+'</div>'); }
@@ -206,7 +221,7 @@ function squadreBar() {
 function renderScelta() {
   var nH = partita.h || '?';
   var nA = partita.a || '?';
-  var html = topBar() + squadreBar();
+  var html = topBar() + renderTimerBar() + squadreBar();
   html += '<div class="mode-card">';
   html += '<div class="mode-title">Come vuoi inserire il risultato?</div>';
   html += '<div class="mode-sub">Scegli la modalità più adatta alla situazione.</div>';
@@ -227,7 +242,7 @@ function renderFinale() {
   var nH = getNomeSquadra(partita.h);
   var nA = getNomeSquadra(partita.a);
   var nSets = girone.sets || 1;
-  var html = topBar() + squadreBar();
+  var html = topBar() + renderTimerBar() + squadreBar();
   html += '<div class="finale-wrap">';
 
   if (nSets === 2) {
@@ -359,13 +374,100 @@ function renderSalvato() {
 }
 
 // ── MODALITÀ B — PUNTO PER PUNTO ────────────────────────────
+function renderTimerBar() {
+  if (!timerMinuti) return '';
+  var mins = Math.floor(timerRimasti / 60);
+  var secs = timerRimasti % 60;
+  var display = (mins < 10 ? '0' : '') + mins + ':' + (secs < 10 ? '0' : '') + secs;
+  var cls = timerRimasti <= 30 ? 'danger' : timerRimasti <= 60 ? 'warning' : '';
+  var stato = timerRimasti <= 0 ? 'SCADUTO' : timerRunning ? 'IN CORSO' : (timerRimasti === timerSecondi ? 'PRONTO' : 'IN PAUSA');
+  return '<div class="timer-bar">'
+    + '<div class="timer-label">⏱ ' + stato + '</div>'
+    + '<div class="timer-display ' + cls + '">' + display + '</div>'
+    + '<div style="display:flex;justify-content:center;gap:8px;margin-top:12px">'
+    + (timerRunning
+        ? '<button class="btn-timer btn-timer-pause" onclick="pausaTimer()">⏸ Pausa</button>'
+        : '<button class="btn-timer btn-timer-start" onclick="avviaTimer()">' + (timerRimasti < timerSecondi && timerRimasti > 0 ? '▶ Riprendi' : '▶ Avvia') + '</button>')
+    + '<button class="btn-timer btn-timer-reset" onclick="resetTimer()">↺ Reset</button>'
+    + '</div></div>';
+}
+
+function avviaTimer() {
+  if (timerRimasti <= 0) resetTimer();
+  timerRunning = true;
+  timerInterval = setInterval(function() {
+    if (timerRimasti > 0) {
+      timerRimasti--;
+      var el = document.querySelector('.timer-display');
+      if (el) {
+        var mins = Math.floor(timerRimasti / 60);
+        var secs = timerRimasti % 60;
+        el.textContent = (mins < 10 ? '0' : '') + mins + ':' + (secs < 10 ? '0' : '') + secs;
+        el.className = 'timer-display ' + (timerRimasti <= 30 ? 'danger' : timerRimasti <= 60 ? 'warning' : '');
+        var lbl = document.querySelector('.timer-label');
+        if (lbl) lbl.textContent = '⏱ IN CORSO';
+      }
+    } else {
+      pausaTimer();
+      var el2 = document.querySelector('.timer-display');
+      if (el2) { el2.textContent = '00:00'; el2.className = 'timer-display danger'; }
+      var lbl2 = document.querySelector('.timer-label');
+      if (lbl2) lbl2.textContent = '⏱ SCADUTO';
+      // Vibra se disponibile
+      if (navigator.vibrate) navigator.vibrate([500,200,500]);
+    }
+  }, 1000);
+  // Aggiorna pulsanti
+  var bar = document.querySelector('.timer-bar');
+  if (bar) {
+    var pauseBtn = '<button class="btn-timer btn-timer-pause" onclick="pausaTimer()">⏸ Pausa</button>';
+    var resetBtn = '<button class="btn-timer btn-timer-reset" onclick="resetTimer()">↺ Reset</button>';
+    var btnDiv = bar.querySelector('div:last-child');
+    if (btnDiv) btnDiv.innerHTML = pauseBtn + resetBtn;
+  }
+}
+
+function pausaTimer() {
+  timerRunning = false;
+  clearInterval(timerInterval);
+  var bar = document.querySelector('.timer-bar');
+  if (bar) {
+    var startBtn = '<button class="btn-timer btn-timer-start" onclick="avviaTimer()">▶ Riprendi</button>';
+    var resetBtn = '<button class="btn-timer btn-timer-reset" onclick="resetTimer()">↺ Reset</button>';
+    var btnDiv = bar.querySelector('div:last-child');
+    if (btnDiv) btnDiv.innerHTML = startBtn + resetBtn;
+    var lbl = bar.querySelector('.timer-label');
+    if (lbl) lbl.textContent = '⏱ IN PAUSA';
+  }
+}
+
+function resetTimer() {
+  timerRunning = false;
+  clearInterval(timerInterval);
+  timerRimasti = timerSecondi;
+  var bar = document.querySelector('.timer-bar');
+  if (bar) {
+    var mins = Math.floor(timerRimasti / 60);
+    var secs = timerRimasti % 60;
+    var display = (mins < 10 ? '0' : '') + mins + ':' + (secs < 10 ? '0' : '') + secs;
+    var el = bar.querySelector('.timer-display');
+    if (el) { el.textContent = display; el.className = 'timer-display'; }
+    var lbl = bar.querySelector('.timer-label');
+    if (lbl) lbl.textContent = '⏱ PRONTO';
+    var startBtn = '<button class="btn-timer btn-timer-start" onclick="avviaTimer()">▶ Avvia</button>';
+    var resetBtn = '<button class="btn-timer btn-timer-reset" onclick="resetTimer()">↺ Reset</button>';
+    var btnDiv = bar.querySelector('div:last-child');
+    if (btnDiv) btnDiv.innerHTML = startBtn + resetBtn;
+  }
+}
+
 function renderLive() {
   var nH = getNomeSquadra(partita.h);
   var nA = getNomeSquadra(partita.a);
   var nSets = girone.sets || 1;
   var s = liveSets[currentSet-1];
 
-  var html = topBar();
+  var html = topBar() + renderTimerBar();
 
   if (nSets===2) {
     html += '<div class="sets-tabs">';

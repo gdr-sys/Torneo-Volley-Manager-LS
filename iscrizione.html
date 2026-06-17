@@ -112,7 +112,7 @@ function renderForm(t) {
   html += '<div class="sec">Dati societa</div>';
   html += '<div id="errMsg" class="msg-err"></div>';
   html += '<label>Nome societa *</label>';
-  html += '<input type="text" id="nomeSoc" placeholder="Es. ASD Pallavolo">';
+  html += '<input type="text" id="nomeSoc" placeholder="Es. ASD Pallavolo Pesaro">';
   html += '<label>Dirigente responsabile *</label>';
   html += '<input type="text" id="dirigente" placeholder="Nome e cognome">';
   html += '<div class="two-col">';
@@ -153,9 +153,9 @@ function renderForm(t) {
   var testoAcc = cfg.testoAccettazione || 'La societa sottoscrivendo il presente modulo dichiara di aver preso visione del regolamento e di accettarlo integralmente.';
   html += '<div class="checkbox-row"><input type="checkbox" id="accetto"><label for="accetto">' + testoAcc + '</label></div>';
 
-  if (cfg.disclaimer) {
-    html += '<div class="disclaimer">' + cfg.disclaimer + '</div>';
-  }
+  var defaultDisc = "L'organizzazione declina ogni responsabilita per eventuali incidenti o fatti che potranno accadere prima, durante e dopo il torneo, salvo quanto previsto dalla assicurativa dei cartellini struttura giovanile e CONI - SPORTASS (compresi eventuali furti o smarrimenti che accadessero durante la manifestazione).";
+  var discText = cfg.disclaimer || defaultDisc;
+  html += '<div class="disclaimer">' + discText + '</div>';
 
   html += '<button class="btn" id="inviaBtn" onclick="invia()">Invia iscrizione</button>';
   html += '<div class="msg-ok" id="okMsg">Iscrizione inviata con successo! L\'organizzatore ti contatter&agrave; a breve.</div>';

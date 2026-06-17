@@ -91,6 +91,8 @@
           DB = snap.data() || { tornei: {} };
           if (!DB.tornei) DB.tornei = {};
           try { new BroadcastChannel('torneo_update').postMessage('update'); } catch(e) {}
+          // Aggiorna UI se la modifica viene da un altro dispositivo (segnapunti)
+          if (typeof renderPreserveScroll === 'function') renderPreserveScroll();
         }
       });
 

@@ -906,7 +906,7 @@ function saveSquadre(catId,fid,gv){
 }
 function condividiLive(){
   const base=location.href.replace(/[^/]*$/,'').replace('index.html','');
-  const link=base+'live.html';
+  const link=base+'live.html?u='+(window._currentUid||'');
   // Mostra popup con link e QR
   const existing=document.getElementById('_shareModal');
   if(existing)existing.remove();

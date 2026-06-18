@@ -238,7 +238,28 @@ function _initFirebaseLive() {
       } catch(e) {} // già inizializzato
       var db = firebase.firestore();
 
-      // Ascolta live_pubblica/stato — lettura pubblica
+      // Se c'è ?u=uid nel link, usa quello direttamente (link personalizzato)
+      var urlUid = new URLSearchParams(location.search).get('u');
+      if (urlUid) {
+        // Link personalizzato con uid — ascolta i dati direttamente
+        localStorage.setItem('torneo_live_uid', urlUid);
+        db.collection('utenti').doc(urlUid).collection('dati').doc('tornei')
+          .onSnapshot(function(snap) {
+            if (snap.exists) {
+              window._liveDB = snap.data();
+              // Prendi il torneo attivo da live_pubblica/stato o il primo disponibile
+              db.collection('live_pubblica').doc('stato').get().then(function(s) {
+                if (s.exists && s.data().uid === urlUid) {
+                  window._liveTorneoId = s.data().torneoId;
+                }
+                if (typeof renderLive === 'function') renderLive();
+              }).catch(function() {
+                if (typeof renderLive === 'function') renderLive();
+              });
+            }
+          });
+      } else {
+      // Nessun uid nel link — usa live_pubblica/stato (comportamento precedente)
       db.collection('live_pubblica').doc('stato').onSnapshot(function(statoSnap) {
         if (!statoSnap.exists) {
           _loadFromLocalStorage();
@@ -261,6 +282,7 @@ function _initFirebaseLive() {
         console.warn('Firebase live error:', err);
         _loadFromLocalStorage();
       });
+      } // fine else (no uid in URL)
     };
     document.head.appendChild(s2);
   };

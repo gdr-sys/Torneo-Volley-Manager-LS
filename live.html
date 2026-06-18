@@ -240,22 +240,20 @@ function _initFirebaseLive() {
 
       // Se c'è ?u=uid nel link, usa quello direttamente (link personalizzato)
       var urlUid = new URLSearchParams(location.search).get('u');
+      var urlTorneoId = new URLSearchParams(location.search).get('t');
       if (urlUid) {
         // Link personalizzato con uid — ascolta i dati direttamente
         localStorage.setItem('torneo_live_uid', urlUid);
+        if (urlTorneoId) localStorage.setItem('torneo_live_id', urlTorneoId);
         db.collection('utenti').doc(urlUid).collection('dati').doc('tornei')
           .onSnapshot(function(snap) {
             if (snap.exists) {
               window._liveDB = snap.data();
-              // Prendi il torneo attivo da live_pubblica/stato o il primo disponibile
-              db.collection('live_pubblica').doc('stato').get().then(function(s) {
-                if (s.exists && s.data().uid === urlUid) {
-                  window._liveTorneoId = s.data().torneoId;
-                }
-                if (typeof renderLive === 'function') renderLive();
-              }).catch(function() {
-                if (typeof renderLive === 'function') renderLive();
-              });
+              // Usa torneoId dall'URL se presente
+              if (urlTorneoId) {
+                localStorage.setItem('torneo_live_id', urlTorneoId);
+              }
+              if (typeof renderLive === 'function') renderLive();
             }
           });
       } else {

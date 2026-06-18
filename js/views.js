@@ -729,7 +729,7 @@ function renderSetupGironi(){
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
         <select style="width:auto;padding:5px 8px;font-size:13px" onchange="setPref('${cat.id}','sz',parseInt(this.value))">
-          ${[3,4,5,6,7,8].map(n=>`<option value="${n}"${sz===n?' selected':''}>${n} sq/girone</option>`).join('')}
+          ${[3,4,5,6,7,8,9,10].map(n=>`<option value="${n}"${sz===n?' selected':''}>${n} sq/girone</option>`).join('')}
         </select>
         <select style="width:auto;padding:5px 8px;font-size:13px" onchange="setPref('${cat.id}','sets',parseInt(this.value))">
           <option value="1"${sets===1?' selected':''}>1 set</option>
@@ -1583,8 +1583,12 @@ function renderBuilder(catId){
     <div style="background:var(--info);border-radius:8px;padding:12px;margin-bottom:12px">
       <div class="sec">Classifica generale</div>
       <table><thead><tr><th>#</th><th>Squadra</th><th>Soc</th><th>Da</th><th>Q.Set</th><th>Destino</th></tr></thead><tbody>
-      ${generale.map((tt,i)=>`<tr style="${i<numElim?'background:rgba(254,249,195,0.3)':''}"><td style="font-weight:700;color:${i<numElim?'#854d0e':'#166534'}">${i+1}</td><td style="font-weight:600">${tt.nome}</td><td style="font-size:11px;color:var(--txt2)">${tt.soc||''}</td><td style="font-size:11px;color:var(--txt2)">${tt.posLabel}</td><td>${tt.sp>0?(tt.sv/tt.sp).toFixed(2):tt.sv}</td><td style="font-size:11px;font-weight:700;color:${i<numElim?'#854d0e':'#166534'}">${i<numElim?(mode==='gironi'?'🏆':'⚡ Elim'):(mode==='quarti'?'—':'🏆 Girone')}</td></tr>`).join('')}
+      ${generale.map((tt,i)=>`<tr style="${i<numElim?'background:rgba(254,249,195,0.3)':''}"><td style="font-weight:700;color:${i<numElim?'#854d0e':'#166534'}">${i+1}</td><td style="font-weight:600">${tt.nome}</td><td style="font-size:11px;color:var(--txt2)">${tt.soc||''}</td><td style="font-size:11px;color:var(--txt2)">${tt.posLabel}</td><td>${tt.sp>0?(tt.sv/tt.sp).toFixed(2):tt.sv}</td><td>${i<numElim
+  ? `<span style="background:#fef3c7;color:#92400e;padding:3px 8px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap">⚡ Eliminazione</span>`
+  : `<span style="background:#dcfce7;color:#166534;padding:3px 8px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap">🏆 Girone</span>`
+}</td></tr>`).join('')}
       </tbody></table>
+      ${mode==='entrambi'?'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;font-size:12px;line-height:1.6"><div><span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:10px;font-weight:700;margin-right:4px">⚡ Eliminazione</span>Prime '+numElim+' &rarr; tabellone eliminazione</div><div><span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px;font-weight:700;margin-right:4px">&#127942; Girone</span>Restanti '+(generale.length-numElim)+' &rarr; gironi di consolazione</div></div>':''}
     </div>`;
   // Selector set per eliminazione (sempre visibile se non solo gironi)
   if(mode!=='gironi'){

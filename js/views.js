@@ -925,6 +925,10 @@ function condividiLive(){
         💬 WhatsApp
       </button>
     </div>
+    <button onclick="stampaPDFLive('${link}')"
+      style="width:100%;padding:10px;background:#1e40af;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px">
+      🖨️ Stampa foglio QR
+    </button>
     <button onclick="document.getElementById('_shareModal').remove()"
       style="width:100%;padding:10px;background:#f3f4f6;color:#374151;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">
       Chiudi
@@ -939,6 +943,65 @@ function condividiLive(){
     qrImg.style.cssText='width:180px;height:180px;border-radius:8px';
     qrDiv.appendChild(qrImg);
   }
+}
+function stampaPDFLive(link){
+  const t=currentTorneo();
+  if(!t)return;
+  const nome=t.nome||'Torneo';
+  const cfg=t.pageConfig||{};
+  const sponsorOn=!!cfg.sponsorEnabled;
+  const menuOn=!!cfg.menuEnabled;
+  const infoOn=!!cfg.infoEnabled;
+
+  // Crea pagina HTML temporanea e stampa
+  const extras=[];
+  extras.push('📊 Classifiche in tempo reale');
+  extras.push('🏐 Partite e risultati');
+  extras.push('⚡ Tabellone eliminazione');
+  if(sponsorOn)extras.push('🤝 Sponsor');
+  if(menuOn)extras.push('🍕 Menu bar');
+  if(infoOn)extras.push('ℹ️ Info evento');
+
+  const qrUrl='https://api.qrserver.com/v1/create-qr-code/?size=400x400&data='+encodeURIComponent(link);
+
+  const html=`<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:system-ui,sans-serif;background:#fff;color:#111;padding:40px;text-align:center}
+  .titolo{font-size:32px;font-weight:900;color:#1e40af;margin-bottom:8px}
+  .sub{font-size:16px;color:#6b7280;margin-bottom:32px}
+  .qr{width:280px;height:280px;border:3px solid #1e40af;border-radius:16px;padding:8px;margin:0 auto 28px}
+  .features{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-bottom:28px}
+  .feat{background:#eff6ff;color:#1e40af;padding:8px 16px;border-radius:20px;font-size:15px;font-weight:600}
+  .link{font-size:12px;color:#9ca3af;word-break:break-all;margin-top:8px}
+  .scan{font-size:20px;font-weight:700;color:#111;margin-bottom:8px}
+  @media print{body{padding:20px}}
+</style>
+</head>
+<body>
+  <div class="titolo">${nome}</div>
+  <div class="sub">Segui il torneo in diretta dal tuo telefono</div>
+  <img class="qr" src="${qrUrl}" alt="QR Code">
+  <div class="scan">📱 Scansiona per seguire il torneo</div>
+  <div style="font-size:14px;color:#6b7280;margin-bottom:20px">Aggiornamento in tempo reale</div>
+  <div class="features">
+    ${extras.map(function(e){return '<div class="feat">'+e+'</div>';}).join('')}
+  </div>
+  <div class="link">${link}</div>
+  <script>
+    // Aspetta il caricamento del QR poi stampa
+    document.querySelector('img').onload=function(){window.print();};
+    document.querySelector('img').onerror=function(){window.print();};
+    setTimeout(function(){window.print();},3000);
+  </script>
+</body>
+</html>`;
+
+  const win=window.open('','_blank','width=600,height=800');
+  if(win){win.document.write(html);win.document.close();}
 }
 function mandaWhatsAppLive(link){
   var t=currentTorneo();

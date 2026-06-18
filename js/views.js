@@ -904,6 +904,48 @@ function saveSquadre(catId,fid,gv){
   if(giocate>0&&!confirm(`Attenzione: ci sono ${giocate} risultat${giocate===1?'o':'i'} già inserit${giocate===1?'o':'i'}. Rigenerare le partite li cancellerà. Continuare?`))return;
   g.partite=genPartite(g.squadre.length,g.ritorno||false,g.sets||2);sv();render();
 }
+function condividiLive(){
+  const base=location.href.replace(/[^/]*$/,'').replace('index.html','');
+  const link=base+'live.html';
+  // Mostra popup con link e QR
+  const existing=document.getElementById('_shareModal');
+  if(existing)existing.remove();
+  const modal=document.createElement('div');
+  modal.id='_shareModal';
+  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  modal.innerHTML=`<div style="background:#fff;border-radius:16px;padding:24px;max-width:340px;width:100%;box-shadow:0 8px 40px rgba(0,0,0,.2)">
+    <div style="font-weight:700;font-size:16px;margin-bottom:4px">🔗 Link live pubblica</div>
+    <div style="font-size:12px;color:#6b7280;margin-bottom:16px">Condividi con genitori e spettatori</div>
+    <div id="_shareQR" style="text-align:center;margin-bottom:16px"></div>
+    <div style="background:#f3f4f6;border-radius:8px;padding:10px;font-size:12px;word-break:break-all;color:#374151;margin-bottom:14px">${link}</div>
+    <div style="display:flex;gap:8px;margin-bottom:8px">
+      <button class="bp bsm" style="flex:1" onclick="navigator.clipboard.writeText('${link}').then(()=>alert('Link copiato!'))">📋 Copia link</button>
+      <button onclick="mandaWhatsAppLive('${link}')"
+        style="flex:1;padding:8px;background:#25d366;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">
+        💬 WhatsApp
+      </button>
+    </div>
+    <button onclick="document.getElementById('_shareModal').remove()"
+      style="width:100%;padding:10px;background:#f3f4f6;color:#374151;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">
+      Chiudi
+    </button>
+  </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click',function(e){if(e.target===modal)modal.remove();});
+  const qrDiv=document.getElementById('_shareQR');
+  if(qrDiv){
+    const qrImg=document.createElement('img');
+    qrImg.src='https://api.qrserver.com/v1/create-qr-code/?size=180x180&data='+encodeURIComponent(link);
+    qrImg.style.cssText='width:180px;height:180px;border-radius:8px';
+    qrDiv.appendChild(qrImg);
+  }
+}
+function mandaWhatsAppLive(link){
+  var t=currentTorneo();
+  var nome=t?t.nome:'il torneo';
+  var msg='Segui '+nome+' in diretta! Classifiche, partite e risultati in tempo reale:\n'+link;
+  window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');
+}
 function apriSegnapunti(catId,fid,gv,pid){
   const existing=document.getElementById('_sqModal');
   if(existing)existing.remove();

@@ -949,60 +949,49 @@ function stampaPDFLive(link){
   if(!t)return;
   const nome=t.nome||'Torneo';
   const cfg=t.pageConfig||{};
-  const sponsorOn=!!cfg.sponsorEnabled;
-  const menuOn=!!cfg.menuEnabled;
-  const infoOn=!!cfg.infoEnabled;
-
-  // Crea pagina HTML temporanea e stampa
-  const extras=[];
-  extras.push('📊 Classifiche in tempo reale');
-  extras.push('🏐 Partite e risultati');
-  extras.push('⚡ Tabellone eliminazione');
-  if(sponsorOn)extras.push('🤝 Sponsor');
-  if(menuOn)extras.push('🍕 Menu bar');
-  if(infoOn)extras.push('ℹ️ Info evento');
+  const extras=['📊 Classifiche in tempo reale','🏐 Partite e risultati','⚡ Tabellone eliminazione'];
+  if(cfg.sponsorEnabled)extras.push('🤝 Sponsor');
+  if(cfg.menuEnabled)extras.push('🍕 Menu bar');
+  if(cfg.infoEnabled)extras.push('ℹ️ Info evento');
 
   const qrUrl='https://api.qrserver.com/v1/create-qr-code/?size=400x400&data='+encodeURIComponent(link);
+  const featsHtml=extras.map(function(e){return '<div class="feat">'+e+'</div>';}).join('');
 
-  const html=`<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<style>
-  *{margin:0;padding:0;box-sizing:border-box}
-  body{font-family:system-ui,sans-serif;background:#fff;color:#111;padding:40px;text-align:center}
-  .titolo{font-size:32px;font-weight:900;color:#1e40af;margin-bottom:8px}
-  .sub{font-size:16px;color:#6b7280;margin-bottom:32px}
-  .qr{width:280px;height:280px;border:3px solid #1e40af;border-radius:16px;padding:8px;margin:0 auto 28px}
-  .features{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-bottom:28px}
-  .feat{background:#eff6ff;color:#1e40af;padding:8px 16px;border-radius:20px;font-size:15px;font-weight:600}
-  .link{font-size:12px;color:#9ca3af;word-break:break-all;margin-top:8px}
-  .scan{font-size:20px;font-weight:700;color:#111;margin-bottom:8px}
-  @media print{body{padding:20px}}
-</style>
-</head>
-<body>
-  <div class="titolo">${nome}</div>
-  <div class="sub">Segui il torneo in diretta dal tuo telefono</div>
-  <img class="qr" src="${qrUrl}" alt="QR Code">
-  <div class="scan">📱 Scansiona per seguire il torneo</div>
-  <div style="font-size:14px;color:#6b7280;margin-bottom:20px">Aggiornamento in tempo reale</div>
-  <div class="features">
-    ${extras.map(function(e){return '<div class="feat">'+e+'</div>';}).join('')}
-  </div>
-  <div class="link">${link}</div>
-  <script>
-    // Aspetta il caricamento del QR poi stampa
-    document.querySelector('img').onload=function(){window.print();};
-    document.querySelector('img').onerror=function(){window.print();};
-    setTimeout(function(){window.print();},3000);
-  </script>
-</body>
-</html>`;
+  const win=window.open('','_blank','width=640,height=900');
+  if(!win){alert('Popup bloccato. Consenti i popup per questo sito.');return;}
 
-  const win=window.open('','_blank','width=600,height=800');
-  if(win){win.document.write(html);win.document.close();}
+  win.document.open();
+  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><style>');
+  win.document.write('*{margin:0;padding:0;box-sizing:border-box}');
+  win.document.write('body{font-family:system-ui,sans-serif;background:#fff;color:#111;padding:40px;text-align:center}');
+  win.document.write('.titolo{font-size:32px;font-weight:900;color:#1e40af;margin-bottom:8px}');
+  win.document.write('.sub{font-size:16px;color:#6b7280;margin-bottom:32px}');
+  win.document.write('.qr{width:280px;height:280px;border:3px solid #1e40af;border-radius:16px;padding:8px;margin:0 auto 28px;display:block}');
+  win.document.write('.features{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-bottom:28px}');
+  win.document.write('.feat{background:#eff6ff;color:#1e40af;padding:8px 16px;border-radius:20px;font-size:15px;font-weight:600}');
+  win.document.write('.link{font-size:12px;color:#9ca3af;word-break:break-all;margin-top:8px}');
+  win.document.write('.scan{font-size:20px;font-weight:700;color:#111;margin-bottom:8px}');
+  win.document.write('@media print{body{padding:20px}}');
+  win.document.write('</style></head><body>');
+  win.document.write('<div class="titolo">'+nome+'</div>');
+  win.document.write('<div class="sub">Segui il torneo in diretta dal tuo telefono</div>');
+  win.document.write('<img class="qr" id="qrimg" src="'+qrUrl+'" alt="QR Code">');
+  win.document.write('<div class="scan">📱 Scansiona per seguire il torneo</div>');
+  win.document.write('<div style="font-size:14px;color:#6b7280;margin-bottom:20px">Aggiornamento in tempo reale</div>');
+  win.document.write('<div class="features">'+featsHtml+'</div>');
+  win.document.write('<div class="link">'+link+'</div>');
+  win.document.write('</body></html>');
+  win.document.close();
+
+  // Stampa dopo che il QR è caricato
+  var qrEl=win.document.getElementById('qrimg');
+  if(qrEl){
+    qrEl.onload=function(){setTimeout(function(){win.print();},300);};
+    qrEl.onerror=function(){setTimeout(function(){win.print();},300);};
+  }
+  setTimeout(function(){if(!win.closed)win.print();},3500);
 }
+
 function mandaWhatsAppLive(link){
   var t=currentTorneo();
   var nome=t?t.nome:'il torneo';
